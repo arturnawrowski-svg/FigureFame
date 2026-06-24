@@ -27,7 +27,7 @@ function App() {
     <div className="app-container">
       <nav className="top-nav animate-fade-in">
         <div className="nav-links">
-          <button className="nav-btn" onClick={() => alert("FigureFrame MVP\n\nPlatforma łącząca kolekcjonowanie japońskich figurek z generatorem komiksów opartym na AI.")}>
+          <button className="nav-btn" onClick={() => alert("FigureFame MVP\n\nPlatforma łącząca kolekcjonowanie japońskich figurek z generatorem komiksów opartym na AI.")}>
             <Info size={18} /> About
           </button>
           <button className="nav-btn" onClick={() => setIsLoggedIn(!isLoggedIn)}>
@@ -37,7 +37,7 @@ function App() {
       </nav>
 
       <header>
-        <h1>FigureFrame</h1>
+        <h1>FigureFame</h1>
         <p>Cyfrowa gablota i AI Comic Creator</p>
       </header>
 
