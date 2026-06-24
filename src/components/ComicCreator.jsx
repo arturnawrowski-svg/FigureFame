@@ -13,10 +13,10 @@ export default function ComicCreator({ figure, onBack, onComplete }) {
   ];
 
   const styles = [
-    { id: 'sketch', name: 'Szkic / Lineart', premium: false, img: '/images/comic_preview.png' },
-    { id: 'manga', name: 'Klasyczna Manga', premium: false, img: '/images/comic_preview.png' },
-    { id: 'color', name: 'Pełny Kolor (Anime)', premium: true, img: '/images/comic_preview.png' },
-    { id: 'macro', name: 'Makrofotografia', premium: true, img: '/images/comic_preview.png' }
+    { id: 'sketch', name: 'Szkic / Lineart', premium: false, img: '/images/style_sketch.png' },
+    { id: 'manga', name: 'Klasyczna Manga', premium: false, img: '/images/style_manga.png' },
+    { id: 'color', name: 'Pełny Kolor (Anime)', premium: true, img: '/images/style_color.png' },
+    { id: 'macro', name: 'Makrofotografia', premium: true, img: '/images/style_macro.png' }
   ];
 
   const handleNext = () => {
@@ -73,7 +73,7 @@ export default function ComicCreator({ figure, onBack, onComplete }) {
                       className={`tile ${style?.id === s.id ? 'selected' : ''}`}
                       onClick={() => { setStyle(s); handleNext(); }}
                     >
-                      <div style={{ height: '80px', width: '100%', background: 'rgba(255,255,255,0.1)', borderRadius: '8px' }}></div>
+                      <img src={s.img} alt={s.name} />
                       <span>{s.name}</span>
                       {s.premium && <span className="tile-badge premium">Power</span>}
                       {!s.premium && <span className="tile-badge">Slot</span>}
