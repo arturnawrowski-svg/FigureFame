@@ -12,11 +12,12 @@ export default function ComicCreator({ figure, onBack, onComplete }) {
     { id: 'escape', name: 'Nocna Ucieczka', img: '/images/scenario_escape.png' }
   ];
 
+  const charCode = figure.id === 1 ? 'miku' : 'sonico';
   const styles = [
-    { id: 'sketch', name: 'Szkic / Lineart', premium: false, img: '/images/style_sketch.png' },
-    { id: 'manga', name: 'Klasyczna Manga', premium: false, img: '/images/style_manga.png' },
-    { id: 'color', name: 'Pełny Kolor (Anime)', premium: true, img: '/images/style_color.png' },
-    { id: 'macro', name: 'Makrofotografia', premium: true, img: '/images/style_macro.png' }
+    { id: 'sketch', name: 'Szkic / Lineart', premium: false, img: `/images/${charCode}_style_sketch.png` },
+    { id: 'manga', name: 'Klasyczna Manga', premium: false, img: `/images/${charCode}_style_manga.png` },
+    { id: 'color', name: 'Pełny Kolor (Anime)', premium: true, img: `/images/${charCode}_style_color.png` },
+    { id: 'macro', name: 'Makrofotografia', premium: true, img: `/images/${charCode}_style_macro.png` }
   ];
 
   const handleNext = () => {
