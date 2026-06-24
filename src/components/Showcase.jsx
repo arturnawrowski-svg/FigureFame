@@ -22,6 +22,7 @@ export default function Showcase({ onSelectFigure }) {
     <div className="showcase-grid animate-fade-in">
       {figures.map(fig => (
         <div key={fig.id} className="figure-card">
+          <div className="figure-name-badge">{fig.name}</div>
           <div className={`ambient-light ${fig.lightClass}`}></div>
           <div className="figure-image-container">
             <img src={fig.image} alt={fig.name} loading="lazy" />
