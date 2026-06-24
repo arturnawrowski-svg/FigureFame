@@ -2,10 +2,12 @@ import { useState } from 'react'
 import Showcase from './components/Showcase'
 import ComicCreator from './components/ComicCreator'
 import AffiliateLinks from './components/AffiliateLinks'
+import { User, Info, LogOut } from 'lucide-react'
 
 function App() {
   const [selectedFigure, setSelectedFigure] = useState(null)
   const [comicResult, setComicResult] = useState(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   const handleSelectFigure = (figure) => {
     setSelectedFigure(figure)
@@ -23,6 +25,17 @@ function App() {
 
   return (
     <div className="app-container">
+      <nav className="top-nav animate-fade-in">
+        <div className="nav-links">
+          <button className="nav-btn" onClick={() => alert("FigureFrame MVP\n\nPlatforma łącząca kolekcjonowanie japońskich figurek z generatorem komiksów opartym na AI.")}>
+            <Info size={18} /> About
+          </button>
+          <button className="nav-btn" onClick={() => setIsLoggedIn(!isLoggedIn)}>
+            {isLoggedIn ? <><LogOut size={18} /> Account (Wyloguj)</> : <><User size={18} /> Account (Zaloguj)</>}
+          </button>
+        </div>
+      </nav>
+
       <header>
         <h1>FigureFrame</h1>
         <p>Cyfrowa gablota i AI Comic Creator</p>

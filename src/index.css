@@ -67,6 +67,35 @@ header p {
   opacity: 0.7;
 }
 
+/* Top Nav */
+.top-nav {
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: 2rem;
+}
+
+.nav-links {
+  display: flex;
+  gap: 2rem;
+}
+
+.nav-btn {
+  background: transparent;
+  color: var(--color-text-main);
+  border: none;
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.nav-btn:hover {
+  color: var(--color-text-highlight);
+  transform: translateY(-2px);
+}
+
 /* Showcase Grid */
 .showcase-grid {
   display: grid;
