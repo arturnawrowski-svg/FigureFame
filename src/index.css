@@ -391,3 +391,25 @@ header p {
   background: rgba(255,255,255,0.15);
   transform: translateY(-2px);
 }
+
+/* Footer */
+.app-footer {
+  margin-top: 4rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--color-glass-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  opacity: 0.6;
+}
+
+.app-footer a {
+  color: var(--color-text-highlight);
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.app-footer a:hover {
+  text-decoration: underline;
+}
