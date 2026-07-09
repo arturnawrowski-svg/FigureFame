@@ -1,44 +1,80 @@
-import { Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { Search, ChevronRight } from 'lucide-react';
 
-const figures = [
+const figuresData = [
   {
     id: 1,
     name: 'Hatsune Miku',
-    price: '18 000 JPY',
+    series: 'Vocaloid',
+    manufacturer: 'Good Smile Company',
+    scale: '1/7',
+    releaseDate: 'Listopad 2021',
+    originalPrice: '15 000 JPY',
     image: '/images/miku_figure.png',
-    lightClass: 'light-miku'
+    lightClass: 'light-miku',
+    description: 'Figurka Hatsune Miku w wersji klasycznej. Niezwykle szczegółowe wykonanie włosów i kultowego stroju.'
   },
   {
     id: 2,
     name: 'Super Sonico',
-    price: '21 500 JPY',
+    series: 'Nitroplus',
+    manufacturer: 'Alter',
+    scale: '1/7',
+    releaseDate: 'Sierpień 2020',
+    originalPrice: '18 500 JPY',
     image: '/images/sonico_figure.png',
-    lightClass: 'light-sonico'
+    lightClass: 'light-sonico',
+    description: 'Sonico w letnim stroju z charakterystycznymi słuchawkami. Wysoka jakość malowania detali i dynamiczna poza.'
   }
 ];
 
 export default function Showcase({ onSelectFigure }) {
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredFigures = figuresData.filter(fig => 
+    fig.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    fig.series.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <div className="showcase-grid animate-fade-in">
-      {figures.map(fig => (
-        <div key={fig.id} className="figure-card">
-          <div className="figure-name-badge">{fig.name}</div>
-          <div className={`ambient-light ${fig.lightClass}`}></div>
-          <div className="figure-image-container">
-            <img src={fig.image} alt={fig.name} loading="lazy" />
-          </div>
-          <div className="hover-panel">
-            <div className="market-value">
-              <span>Wycena rynkowa:</span>
-              <strong>{fig.price}</strong>
+    <div className="showcase-container animate-fade-in">
+      <div className="search-bar-wrapper">
+        <Search className="search-icon" size={20} />
+        <input 
+          type="text" 
+          placeholder="Szukaj figurek (np. Hatsune, Miku, Sonico)..." 
+          className="search-input"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
+      <div className="showcase-grid">
+        {filteredFigures.map(fig => (
+          <div key={fig.id} className="figure-card">
+            <div className="figure-name-badge">{fig.name}</div>
+            <div className={`ambient-light ${fig.lightClass}`}></div>
+            <div className="figure-image-container">
+              <img src={fig.image} alt={fig.name} loading="lazy" />
             </div>
-            <button className="btn-primary" onClick={() => onSelectFigure(fig)}>
-              <Sparkles size={18} />
-              Stwórz Historię
-            </button>
+            <div className="hover-panel">
+              <div className="market-value">
+                <span>Najlepsza oferta:</span>
+                <strong>~ {fig.originalPrice}</strong>
+              </div>
+              <button className="btn-primary" onClick={() => onSelectFigure(fig)}>
+                Otwórz Dossier
+                <ChevronRight size={18} />
+              </button>
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+        {filteredFigures.length === 0 && (
+          <div className="no-results">
+            <p>Nie znaleziono figurek pasujących do "{searchTerm}".</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
