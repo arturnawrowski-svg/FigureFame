@@ -14,6 +14,10 @@ export default function Dossier({ figure, onBack }) {
         <div className="dossier-image-section">
           <div className={`ambient-light ${figure.lightClass} dossier-ambient`}></div>
           <img src={figure.image} alt={figure.name} className="dossier-main-img" />
+          
+          <div style={{ marginTop: '3rem', width: '100%' }}>
+            <AuctionDeals figure={figure} />
+          </div>
         </div>
 
         {/* Right column: Data and Auctions */}
@@ -69,18 +73,18 @@ export default function Dossier({ figure, onBack }) {
             <h3>O figurce</h3>
             <p>
               {figure.description || `Klasyczna, przepięknie wykonana figurka ${figure.name}. 
-              Cieszy się ogromnym uznaniem na rynku wtórnym ze względu na jakość detali i ograniczone nakłady produkcyjne.`}
+              Cieszy się ogromnym uznaniem na rynku wtórnym ze względu na jakość detali, kunsztowne malowanie i ograniczone nakłady produkcyjne. Wersja ta charakteryzuje się niezwykłą dynamiką pozy, precyzyjnym odwzorowaniem najdrobniejszych szczegółów stroju oraz wysokiej jakości materiałami. Idealny wybór dla kolekcjonerów ceniących najwyższy rzemieślniczy standard. Ze względu na rosnącą rzadkość, jej wartość kolekcjonerska stale rośnie.`}
             </p>
           </div>
 
           <div className="divider"></div>
 
           <OfficialShops figure={figure} />
-          
-          <div className="divider"></div>
-
-          <AuctionDeals figure={figure} />
         </div>
+      </div>
+
+      <div style={{ marginTop: '2rem' }}>
+        <AuctionDeals figure={figure} type="all" />
       </div>
     </div>
   );

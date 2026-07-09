@@ -4,6 +4,7 @@ Plik śledzący kluczowe założenia, architekturę i cele rozwoju agregatora of
 
 ## 🎯 Architektura Backendowa (Silnik Danych)
 - [ ] **Baza Danych:** Wdrożenie bazy (np. PostgreSQL / Supabase) do przechowywania informacji o figurkach (dane statyczne) i historii cen.
+- [ ] **Kolejka Moderacji (Status: Checking):** System weryfikacji. Nowo dodana lalka przez użytkownika ma status `pending`. Widoczna publicznie staje się dopiero po zatwierdzeniu przez Moderatora (ochrona przed spamem).
 - [ ] **Moduł Scraperów / Worker Nodes:** Skrypty działające w tle (Cron Jobs), które okresowo odpytują zewnętrzne strony.
 - [ ] **Zarządzanie Wydajnością (Cache):** Dane dynamiczne serwowane z pamięci podręcznej, aby nie blokować aplikacji tysiącami zapytań przy ładowaniu strony.
 

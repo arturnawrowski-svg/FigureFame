@@ -1,0 +1,102 @@
+import { ArrowLeft, Save, Upload, User, Info } from 'lucide-react';
+import { useState } from 'react';
+
+export default function AddFigure({ onBack, user }) {
+  const [formData, setFormData] = useState({
+    name: '',
+    series: '',
+    manufacturer: '',
+    scale: '1/7',
+    releaseDate: '',
+    originalPrice: '',
+    description: ''
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    alert(`Dziękujemy! Twój wniosek o dodanie figurki został wysłany. \n\nObecny Status: PENDING (Oczekuje na akceptację Moderatora).\n\nDopóki moderator nie zatwierdzi danych, figurka nie będzie widoczna w publicznym katalogu.`);
+    onBack();
+  };
+
+  return (
+    <div className="add-figure-view animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto', background: 'rgba(255,255,255,0.03)', padding: '3rem', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)' }}>
+      <button className="btn-secondary" onClick={onBack} style={{ marginBottom: '2rem' }}>
+        <ArrowLeft size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Wróć do bazy
+      </button>
+
+      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h2>Dodaj nową figurkę do Gabloty</h2>
+          <p style={{ opacity: 0.7 }}>Wypełnij formularz, aby dodać pozycję do katalogu. Oferty zostaną znalezione automatycznie przez nasz serwer.</p>
+        </div>
+        <div style={{ background: 'rgba(46, 213, 115, 0.1)', color: '#2ed573', padding: '10px 16px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
+          <User size={18}/> Zalogowano: {user}
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontWeight: 'bold', opacity: 0.9 }}>Nazwa postaci</label>
+            <input required type="text" placeholder="np. Hatsune Miku, Super Sonico" style={{ padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.3)', color: '#fff' }} />
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontWeight: 'bold', opacity: 0.9 }}>Seria / Anime</label>
+            <input required type="text" placeholder="np. Vocaloid, SoniAni" style={{ padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.3)', color: '#fff' }} />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontWeight: 'bold', opacity: 0.9 }}>Producent</label>
+            <input required type="text" placeholder="np. Good Smile, Alter" style={{ padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.3)', color: '#fff' }} />
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontWeight: 'bold', opacity: 0.9 }}>Skala</label>
+            <select style={{ padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: '#1a1c23', color: '#fff' }}>
+              <option>1/8</option>
+              <option selected>1/7</option>
+              <option>1/6</option>
+              <option>1/4 (Bunny)</option>
+              <option>Non-scale (Nendoroid)</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontWeight: 'bold', opacity: 0.9 }}>Data Wydania</label>
+            <input type="month" style={{ padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: '#1a1c23', color: '#fff' }} />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <label style={{ fontWeight: 'bold', opacity: 0.9 }}>Opis historyczny (Encyklopedia)</label>
+          <textarea rows="5" placeholder="Podziel się wiedzą o tej wersji figurki..." style={{ padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.3)', color: '#fff', resize: 'vertical' }}></textarea>
+        </div>
+
+        <div style={{ padding: '2rem', border: '2px dashed rgba(255,255,255,0.2)', borderRadius: '12px', textAlign: 'center', background: 'rgba(0,0,0,0.1)', cursor: 'pointer' }}>
+          <Upload size={32} style={{ opacity: 0.5, marginBottom: '10px' }} />
+          <h4 style={{ margin: '0 0 5px 0' }}>Wgraj oficjalne zdjęcie z pudełka (Stock Photo)</h4>
+          <p style={{ opacity: 0.5, margin: 0, fontSize: '0.9rem' }}>Kliknij tutaj lub przeciągnij plik JPG/PNG.</p>
+        </div>
+
+        <div className="divider" style={{ margin: '1rem 0' }}></div>
+
+        <div style={{ background: 'rgba(0, 0, 0, 0.4)', padding: '1.5rem', borderRadius: '12px', display: 'flex', gap: '16px' }}>
+          <Info size={32} style={{ color: '#ffb142', flexShrink: 0 }}/>
+          <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>
+            <strong>Ceny i oferty:</strong> Zauważ, że nie dodajesz tu żadnych ofert ze sklepów. System Agregatora (Backend) sam na podstawie Nazwy, Serii i Producenta przeczesze w nocy 50 sklepów z Japonii i rano automatycznie podepnie tu oferty kupna!
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+          <button type="submit" className="btn-primary" style={{ padding: '16px 32px', fontSize: '1.1rem' }}>
+            <Save size={20} /> Zapisz w Bazie (Crowdsourcing)
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
