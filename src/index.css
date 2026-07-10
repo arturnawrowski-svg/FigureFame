@@ -710,3 +710,60 @@ body.light-mode .dossier-meta-grid .meta-card {
 body.light-mode .dossier-meta-grid .highlight {
   background: rgba(0,0,0,0.06);
 }
+
+/* Mobile Responsiveness for iPhone (Safari/Chrome) */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 1rem;
+  }
+  
+  header h1 {
+    font-size: 2rem;
+  }
+  
+  .nav-links {
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+  }
+  
+  .dossier-layout {
+    flex-direction: column;
+    padding: 1.5rem;
+    gap: 2rem;
+  }
+  
+  .dossier-meta-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .deal-row {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    text-align: center;
+    padding: 1.5rem;
+  }
+  
+  .deal-action {
+    align-items: center;
+    text-align: center;
+  }
+  
+  .dossier-image-section {
+    min-height: auto;
+  }
+  
+  .dossier-ambient {
+    width: 200px;
+    height: 200px;
+  }
+  
+  .auction-deals {
+    padding: 1rem;
+  }
+  
+  .search-input {
+    font-size: 1rem;
+    padding: 12px 16px 12px 40px;
+  }
+}
