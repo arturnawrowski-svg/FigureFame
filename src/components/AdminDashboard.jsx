@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Check, Trash2, Clock, AlertCircle } from 'lucide-react';
+import { Check, Trash2, Clock, AlertCircle, Edit3, X } from 'lucide-react';
 
 export default function AdminDashboard({ onBack }) {
   const [pendingFigures, setPendingFigures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Edit mode state
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
 
   useEffect(() => {
     fetchPending();
@@ -13,6 +17,7 @@ export default function AdminDashboard({ onBack }) {
 
   const fetchPending = async () => {
     setLoading(true);
+    setEditingId(null);
     try {
       const { data, error } = await supabase
         .from('figures')
@@ -30,11 +35,30 @@ export default function AdminDashboard({ onBack }) {
     }
   };
 
+  const handleEditClick = (fig) => {
+    setEditingId(fig.id);
+    setEditForm({
+      name: fig.name || '',
+      japanese_name: fig.japanese_name || '',
+      series: fig.series || '',
+      manufacturer: fig.manufacturer || '',
+      scale: fig.scale || '1/7',
+      official_image_url: fig.official_image_url || '',
+      original_price: fig.original_price || ''
+    });
+  };
+
   const handleApprove = async (id, name) => {
     try {
+      // If we are approving the currently edited figure, save the edited data
+      const updates = { status: 'APPROVED' };
+      if (editingId === id) {
+        Object.assign(updates, editForm);
+      }
+
       const { error } = await supabase
         .from('figures')
-        .update({ status: 'APPROVED' })
+        .update(updates)
         .eq('id', id);
 
       if (error) throw error;
@@ -72,7 +96,7 @@ export default function AdminDashboard({ onBack }) {
 
       <h2>🛡️ Panel Moderatora</h2>
       <p style={{ opacity: 0.8, marginBottom: '2rem' }}>
-        Zarządzanie figurkami oczekującymi na weryfikację.
+        Zarządzanie figurkami oczekującymi na weryfikację. Możesz je od razu zedytować przed zatwierdzeniem.
       </p>
 
       {error && (
@@ -94,38 +118,94 @@ export default function AdminDashboard({ onBack }) {
         <div style={{ display: 'grid', gap: '1rem' }}>
           {pendingFigures.map(fig => (
             <div key={fig.id} style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '1.5rem',
               background: 'rgba(255, 255, 255, 0.05)',
               borderRadius: '12px',
-              borderLeft: '4px solid #ffa502'
+              borderLeft: '4px solid #ffa502',
+              overflow: 'hidden'
             }}>
-              <div>
-                <h3 style={{ margin: '0 0 0.5rem 0' }}>{fig.name}</h3>
-                <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>
-                  <strong>ID Zgłaszającego:</strong> <span style={{ fontFamily: 'monospace' }}>{fig.submitted_by}</span><br />
-                  <strong>Data dodania:</strong> {new Date(fig.created_at).toLocaleString()}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '1.5rem',
+              }}>
+                <div>
+                  <h3 style={{ margin: '0 0 0.5rem 0' }}>{fig.name}</h3>
+                  <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>
+                    <strong>ID Zgłaszającego:</strong> <span style={{ fontFamily: 'monospace' }}>{fig.submitted_by}</span><br />
+                    <strong>Data dodania:</strong> {new Date(fig.created_at).toLocaleString()}
+                  </div>
+                </div>
+                
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  {editingId !== fig.id && (
+                    <button 
+                      className="btn-secondary" 
+                      style={{ border: 'none', display: 'flex', alignItems: 'center', gap: '8px', padding: '0.5rem 1rem' }}
+                      onClick={() => handleEditClick(fig)}
+                    >
+                      <Edit3 size={18} /> Edytuj i Zapisz
+                    </button>
+                  )}
+                  {editingId === fig.id && (
+                    <button 
+                      className="btn-primary" 
+                      style={{ background: '#2ed573', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+                      onClick={() => handleApprove(fig.id, editForm.name || fig.name)}
+                    >
+                      <Check size={18} /> Zatwierdź Zmiany
+                    </button>
+                  )}
+                  {editingId !== fig.id && (
+                    <button 
+                      className="btn-primary" 
+                      style={{ background: '#ff4757', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+                      onClick={() => handleDelete(fig.id, fig.name)}
+                    >
+                      <Trash2 size={18} /> Odrzuć
+                    </button>
+                  )}
                 </div>
               </div>
-              
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button 
-                  className="btn-primary" 
-                  style={{ background: '#2ed573', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
-                  onClick={() => handleApprove(fig.id, fig.name)}
-                >
-                  <Check size={18} /> Zatwierdź
-                </button>
-                <button 
-                  className="btn-primary" 
-                  style={{ background: '#ff4757', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
-                  onClick={() => handleDelete(fig.id, fig.name)}
-                >
-                  <Trash2 size={18} /> Odrzuć
-                </button>
-              </div>
+
+              {/* Edit Form Expansion */}
+              {editingId === fig.id && (
+                <div style={{ padding: '1.5rem', background: 'rgba(0,0,0,0.2)', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <div className="form-group">
+                      <label>Nazwa postaci</label>
+                      <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} />
+                    </div>
+                    <div className="form-group">
+                      <label>Nazwa Japońska</label>
+                      <input type="text" value={editForm.japanese_name} onChange={e => setEditForm({...editForm, japanese_name: e.target.value})} />
+                    </div>
+                    <div className="form-group">
+                      <label>Seria</label>
+                      <input type="text" value={editForm.series} onChange={e => setEditForm({...editForm, series: e.target.value})} />
+                    </div>
+                    <div className="form-group">
+                      <label>Producent</label>
+                      <input type="text" value={editForm.manufacturer} onChange={e => setEditForm({...editForm, manufacturer: e.target.value})} />
+                    </div>
+                    <div className="form-group">
+                      <label>Skala</label>
+                      <input type="text" value={editForm.scale} onChange={e => setEditForm({...editForm, scale: e.target.value})} />
+                    </div>
+                    <div className="form-group">
+                      <label>Cena pierwotna</label>
+                      <input type="text" placeholder="np. 15 000 JPY" value={editForm.original_price} onChange={e => setEditForm({...editForm, original_price: e.target.value})} />
+                    </div>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: '1rem' }}>
+                    <label>URL Obrazka (np. miku_figure, albo pełny link http...)</label>
+                    <input type="text" value={editForm.official_image_url} onChange={e => setEditForm({...editForm, official_image_url: e.target.value})} />
+                  </div>
+                  <button className="btn-secondary" onClick={() => setEditingId(null)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <X size={16} /> Anuluj Edycję
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
