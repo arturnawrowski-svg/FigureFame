@@ -129,6 +129,7 @@ export default function Showcase({ onSelectFigure }) {
         const { data, error } = await supabase
           .from('figures')
           .select('*')
+          .neq('status', 'PENDING')
           .order('created_at', { ascending: false });
 
         if (error) throw error;

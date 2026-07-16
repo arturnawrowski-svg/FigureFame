@@ -3,7 +3,8 @@ import Showcase from './components/Showcase'
 import Dossier from './components/Dossier'
 import AddFigure from './components/AddFigure'
 import Login from './components/Login'
-import { User, Info, LogOut, Plus, Sun, Moon } from 'lucide-react'
+import AdminDashboard from './components/AdminDashboard'
+import { User, Info, LogOut, Plus, Sun, Moon, ShieldAlert } from 'lucide-react'
 import { supabase } from './lib/supabaseClient'
 
 function App() {
@@ -11,20 +12,44 @@ function App() {
   const [selectedFigure, setSelectedFigure] = useState(null)
   
   const [user, setUser] = useState(null) 
+  const [isAdmin, setIsAdmin] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [theme, setTheme] = useState('dark') // 'dark' | 'light'
+
+  const checkAdmin = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', userId)
+        .single()
+      if (!error && data) {
+        setIsAdmin(data.is_admin)
+      } else {
+        setIsAdmin(false)
+      }
+    } catch (err) {
+      setIsAdmin(false)
+    }
+  }
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+      const currentUser = session?.user ?? null;
+      setUser(currentUser)
+      if (currentUser) checkAdmin(currentUser.id)
     })
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser)
+      if (currentUser) {
         setShowLoginModal(false) // Close modal on successful login
+        checkAdmin(currentUser.id)
+      } else {
+        setIsAdmin(false)
       }
     })
 
@@ -74,6 +99,12 @@ function App() {
             <Info size={18} /> O aplikacji
           </button>
           
+          {isAdmin && (
+            <button className="nav-btn" onClick={() => setView('admin')} style={{ color: '#ff4757', fontWeight: 'bold' }}>
+              <ShieldAlert size={18} /> Panel Moderatora
+            </button>
+          )}
+
           {user && (
             <button className="nav-btn" onClick={() => setView('add')} style={{ color: '#2ed573' }}>
               <Plus size={18} /> Dodaj Figurkę do bazy
@@ -113,6 +144,12 @@ function App() {
           <AddFigure 
             onBack={handleBackToHome}
             user={user}
+          />
+        )}
+
+        {view === 'admin' && isAdmin && (
+          <AdminDashboard 
+            onBack={handleBackToHome}
           />
         )}
       </main>
