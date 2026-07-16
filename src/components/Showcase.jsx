@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, ArrowRight } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
-const figuresData = [
+const fallbackFiguresData = [
   {
     id: 1,
     name: 'Hatsune Miku',
@@ -13,7 +14,7 @@ const figuresData = [
     type: 'gotowa figurka kolekcjonerska (PVC)',
     status: 'wydanie archiwalne, obecnie zwykle dostępna tylko na rynku wtórnym',
     originalPrice: '15 000 JPY',
-    image: '/images/miku_figure.png',
+    image: '/images/official/miku_figure', // base name without extension
     lightClass: 'light-miku',
     additionalInfo: [
       'Figurka w wersji klasycznej, wyrzeźbiona z niezwykłą dbałością o detale.',
@@ -47,7 +48,7 @@ const figuresData = [
     type: 'gotowa figurka kolekcjonerska (PVC)',
     status: 'wydanie archiwalne, obecnie zwykle dostępna tylko na rynku wtórnym',
     originalPrice: '18 500 JPY',
-    image: '/images/sonico_figure.png',
+    image: '/images/official/sonico_figure',
     lightClass: 'light-sonico',
     additionalInfo: [
       'Zjawiskowa figurka wirtualnej idolki w letnim stroju z zarzuconą kurtką.',
@@ -81,7 +82,7 @@ const figuresData = [
     type: 'gotowa figurka kolekcjonerska (PVC)',
     status: 'wydanie archiwalne ("Released"), obecnie zwykle dostępna tylko na rynku wtórnym.',
     originalPrice: '7 250 JPY',
-    image: '/images/miyuki_figure.png',
+    image: '/images/official/miyuki_figure',
     lightClass: 'light-sonico',
     additionalInfo: [
       'Jest to figurka pochodząca z japońskiej gry visual novel dla dorosłych (18+), choć sama figurka nie przedstawia żadnych treści erotycznych.',
@@ -119,8 +120,45 @@ const figuresData = [
 
 export default function Showcase({ onSelectFigure }) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [figures, setFigures] = useState(fallbackFiguresData);
+  const [loading, setLoading] = useState(true);
 
-  const filteredFigures = figuresData.filter(fig => 
+  useEffect(() => {
+    async function fetchFigures() {
+      try {
+        const { data, error } = await supabase
+          .from('figures')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          // Map DB columns to frontend state format if needed
+          const mappedData = data.map(fig => ({
+            ...fig,
+            japaneseName: fig.japanese_name,
+            japaneseSeries: fig.japanese_series,
+            originalPrice: fig.original_price,
+            image: `/images/official/${fig.official_image_url}`,
+            lightClass: fig.light_class,
+            additionalInfo: fig.additional_info,
+            marketValue: fig.market_value,
+            whereToSearch: fig.where_to_search
+          }));
+          setFigures(mappedData);
+        }
+      } catch (err) {
+        console.warn('Nie udało się pobrać z Supabase, używam danych lokalnych.', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchFigures();
+  }, []);
+
+  const filteredFigures = figures.filter(fig => 
     fig.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     fig.series.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -138,31 +176,39 @@ export default function Showcase({ onSelectFigure }) {
         />
       </div>
 
-      <div className="showcase-grid">
-        {filteredFigures.map(fig => (
-          <div key={fig.id} className="figure-card">
-            <div className="figure-name-badge">{fig.name}</div>
-            <div className={`ambient-light ${fig.lightClass}`}></div>
-            <div className="figure-image-container">
-              <img src={fig.image} alt={fig.name} loading="lazy" />
-            </div>
-            <div className="hover-panel">
-              <div className="market-value">
-                <span>Najlepsza oferta:</span>
-                <strong>~ {fig.originalPrice}</strong>
+      {loading ? (
+        <div style={{ textAlign: 'center', marginTop: '3rem' }}>Ładowanie bazy figurek...</div>
+      ) : (
+        <div className="showcase-grid">
+          {filteredFigures.map(fig => (
+            <div key={fig.id} className="figure-card">
+              <div className="figure-name-badge">{fig.name}</div>
+              <div className={`ambient-light ${fig.lightClass}`}></div>
+              <div className="figure-image-container">
+                <picture>
+                  <source srcSet={`${fig.image}.avif`} type="image/avif" />
+                  <source srcSet={`${fig.image}.webp`} type="image/webp" />
+                  <img src={`${fig.image}.jpg`} alt={fig.name} loading="lazy" />
+                </picture>
               </div>
-              <button className="btn-primary" onClick={() => onSelectFigure(fig)} style={{ width: '100%', marginTop: '1rem' }}>
-                Szczegóły i Oferty <ArrowRight size={16} />
-              </button>
+              <div className="hover-panel">
+                <div className="market-value">
+                  <span>Najlepsza oferta:</span>
+                  <strong>~ {fig.originalPrice}</strong>
+                </div>
+                <button className="btn-primary" onClick={() => onSelectFigure(fig)} style={{ width: '100%', marginTop: '1rem' }}>
+                  Szczegóły i Oferty <ArrowRight size={16} />
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
-        {filteredFigures.length === 0 && (
-          <div className="no-results">
-            <p>Nie znaleziono figurek pasujących do "{searchTerm}".</p>
-          </div>
-        )}
-      </div>
+          ))}
+          {filteredFigures.length === 0 && (
+            <div className="no-results">
+              <p>Nie znaleziono figurek pasujących do "{searchTerm}".</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

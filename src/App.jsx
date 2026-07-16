@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import Showcase from './components/Showcase'
 import Dossier from './components/Dossier'
 import AddFigure from './components/AddFigure'
-import { User, Info, LogOut, Plus, X, Sun, Moon } from 'lucide-react'
+import Login from './components/Login'
+import { User, Info, LogOut, Plus, Sun, Moon } from 'lucide-react'
+import { supabase } from './lib/supabaseClient'
 
 function App() {
   const [view, setView] = useState('home')
@@ -11,6 +13,23 @@ function App() {
   const [user, setUser] = useState(null) 
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [theme, setTheme] = useState('dark') // 'dark' | 'light'
+
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+    })
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+      if (session?.user) {
+        setShowLoginModal(false) // Close modal on successful login
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   useEffect(() => {
     document.body.classList.toggle('light-mode', theme === 'light')
@@ -30,39 +49,15 @@ function App() {
     setView('home')
   }
 
-  const handleLogin = (provider) => {
-    setUser(`ArturNawrowski (Zalogowany przez ${provider})`)
-    setShowLoginModal(false)
-  }
-
-  const handleLogout = () => {
-    setUser(null)
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
     if (view === 'add') setView('home')
   }
 
   return (
     <div className="app-container">
-      {/* Login Modal */}
       {showLoginModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div style={{ background: '#1a1c23', padding: '3rem', borderRadius: '24px', width: '400px', border: '1px solid rgba(255,255,255,0.1)', position: 'relative' }}>
-            <button onClick={() => setShowLoginModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', color: '#fff', opacity: 0.5 }}>
-              <X size={24}/>
-            </button>
-            <h2 style={{ textAlign: 'center', marginBottom: '2rem' }}>Zaloguj się</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <button onClick={() => handleLogin('Discord')} className="btn-primary" style={{ background: '#5865F2', color: '#fff', padding: '16px' }}>
-                Zaloguj przez Discord
-              </button>
-              <button onClick={() => handleLogin('Google')} className="btn-primary" style={{ background: '#fff', color: '#000', padding: '16px' }}>
-                Zaloguj przez Google
-              </button>
-            </div>
-            <p style={{ textAlign: 'center', opacity: 0.5, fontSize: '0.8rem', marginTop: '2rem' }}>
-              Zaloguj się, aby dodawać nowe figurki i budować swoją reputację w społeczności.
-            </p>
-          </div>
-        </div>
+        <Login onClose={() => setShowLoginModal(false)} />
       )}
 
       <nav className="top-nav animate-fade-in">

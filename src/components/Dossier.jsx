@@ -13,7 +13,11 @@ export default function Dossier({ figure, onBack }) {
         {/* Left column: Image */}
         <div className="dossier-image-section">
           <div className={`ambient-light ${figure.lightClass} dossier-ambient`}></div>
-          <img src={figure.image} alt={figure.name} className="dossier-main-img" />
+          <picture>
+            <source srcSet={`${figure.image}.avif`} type="image/avif" />
+            <source srcSet={`${figure.image}.webp`} type="image/webp" />
+            <img src={`${figure.image}.jpg`} alt={figure.name} className="dossier-main-img" />
+          </picture>
           
           <div style={{ marginTop: '3rem', width: '100%' }}>
             <AuctionDeals figure={figure} />
