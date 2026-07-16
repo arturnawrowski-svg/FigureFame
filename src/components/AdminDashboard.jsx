@@ -142,9 +142,41 @@ export default function AdminDashboard({ onBack }) {
                     <button 
                       className="btn-secondary" 
                       style={{ border: 'none', display: 'flex', alignItems: 'center', gap: '8px', padding: '0.5rem 1rem' }}
+                      onClick={async () => {
+                        const originalName = fig.name;
+                        setLoading(true);
+                        try {
+                          alert('Rozpoczynam szukanie danych przez AI. To potrwa kilka sekund...');
+                          const response = await fetch(`/api/fetch-figure?name=${encodeURIComponent(originalName)}`);
+                          const data = await response.json();
+                          if (response.ok) {
+                            handleEditClick(fig);
+                            // Pre-fill with AI data
+                            setEditForm(prev => ({
+                              ...prev,
+                              ...data
+                            }));
+                            alert('Pobrano dane pomyślnie!');
+                          } else {
+                            throw new Error(data.error || 'Błąd API');
+                          }
+                        } catch(err) {
+                          alert('Nie udało się pobrać danych: ' + err.message);
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                    >
+                      🤖 Szukaj Danych
+                    </button>
+                  )}
+                  {editingId !== fig.id && (
+                    <button 
+                      className="btn-secondary" 
+                      style={{ border: 'none', display: 'flex', alignItems: 'center', gap: '8px', padding: '0.5rem 1rem' }}
                       onClick={() => handleEditClick(fig)}
                     >
-                      <Edit3 size={18} /> Edytuj i Zapisz
+                      <Edit3 size={18} /> Edytuj
                     </button>
                   )}
                   {editingId === fig.id && (
