@@ -25,13 +25,52 @@ const ParticleHero = ({
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  const [particles] = useState(() => Array.from({ length: particleCount }).map((_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 4 + 2,
-    speed: Math.random() * 2 + 0.5,
-  })));
+  const [particles] = useState(() => {
+    const generateFFPoint = () => {
+      // Definiujemy bloki tworzące litery FF (współrzędne od -1 do 1 od środka)
+      const rects = [
+        // F 1
+        { xMin: -0.4, xMax: -0.3, yMin: -0.5, yMax: 0.5, weight: 10 }, // Pion
+        { xMin: -0.3, xMax: -0.05, yMin: -0.5, yMax: -0.35, weight: 5 }, // Góra poziom
+        { xMin: -0.3, xMax: -0.15, yMin: -0.1, yMax: 0.05, weight: 4 }, // Środek poziom
+        // F 2
+        { xMin: 0.1, xMax: 0.2, yMin: -0.5, yMax: 0.5, weight: 10 }, // Pion
+        { xMin: 0.2, xMax: 0.45, yMin: -0.5, yMax: -0.35, weight: 5 }, // Góra poziom
+        { xMin: 0.2, xMax: 0.35, yMin: -0.1, yMax: 0.05, weight: 4 }, // Środek poziom
+      ];
+      
+      const totalWeight = rects.reduce((sum, r) => sum + r.weight, 0);
+      let rand = Math.random() * totalWeight;
+      let chosen = rects[0];
+      for (let r of rects) {
+        if (rand < r.weight) {
+          chosen = r;
+          break;
+        }
+        rand -= r.weight;
+      }
+      
+      // Dodajemy "rozmycie" - fuzz, żeby to była chmura, a nie idealne prostokąty
+      const fuzz = 0.06;
+      const xRaw = chosen.xMin + Math.random() * (chosen.xMax - chosen.xMin) + (Math.random() * fuzz * 2 - fuzz);
+      const yRaw = chosen.yMin + Math.random() * (chosen.yMax - chosen.yMin) + (Math.random() * fuzz * 2 - fuzz);
+      
+      // Mapujemy z powrotem na procenty (środek to 50%, szerokość chmury to 40% ekranu)
+      return { x: 50 + xRaw * 30, y: 50 + yRaw * 35 };
+    };
+
+    // Zwiększamy ilość cząsteczek, żeby napis był widoczny
+    return Array.from({ length: 150 }).map((_, i) => {
+      const pos = generateFFPoint();
+      return {
+        id: i,
+        x: pos.x,
+        y: pos.y,
+        size: Math.random() * 4 + 2,
+        speed: Math.random() * 2 + 0.8,
+      };
+    });
+  });
 
   return (
     <div 
@@ -62,13 +101,13 @@ const ParticleHero = ({
               top: `${particle.y}%`,
             }}
             animate={{
-              x: (mousePosition.x - (typeof window !== 'undefined' ? window.innerWidth / 2 : 500)) * 0.05 * particle.speed,
-              y: (mousePosition.y - (typeof window !== 'undefined' ? window.innerHeight / 2 : 500)) * 0.05 * particle.speed,
+              x: (mousePosition.x - (typeof window !== 'undefined' ? window.innerWidth / 2 : 500)) * 0.15 * particle.speed,
+              y: (mousePosition.y - (typeof window !== 'undefined' ? window.innerHeight / 2 : 500)) * 0.15 * particle.speed,
             }}
             transition={{
               type: "spring",
-              damping: 30,
-              stiffness: 60
+              damping: 15,
+              stiffness: 120
             }}
           />
         ))}
