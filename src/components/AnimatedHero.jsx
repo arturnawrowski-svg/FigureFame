@@ -25,52 +25,13 @@ const ParticleHero = ({
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  const [particles] = useState(() => {
-    const generateFFPoint = () => {
-      // Definiujemy bloki tworzące małe litery 'ff' (współrzędne znormalizowane)
-      const rects = [
-        // f 1
-        { xMin: -0.35, xMax: -0.25, yMin: -0.4, yMax: 0.4, weight: 12 }, // Pion
-        { xMin: -0.25, xMax: -0.1, yMin: -0.4, yMax: -0.3, weight: 4 },  // Górne "zaokrąglenie"
-        { xMin: -0.45, xMax: -0.1, yMin: -0.1, yMax: 0.0, weight: 6 },   // Poprzeczka pozioma
-        // f 2
-        { xMin: 0.15, xMax: 0.25, yMin: -0.4, yMax: 0.4, weight: 12 },   // Pion
-        { xMin: 0.25, xMax: 0.4, yMin: -0.4, yMax: -0.3, weight: 4 },    // Górne "zaokrąglenie"
-        { xMin: 0.05, xMax: 0.4, yMin: -0.1, yMax: 0.0, weight: 6 },     // Poprzeczka pozioma
-      ];
-      
-      const totalWeight = rects.reduce((sum, r) => sum + r.weight, 0);
-      let rand = Math.random() * totalWeight;
-      let chosen = rects[0];
-      for (let r of rects) {
-        if (rand < r.weight) {
-          chosen = r;
-          break;
-        }
-        rand -= r.weight;
-      }
-      
-      // Mniejsze rozmycie (fuzz) by litery były smuklejsze
-      const fuzz = 0.04;
-      const xRaw = chosen.xMin + Math.random() * (chosen.xMax - chosen.xMin) + (Math.random() * fuzz * 2 - fuzz);
-      const yRaw = chosen.yMin + Math.random() * (chosen.yMax - chosen.yMin) + (Math.random() * fuzz * 2 - fuzz);
-      
-      // Zmniejszamy mnożniki by chmura była mniejsza, gęstsza i bliżej środka
-      return { x: 50 + xRaw * 15, y: 50 + yRaw * 20 };
-    };
-
-    // Zwiększamy ilość cząsteczek, żeby napis był widoczny
-    return Array.from({ length: 150 }).map((_, i) => {
-      const pos = generateFFPoint();
-      return {
-        id: i,
-        x: pos.x,
-        y: pos.y,
-        size: Math.random() * 4 + 2,
-        speed: Math.random() * 2 + 0.8,
-      };
-    });
-  });
+  const [particles] = useState(() => Array.from({ length: 80 }).map((_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    size: Math.random() * 4 + 2,
+    speed: Math.random() * 2 + 0.5,
+  })));
 
   return (
     <div 
@@ -85,8 +46,13 @@ const ParticleHero = ({
       }}
     >
       {/* Background container for particles covering the hero */}
-      <div 
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1, pointerEvents: 'none', overflow: 'hidden' }}
+      <motion.div 
+        style={{ position: 'absolute', top: '-10%', left: '-10%', width: '120%', height: '120%', zIndex: 1, pointerEvents: 'none', overflow: 'hidden' }}
+        animate={{
+          x: (mousePosition.x - (typeof window !== 'undefined' ? window.innerWidth / 2 : 0)) * -0.03,
+          y: (mousePosition.y - (typeof window !== 'undefined' ? window.innerHeight / 2 : 0)) * -0.03,
+        }}
+        transition={{ type: "spring", damping: 40, stiffness: 80 }}
       >
         {particles.map((particle) => (
           <motion.div
@@ -101,17 +67,18 @@ const ParticleHero = ({
               top: `${particle.y}%`,
             }}
             animate={{
-              x: (mousePosition.x - (typeof window !== 'undefined' ? window.innerWidth / 2 : 500)) * 0.15 * particle.speed,
-              y: (mousePosition.y - (typeof window !== 'undefined' ? window.innerHeight / 2 : 500)) * 0.15 * particle.speed,
+              y: [0, particle.speed * -20, 0],
+              x: [0, particle.speed * 15, 0],
+              opacity: [0.1, 0.7, 0.1]
             }}
             transition={{
-              type: "spring",
-              damping: 15,
-              stiffness: 120
+              duration: particle.speed * 4,
+              repeat: Infinity,
+              ease: "easeInOut"
             }}
           />
         ))}
-      </div>
+      </motion.div>
 
       {/* Content */}
       <div className="relative z-10 text-center px-4">
