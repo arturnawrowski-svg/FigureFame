@@ -3,7 +3,9 @@ import { supabase } from '../lib/supabaseClient';
 import { Check, Trash2, Clock, AlertCircle, Edit3, X, Lock } from 'lucide-react';
 
 export default function AdminDashboard({ onBack }) {
-  const [pendingFigures, setPendingFigures] = useState([]);
+  const [activeTab, setActiveTab] = useState('PENDING'); // PENDING | APPROVED | ARCHIVED
+  const [searchQuery, setSearchQuery] = useState('');
+  const [figures, setFigures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -13,21 +15,23 @@ export default function AdminDashboard({ onBack }) {
   const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
-    fetchPending();
-  }, []);
+    fetchFigures();
+  }, [activeTab]);
 
-  const fetchPending = async () => {
+  const fetchFigures = async () => {
     setLoading(true);
     setEditingId(null);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('figures')
         .select('*')
-        .eq('status', 'PENDING')
+        .eq('status', activeTab)
         .order('created_at', { ascending: false });
+        
+      const { data, error } = await query;
 
       if (error) throw error;
-      setPendingFigures(data || []);
+      setFigures(data || []);
     } catch (err) {
       console.error(err);
       setError(err.message);
@@ -53,10 +57,9 @@ export default function AdminDashboard({ onBack }) {
     });
   };
 
-  const handleApprove = async (id, name) => {
+  const handleChangeStatus = async (id, name, newStatus) => {
     try {
-      // If we are approving the currently edited figure, save the edited data
-      const updates = { status: 'APPROVED' };
+      const updates = { status: newStatus };
       if (editingId === id) {
         Object.assign(updates, editForm);
       }
@@ -68,15 +71,31 @@ export default function AdminDashboard({ onBack }) {
 
       if (error) throw error;
       
-      alert(`Zatwierdzono zgłoszenie: ${name}`);
-      fetchPending(); // Refresh list
+      alert(`Zmieniono status na ${newStatus}: ${name}`);
+      fetchFigures();
     } catch (err) {
-      alert(`Błąd podczas zatwierdzania: ${err.message}`);
+      alert(`Błąd podczas zmiany statusu: ${err.message}`);
+    }
+  };
+
+  const handleSaveEdits = async (id, name) => {
+    try {
+      const { error } = await supabase
+        .from('figures')
+        .update(editForm)
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      alert(`Zapisano zmiany: ${name}`);
+      fetchFigures();
+    } catch (err) {
+      alert(`Błąd podczas zapisywania: ${err.message}`);
     }
   };
 
   const handleDelete = async (id, name) => {
-    if (!window.confirm(`Czy na pewno chcesz ODRZUCIĆ i USUNĄĆ zgłoszenie dla "${name}"?`)) return;
+    if (!window.confirm(`Czy na pewno chcesz TRWALE USUNĄĆ zgłoszenie dla "${name}" z bazy?`)) return;
 
     try {
       const { error } = await supabase
@@ -86,46 +105,87 @@ export default function AdminDashboard({ onBack }) {
 
       if (error) throw error;
       
-      alert(`Odrzucono zgłoszenie: ${name}`);
-      fetchPending(); // Refresh list
+      alert(`Usunięto: ${name}`);
+      fetchFigures();
     } catch (err) {
       alert(`Błąd podczas usuwania: ${err.message}`);
     }
   };
 
+  const filteredFigures = figures.filter(fig => 
+    fig.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    fig.series?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    fig.japanese_name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="dossier-container animate-fade-in" style={{ padding: '2rem' }}>
-      <button className="btn-secondary" onClick={onBack} style={{ marginBottom: '2rem' }}>
-        &larr; Wróć do Gabloty
-      </button>
-
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <button className="btn-secondary" onClick={onBack}>
+          &larr; Wróć do Gabloty
+        </button>
+        <div style={{ display: 'flex', gap: '1rem', background: 'rgba(255,255,255,0.05)', padding: '0.5rem', borderRadius: '12px' }}>
+          <button 
+            onClick={() => setActiveTab('PENDING')} 
+            style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: activeTab === 'PENDING' ? '#fff' : 'transparent', color: activeTab === 'PENDING' ? '#000' : '#fff', fontWeight: 'bold' }}
+          >
+            Do Weryfikacji
+          </button>
+          <button 
+            onClick={() => setActiveTab('APPROVED')}
+            style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: activeTab === 'APPROVED' ? '#fff' : 'transparent', color: activeTab === 'APPROVED' ? '#000' : '#fff', fontWeight: 'bold' }}
+          >
+            Gablota
+          </button>
+          <button 
+            onClick={() => setActiveTab('ARCHIVED')}
+            style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: activeTab === 'ARCHIVED' ? '#fff' : 'transparent', color: activeTab === 'ARCHIVED' ? '#000' : '#fff', fontWeight: 'bold' }}
+          >
+            Zarchiwizowane
+          </button>
+        </div>
+      </div>
       <h2>🛡️ Panel Moderatora</h2>
       <p style={{ opacity: 0.8, marginBottom: '2rem' }}>
-        Zarządzanie figurkami oczekującymi na weryfikację. Możesz je od razu zedytować przed zatwierdzeniem.
+        {activeTab === 'PENDING' && 'Przeglądaj, edytuj i zatwierdzaj zgłoszenia od użytkowników.'}
+        {activeTab === 'APPROVED' && 'Zarządzaj figurkami widocznymi w głównej Gablocie.'}
+        {activeTab === 'ARCHIVED' && 'Przeglądaj usunięte z widoku publicznego figurki.'}
       </p>
 
+      {activeTab !== 'PENDING' && (
+        <div style={{ marginBottom: '2rem' }}>
+          <input 
+            type="text" 
+            placeholder="Wyszukaj po nazwie lub serii..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ width: '100%', padding: '1rem', borderRadius: '8px', border: '1px solid var(--color-glass-border)', background: 'var(--color-bg-shelf)', color: 'var(--color-text-highlight)' }}
+          />
+        </div>
+      )}
+
       {error && (
-        <div style={{ padding: '1rem', background: 'rgba(255, 71, 87, 0.2)', color: '#ff4757', borderRadius: '8px', marginBottom: '1rem' }}>
-          <AlertCircle size={18} style={{ verticalAlign: 'middle', marginRight: '8px' }} />
+        <div style={{ padding: '1rem', background: 'rgba(255, 71, 87, 0.2)', borderLeft: '4px solid #ff4757', borderRadius: '8px', marginBottom: '2rem' }}>
+          <AlertCircle size={20} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }} />
           Błąd pobierania danych: {error}
         </div>
       )}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '2rem' }}>Ładowanie zgłoszeń...</div>
-      ) : pendingFigures.length === 0 ? (
+      ) : filteredFigures.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '12px' }}>
           <Clock size={48} style={{ opacity: 0.5, marginBottom: '1rem' }} />
-          <h3>Brak zgłoszeń</h3>
-          <p style={{ opacity: 0.7 }}>Wszystkie zgłoszenia zostały już przetworzone.</p>
+          <h3>Brak wyników</h3>
+          <p style={{ opacity: 0.7 }}>W tej zakładce nie ma żadnych figurek.</p>
         </div>
       ) : (
         <div style={{ display: 'grid', gap: '1rem' }}>
-          {pendingFigures.filter(fig => editingId ? fig.id === editingId : true).map(fig => (
+          {filteredFigures.filter(fig => editingId ? fig.id === editingId : true).map(fig => (
             <div key={fig.id} style={{
               background: 'rgba(255, 255, 255, 0.05)',
               borderRadius: '12px',
-              borderLeft: '4px solid #ffa502',
+              borderLeft: `4px solid ${activeTab === 'PENDING' ? '#ffa502' : activeTab === 'APPROVED' ? '#2ed573' : '#747d8c'}`,
               overflow: 'hidden'
             }}>
               <div style={{
@@ -155,21 +215,59 @@ export default function AdminDashboard({ onBack }) {
                   {editingId === fig.id && (
                     <button 
                       className="btn-primary" 
-                      style={{ background: '#2ed573', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
-                      onClick={() => handleApprove(fig.id, editForm.name || fig.name)}
+                      style={{ background: '#3498db', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+                      onClick={() => handleSaveEdits(fig.id, editForm.name || fig.name)}
                     >
-                      <Check size={18} /> Zatwierdź Zmiany (dodaj do Gabloty)
+                      <Check size={18} /> Zapisz Edycję
                     </button>
                   )}
-                  {editingId !== fig.id && (
+                  
+                  {activeTab === 'PENDING' && (
                     <button 
                       className="btn-primary" 
-                      style={{ background: '#ff4757', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
-                      onClick={() => handleDelete(fig.id, fig.name)}
+                      style={{ background: '#2ed573', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+                      onClick={() => handleChangeStatus(fig.id, editForm.name || fig.name, 'APPROVED')}
                     >
-                      <Trash2 size={18} /> Odrzuć
+                      <Check size={18} /> Zatwierdź
                     </button>
                   )}
+                  
+                  {activeTab === 'APPROVED' && (
+                    <button 
+                      className="btn-secondary" 
+                      style={{ background: '#f39c12', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+                      onClick={() => handleChangeStatus(fig.id, fig.name, 'ARCHIVED')}
+                    >
+                      Archiwizuj
+                    </button>
+                  )}
+
+                  {activeTab === 'ARCHIVED' && (
+                    <>
+                      <button 
+                        className="btn-secondary" 
+                        style={{ background: '#2ed573', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        onClick={() => handleChangeStatus(fig.id, fig.name, 'APPROVED')}
+                      >
+                        Przywróć do Gabloty
+                      </button>
+                      <button 
+                        className="btn-secondary" 
+                        style={{ background: '#ffa502', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        onClick={() => handleChangeStatus(fig.id, fig.name, 'PENDING')}
+                      >
+                        Cofnij do Poczekalni
+                      </button>
+                    </>
+                  )}
+
+                  <button 
+                    className="btn-primary" 
+                    style={{ background: '#ff4757', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    onClick={() => handleDelete(fig.id, fig.name)}
+                  >
+                    <Trash2 size={18} /> Usuń
+                  </button>
                 </div>
               </div>
 

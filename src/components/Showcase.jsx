@@ -168,9 +168,10 @@ export default function Showcase({ onSelectFigure }) {
               image: isHttp ? fig.official_image_url : `/images/official/${fig.official_image_url}`,
               isHttpImage: isHttp,
               lightClass: fig.light_class,
-              additionalInfo: fig.additional_info,
-              marketValue: fig.market_value,
-              whereToSearch: fig.where_to_search
+              additionalInfo: fig.additional_info ? fig.additional_info.split('\n') : [],
+              marketValue: typeof fig.market_value === 'string' ? { average: fig.market_value } : fig.market_value,
+              whereToSearch: fig.where_to_search ? fig.where_to_search.split('\n') : [],
+              strategy: fig.strategy ? fig.strategy.split('\n') : []
             };
           });
           setFigures(mappedData);
