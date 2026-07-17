@@ -104,6 +104,8 @@ header p {
   scroll-behavior: smooth;
   scroll-snap-type: x mandatory;
   padding-bottom: 2rem;
+  max-width: 1056px;
+  margin: 0 auto;
   /* Hide scrollbar */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */

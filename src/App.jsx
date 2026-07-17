@@ -93,7 +93,7 @@ function App() {
           </button>
           
           <button className="nav-btn" title="Język Polski" style={{ border: '1px solid var(--color-glass-border)', borderRadius: '20px', padding: '4px 12px', background: 'rgba(255, 255, 255, 0.05)' }}>
-            🇵🇱 PL
+            <img src="https://flagcdn.com/w20/pl.png" alt="PL" style={{ width: '20px', borderRadius: '2px' }} /> PL
           </button>
 
           <button className="nav-btn" onClick={() => alert("FigureFame\n\nBaza wiedzy o figurkach anime oraz agregator aukcji i ofert.")}>

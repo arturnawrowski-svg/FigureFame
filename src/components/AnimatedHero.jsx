@@ -48,7 +48,14 @@ const ParticleHero = ({
       }}
     >
       {/* Background container for particles covering the hero */}
-      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+      <motion.div 
+        style={{ position: 'absolute', top: '-10%', left: '-10%', width: '120%', height: '120%', zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}
+        animate={{
+          x: (mousePosition.x - (typeof window !== 'undefined' ? window.innerWidth / 2 : 0)) * -0.02,
+          y: (mousePosition.y - (typeof window !== 'undefined' ? window.innerHeight / 2 : 0)) * -0.02,
+        }}
+        transition={{ type: "spring", damping: 50, stiffness: 100 }}
+      >
         {particles.map((particle) => (
           <motion.div
             key={particle.id}
@@ -61,17 +68,18 @@ const ParticleHero = ({
               top: `${particle.y}%`,
             }}
             animate={{
-              x: (mousePosition.x - (typeof window !== 'undefined' ? window.innerWidth / 2 : 500)) * 0.05 * particle.speed,
-              y: (mousePosition.y - (typeof window !== 'undefined' ? window.innerHeight / 2 : 500)) * 0.05 * particle.speed,
+              y: [0, particle.speed * -15, 0],
+              x: [0, particle.speed * 10, 0],
+              opacity: [0.2, 0.8, 0.2]
             }}
             transition={{
-              type: "spring",
-              damping: 20,
-              stiffness: 50
+              duration: particle.speed * 3,
+              repeat: Infinity,
+              ease: "easeInOut"
             }}
           />
         ))}
-      </div>
+      </motion.div>
 
       {/* Content */}
       <div className="relative z-10 text-center px-4">
