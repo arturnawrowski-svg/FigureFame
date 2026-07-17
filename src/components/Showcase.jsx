@@ -109,11 +109,9 @@ const fallbackFiguresData = [
       'eBay (trzeba bardzo uważać na podróbki)'
     ],
     strategy: [
-      'Jeżeli naprawdę chcesz ją kupić, nie kupowałbym od razu z eBaya za 1500–2000 USD.',
-      'Lepiej ustawić alerty na Yahoo Auctions Japan oraz Mercari Japan.',
-      'Obserwować MyFigureCollection.',
-      'Korzystać z pośrednika typu Neokyo lub Buyee do zakupów w Japonii.',
-      'To daje największą szansę kupienia jej za 40–60% ceny eBay.'
+      'Z uwagi na to że figurka jest rzadka, warto ustawić powiadomienia na Yahoo Auctions oraz Mercari.',
+      'Nie przepłacaj na eBay, ceny bywają tam znacznie zawyżone (nawet o 100%).',
+      'Szukaj ofert od zaufanych użytkowników na MyFigureCollection.'
     ]
   }
 ];
@@ -123,18 +121,37 @@ export default function Showcase({ onSelectFigure }) {
   const [figures, setFigures] = useState(fallbackFiguresData);
   const [loading, setLoading] = useState(true);
   const sliderRef = useRef(null);
+  const [isHovered, setIsHovered] = useState(false);
 
-  const scrollLeft = () => {
+  const scrollLeftBtn = () => {
     if (sliderRef.current) {
       sliderRef.current.scrollBy({ left: -368, behavior: 'smooth' });
     }
   };
 
-  const scrollRight = () => {
+  const scrollRightBtn = () => {
     if (sliderRef.current) {
       sliderRef.current.scrollBy({ left: 368, behavior: 'smooth' });
     }
   };
+
+  useEffect(() => {
+    let animationFrameId;
+    
+    const animateScroll = () => {
+      if (sliderRef.current && !isHovered && searchTerm === '') {
+        sliderRef.current.scrollLeft += 0.5;
+        
+        if (sliderRef.current.scrollLeft >= sliderRef.current.scrollWidth - sliderRef.current.clientWidth - 1) {
+          sliderRef.current.scrollLeft = 0;
+        }
+      }
+      animationFrameId = requestAnimationFrame(animateScroll);
+    };
+
+    animationFrameId = requestAnimationFrame(animateScroll);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isHovered, searchTerm]);
 
   useEffect(() => {
     async function fetchFigures() {
@@ -200,10 +217,12 @@ export default function Showcase({ onSelectFigure }) {
         <div 
           className="showcase-wrapper" 
           style={{ position: 'relative' }}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
         >
           
           <button 
-            onClick={scrollLeft} 
+            onClick={scrollLeftBtn} 
             style={{ position: 'absolute', left: '-20px', top: '50%', transform: 'translateY(-50%)', zIndex: 100, background: 'rgba(0,0,0,0.5)', borderRadius: '50%', padding: '10px', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}
           >
             <ChevronLeft size={30} />
@@ -247,7 +266,7 @@ export default function Showcase({ onSelectFigure }) {
           </div>
 
           <button 
-            onClick={scrollRight} 
+            onClick={scrollRightBtn} 
             style={{ position: 'absolute', right: '-20px', top: '50%', transform: 'translateY(-50%)', zIndex: 100, background: 'rgba(0,0,0,0.5)', borderRadius: '50%', padding: '10px', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}
           >
             <ChevronRight size={30} />

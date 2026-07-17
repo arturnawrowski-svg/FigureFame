@@ -178,7 +178,7 @@ const ParticleHero = ({
 
   return (
     <div 
-      className="relative w-full overflow-hidden"
+      className="hero-container relative w-full overflow-hidden"
       onMouseMove={handlePointerMove}
       onTouchMove={handlePointerMove}
       style={{
@@ -186,8 +186,6 @@ const ParticleHero = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(to bottom, rgba(10, 10, 10, 0.8), rgba(0, 0, 0, 0))',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
         marginBottom: '2rem'
       }}
     >
@@ -233,7 +231,7 @@ const ParticleHero = ({
             fontWeight: 600, 
             letterSpacing: '2px', 
             textTransform: 'uppercase', 
-            color: 'var(--color-text-secondary)',
+            color: 'var(--color-text-main)',
             marginBottom: '1rem' 
           }}>
             {subtitle}
@@ -241,7 +239,7 @@ const ParticleHero = ({
           <p style={{ 
             maxWidth: '600px', 
             margin: '0 auto 2rem auto', 
-            color: 'var(--color-text-secondary)', 
+            color: 'var(--color-text-main)', 
             lineHeight: 1.6 
           }}>
             {description}

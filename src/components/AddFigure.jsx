@@ -9,6 +9,7 @@ export default function AddFigure({ onBack, user }) {
     series: '',
     manufacturer: '',
     scale: '1/7',
+    type: 'Prepainted',
     releaseDate: '',
     originalPrice: '',
     additionalInfo: '',
@@ -29,11 +30,12 @@ export default function AddFigure({ onBack, user }) {
         series: formData.series || null,
         manufacturer: formData.manufacturer || null,
         scale: formData.scale || null,
+        type: formData.type || null,
         status: 'PENDING',
         submitted_by: user?.id || null,
-        additional_info: formData.additionalInfo ? formData.additionalInfo.split('\\n').filter(s => s.trim() !== '') : null,
-        where_to_search: formData.whereToSearch ? formData.whereToSearch.split('\\n').filter(s => s.trim() !== '') : null,
-        strategy: formData.strategy ? formData.strategy.split('\\n').filter(s => s.trim() !== '') : null,
+        additional_info: formData.additionalInfo ? formData.additionalInfo.split('\n').filter(s => s.trim() !== '') : null,
+        where_to_search: formData.whereToSearch ? formData.whereToSearch.split('\n').filter(s => s.trim() !== '') : null,
+        strategy: formData.strategy ? formData.strategy.split('\n').filter(s => s.trim() !== '') : null,
         market_value: formData.marketValueAverage ? { average: formData.marketValueAverage } : null
       });
 
@@ -97,6 +99,19 @@ export default function AddFigure({ onBack, user }) {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontWeight: 'bold', opacity: 0.9 }}>Typ</label>
+            <select className="form-input" value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})}>
+              <option>Prepainted</option>
+              <option>Action Figure</option>
+              <option>Trading Figure</option>
+              <option>Model Kit</option>
+              <option>Prize Figure</option>
+              <option>Resin Kit</option>
+              <option>Nendoroid</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ fontWeight: 'bold', opacity: 0.9 }}>Data Wydania (Opcjonalne)</label>
             <input type="month" className="form-input" value={formData.releaseDate} onChange={(e) => setFormData({...formData, releaseDate: e.target.value})} />
           </div>
@@ -130,7 +145,7 @@ export default function AddFigure({ onBack, user }) {
         <div className="info-box" style={{ padding: '1.5rem', borderRadius: '12px', display: 'flex', gap: '16px' }}>
           <Info size={32} style={{ color: '#ffb142', flexShrink: 0 }}/>
           <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>
-            <strong>Ceny i oferty:</strong> Zauważ, że nie dodajesz tu żadnych ofert ze sklepów. System Agregatora (Backend) sam na podstawie Nazwy, Serii i Producenta przeczesze w nocy 50 sklepów z Japonii i rano automatycznie podepnie tu oferty kupna!
+            <strong>Ceny i oferty:</strong> Zauważ, że nie dodajesz tu żadnych ofert ze sklepów. Nasz zautomatyzowany system regularnie przeszukuje internet, w tym aukcje, sklepy internetowe, fora kolekcjonerskie i inne miejsca, by dostarczyć Ci satysfakcjonujący kontent - najnowsze informacje, aktualne ceny oraz najlepsze oferty kupna na rynku.
           </div>
         </div>
 

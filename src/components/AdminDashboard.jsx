@@ -12,6 +12,7 @@ export default function AdminDashboard({ onBack }) {
   // Edit mode state
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [isSaved, setIsSaved] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
@@ -48,12 +49,13 @@ export default function AdminDashboard({ onBack }) {
       series: fig.series || '',
       manufacturer: fig.manufacturer || '',
       scale: fig.scale || '1/7',
+      type: fig.type || 'Prepainted',
       official_image_url: fig.official_image_url || '',
       original_price: fig.original_price || '',
       additional_info: fig.additional_info || null,
       where_to_search: fig.where_to_search || null,
       strategy: fig.strategy || null,
-      market_value: fig.market_value || null
+      market_value: typeof fig.market_value === 'string' ? { average: fig.market_value } : fig.market_value || null
     });
   };
 
@@ -78,7 +80,7 @@ export default function AdminDashboard({ onBack }) {
     }
   };
 
-  const handleSaveEdits = async (id, name) => {
+  const handleSaveEdits = async (id) => {
     try {
       const { error } = await supabase
         .from('figures')
@@ -87,7 +89,11 @@ export default function AdminDashboard({ onBack }) {
 
       if (error) throw error;
       
-      alert(`Zapisano zmiany: ${name}`);
+      setIsSaved(true);
+      setTimeout(() => {
+        setIsSaved(false);
+        setEditingId(null);
+      }, 2000);
       fetchFigures();
     } catch (err) {
       alert(`Błąd podczas zapisywania: ${err.message}`);
@@ -124,22 +130,22 @@ export default function AdminDashboard({ onBack }) {
         <button className="btn-secondary" onClick={onBack}>
           &larr; Wróć do Gabloty
         </button>
-        <div style={{ display: 'flex', gap: '1rem', background: 'rgba(255,255,255,0.05)', padding: '0.5rem', borderRadius: '12px' }}>
+        <div style={{ display: 'flex', gap: '1rem', background: 'rgba(128,128,128,0.1)', padding: '0.5rem', borderRadius: '12px' }}>
           <button 
             onClick={() => setActiveTab('PENDING')} 
-            style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: activeTab === 'PENDING' ? '#fff' : 'transparent', color: activeTab === 'PENDING' ? '#000' : '#fff', fontWeight: 'bold' }}
+            style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: activeTab === 'PENDING' ? 'var(--color-text-highlight)' : 'transparent', color: activeTab === 'PENDING' ? 'var(--color-bg-shelf)' : 'var(--color-text-highlight)', fontWeight: 'bold' }}
           >
             Do Weryfikacji
           </button>
           <button 
             onClick={() => setActiveTab('APPROVED')}
-            style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: activeTab === 'APPROVED' ? '#fff' : 'transparent', color: activeTab === 'APPROVED' ? '#000' : '#fff', fontWeight: 'bold' }}
+            style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: activeTab === 'APPROVED' ? 'var(--color-text-highlight)' : 'transparent', color: activeTab === 'APPROVED' ? 'var(--color-bg-shelf)' : 'var(--color-text-highlight)', fontWeight: 'bold' }}
           >
             Gablota
           </button>
           <button 
             onClick={() => setActiveTab('ARCHIVED')}
-            style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: activeTab === 'ARCHIVED' ? '#fff' : 'transparent', color: activeTab === 'ARCHIVED' ? '#000' : '#fff', fontWeight: 'bold' }}
+            style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: activeTab === 'ARCHIVED' ? 'var(--color-text-highlight)' : 'transparent', color: activeTab === 'ARCHIVED' ? 'var(--color-bg-shelf)' : 'var(--color-text-highlight)', fontWeight: 'bold' }}
           >
             Zarchiwizowane
           </button>
@@ -174,7 +180,7 @@ export default function AdminDashboard({ onBack }) {
       {loading ? (
         <div style={{ textAlign: 'center', padding: '2rem' }}>Ładowanie zgłoszeń...</div>
       ) : filteredFigures.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '12px' }}>
+        <div style={{ textAlign: 'center', padding: '3rem', background: 'var(--color-glass-bg)', borderRadius: '12px' }}>
           <Clock size={48} style={{ opacity: 0.5, marginBottom: '1rem' }} />
           <h3>Brak wyników</h3>
           <p style={{ opacity: 0.7 }}>W tej zakładce nie ma żadnych figurek.</p>
@@ -183,7 +189,7 @@ export default function AdminDashboard({ onBack }) {
         <div style={{ display: 'grid', gap: '1rem' }}>
           {filteredFigures.filter(fig => editingId ? fig.id === editingId : true).map(fig => (
             <div key={fig.id} style={{
-              background: 'rgba(255, 255, 255, 0.05)',
+              background: 'var(--color-glass-bg)',
               borderRadius: '12px',
               borderLeft: `4px solid ${activeTab === 'PENDING' ? '#ffa502' : activeTab === 'APPROVED' ? '#2ed573' : '#747d8c'}`,
               overflow: 'hidden'
@@ -215,10 +221,11 @@ export default function AdminDashboard({ onBack }) {
                   {editingId === fig.id && (
                     <button 
                       className="btn-primary" 
-                      style={{ background: '#3498db', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
-                      onClick={() => handleSaveEdits(fig.id, editForm.name || fig.name)}
+                      style={{ background: isSaved ? '#2ed573' : '#3498db', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+                      onClick={() => handleSaveEdits(fig.id)}
+                      disabled={isSaved}
                     >
-                      <Check size={18} /> Zapisz Edycję
+                      <Check size={18} /> {isSaved ? 'Zapisano' : 'Zapisz Edycję'}
                     </button>
                   )}
                   
@@ -273,7 +280,7 @@ export default function AdminDashboard({ onBack }) {
 
               {/* Edit Form Expansion */}
               {editingId === fig.id && (
-                <div style={{ padding: '1.5rem', background: 'rgba(0,0,0,0.2)', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                <div style={{ padding: '1.5rem', background: 'var(--color-bg-shelf)', border: '1px solid var(--color-text-main)', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                     <h4 style={{ margin: 0, opacity: 0.8 }}>Weryfikacja i uzupełnianie danych</h4>
                     <button 
@@ -342,42 +349,59 @@ export default function AdminDashboard({ onBack }) {
                     <div className="form-group">
                       <label>Nazwa postaci</label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} style={{ width: '100%', borderColor: !editForm.name ? '#ff4757' : undefined }} />
+                        <input className="form-input" type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} style={{ width: '100%', borderColor: !editForm.name ? '#ff4757' : undefined }} />
                         {!editForm.name && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                       </div>
                     </div>
                     <div className="form-group">
                       <label>Nazwa Japońska</label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <input type="text" value={editForm.japanese_name} onChange={e => setEditForm({...editForm, japanese_name: e.target.value})} style={{ width: '100%', borderColor: !editForm.japanese_name ? '#ff4757' : undefined }} />
+                        <input className="form-input" type="text" value={editForm.japanese_name} onChange={e => setEditForm({...editForm, japanese_name: e.target.value})} style={{ width: '100%', borderColor: !editForm.japanese_name ? '#ff4757' : undefined }} />
                         {!editForm.japanese_name && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                       </div>
                     </div>
                     <div className="form-group">
                       <label>Seria</label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <input type="text" value={editForm.series} onChange={e => setEditForm({...editForm, series: e.target.value})} style={{ width: '100%', borderColor: !editForm.series ? '#ff4757' : undefined }} />
+                        <input className="form-input" type="text" value={editForm.series} onChange={e => setEditForm({...editForm, series: e.target.value})} style={{ width: '100%', borderColor: !editForm.series ? '#ff4757' : undefined }} />
                         {!editForm.series && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                       </div>
                     </div>
                     <div className="form-group">
                       <label>Producent</label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <input type="text" value={editForm.manufacturer} onChange={e => setEditForm({...editForm, manufacturer: e.target.value})} style={{ width: '100%', borderColor: !editForm.manufacturer ? '#ff4757' : undefined }} />
+                        <input className="form-input" type="text" value={editForm.manufacturer} onChange={e => setEditForm({...editForm, manufacturer: e.target.value})} style={{ width: '100%', borderColor: !editForm.manufacturer ? '#ff4757' : undefined }} />
                         {!editForm.manufacturer && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                       </div>
                     </div>
                     <div className="form-group">
                       <label>Skala</label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <input type="text" value={editForm.scale} onChange={e => setEditForm({...editForm, scale: e.target.value})} style={{ width: '100%', borderColor: !editForm.scale ? '#ff4757' : undefined }} />
+                        <input className="form-input" type="text" value={editForm.scale} onChange={e => setEditForm({...editForm, scale: e.target.value})} style={{ width: '100%', borderColor: !editForm.scale ? '#ff4757' : undefined }} />
                         {!editForm.scale && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                       </div>
                     </div>
+
+                    <div className="form-group">
+                      <label>Typ figurki</label>
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <select className="form-input" value={editForm.type || 'Prepainted'} onChange={e => setEditForm({...editForm, type: e.target.value})} style={{ width: '100%', borderColor: !editForm.type ? '#ff4757' : undefined }}>
+                          <option>Prepainted</option>
+                          <option>Action Figure</option>
+                          <option>Trading Figure</option>
+                          <option>Model Kit</option>
+                          <option>Prize Figure</option>
+                          <option>Resin Kit</option>
+                          <option>Nendoroid</option>
+                        </select>
+                        {!editForm.type && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '30px' }} title="Brak danych" />}
+                      </div>
+                    </div>
+                    
                     <div className="form-group">
                       <label>Cena pierwotna</label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <input type="text" placeholder="np. 15 000 JPY" value={editForm.original_price} onChange={e => setEditForm({...editForm, original_price: e.target.value})} style={{ width: '100%', borderColor: !editForm.original_price ? '#ff4757' : undefined }} />
+                        <input className="form-input" type="text" placeholder="np. 15 000 JPY" value={editForm.original_price} onChange={e => setEditForm({...editForm, original_price: e.target.value})} style={{ width: '100%', borderColor: !editForm.original_price ? '#ff4757' : undefined }} />
                         {!editForm.original_price && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                       </div>
                     </div>
@@ -385,7 +409,7 @@ export default function AdminDashboard({ onBack }) {
                   <div className="form-group" style={{ marginBottom: '1rem' }}>
                     <label>URL Obrazka (np. miku_figure, albo pełny link http...)</label>
                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                      <input type="text" value={editForm.official_image_url} onChange={e => setEditForm({...editForm, official_image_url: e.target.value})} style={{ width: '100%', borderColor: !editForm.official_image_url ? '#ff4757' : undefined }} />
+                      <input className="form-input" type="text" value={editForm.official_image_url} onChange={e => setEditForm({...editForm, official_image_url: e.target.value})} style={{ width: '100%', borderColor: !editForm.official_image_url ? '#ff4757' : undefined }} />
                       {!editForm.official_image_url && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                     </div>
                     {editForm.official_image_url && (
