@@ -10,6 +10,7 @@
   
   --color-miku-cyan: rgba(0, 255, 255, 0.6);
   --color-sonico-pink: rgba(255, 102, 204, 0.6);
+  --color-particles: rgba(255, 71, 87, 0.5);
   
   --font-main: 'Inter', sans-serif;
   --font-heading: 'Outfit', sans-serif;
@@ -616,6 +617,31 @@ header p {
   opacity: 0.6;
 }
 
+/* Add Figure Form */
+.add-form-container {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.form-input {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  width: 100%;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.info-box {
+  background: rgba(0, 0, 0, 0.4);
+}
+
 /* Footer */
 .app-footer {
   margin-top: 8rem;
@@ -754,6 +780,36 @@ body.light-mode .nav-btn {
 
 body.light-mode .nav-btn:hover {
   color: #111827;
+}
+
+/* Add Figure Light Mode */
+body.light-mode .add-form-container {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
+
+body.light-mode .form-input {
+  background: #f9fafb;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: #111827;
+}
+
+body.light-mode .form-input:focus {
+  border-color: #d1d5db;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.05);
+}
+
+body.light-mode .info-box {
+  background: #fdf6e3;
+  border: 1px solid #fde68a;
+}
+
+body.light-mode .official-shops {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.02);
 }
 
 /* Mobile Responsiveness for iPhone (Safari/Chrome) */

@@ -43,7 +43,7 @@ export default function AddFigure({ onBack, user }) {
   };
 
   return (
-    <div className="add-figure-view animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto', background: 'rgba(255,255,255,0.03)', padding: '3rem', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.1)' }}>
+    <div className="add-figure-view add-form-container animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto', padding: '3rem', borderRadius: '24px' }}>
       <button className="btn-secondary" onClick={onBack} style={{ marginBottom: '2rem' }}>
         <ArrowLeft size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Wróć do bazy
       </button>
@@ -63,24 +63,24 @@ export default function AddFigure({ onBack, user }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ fontWeight: 'bold', opacity: 0.9 }}>Nazwa postaci (Wymagane)</label>
-            <input required type="text" placeholder="np. Hatsune Miku, Super Sonico" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} style={{ padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.3)', color: '#fff' }} />
+            <input required type="text" className="form-input" placeholder="np. Hatsune Miku, Super Sonico" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ fontWeight: 'bold', opacity: 0.9 }}>Seria / Anime (Opcjonalne)</label>
-            <input type="text" placeholder="np. Vocaloid, SoniAni" value={formData.series} onChange={(e) => setFormData({...formData, series: e.target.value})} style={{ padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.3)', color: '#fff' }} />
+            <input type="text" className="form-input" placeholder="np. Vocaloid, SoniAni" value={formData.series} onChange={(e) => setFormData({...formData, series: e.target.value})} />
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ fontWeight: 'bold', opacity: 0.9 }}>Producent (Opcjonalne)</label>
-            <input type="text" placeholder="np. Good Smile, Alter" value={formData.manufacturer} onChange={(e) => setFormData({...formData, manufacturer: e.target.value})} style={{ padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.3)', color: '#fff' }} />
+            <input type="text" className="form-input" placeholder="np. Good Smile, Alter" value={formData.manufacturer} onChange={(e) => setFormData({...formData, manufacturer: e.target.value})} />
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ fontWeight: 'bold', opacity: 0.9 }}>Skala</label>
-            <select value={formData.scale} onChange={(e) => setFormData({...formData, scale: e.target.value})} style={{ padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: '#1a1c23', color: '#fff' }}>
+            <select className="form-input" value={formData.scale} onChange={(e) => setFormData({...formData, scale: e.target.value})}>
               <option>1/8</option>
               <option>1/7</option>
               <option>1/6</option>
@@ -91,7 +91,7 @@ export default function AddFigure({ onBack, user }) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ fontWeight: 'bold', opacity: 0.9 }}>Data Wydania (Opcjonalne)</label>
-            <input type="month" value={formData.releaseDate} onChange={(e) => setFormData({...formData, releaseDate: e.target.value})} style={{ padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: '#1a1c23', color: '#fff' }} />
+            <input type="month" className="form-input" value={formData.releaseDate} onChange={(e) => setFormData({...formData, releaseDate: e.target.value})} />
           </div>
         </div>
 
@@ -102,7 +102,7 @@ export default function AddFigure({ onBack, user }) {
 
         <div className="divider" style={{ margin: '1rem 0' }}></div>
 
-        <div style={{ background: 'rgba(0, 0, 0, 0.4)', padding: '1.5rem', borderRadius: '12px', display: 'flex', gap: '16px' }}>
+        <div className="info-box" style={{ padding: '1.5rem', borderRadius: '12px', display: 'flex', gap: '16px' }}>
           <Info size={32} style={{ color: '#ffb142', flexShrink: 0 }}/>
           <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>
             <strong>Ceny i oferty:</strong> Zauważ, że nie dodajesz tu żadnych ofert ze sklepów. System Agregatora (Backend) sam na podstawie Nazwy, Serii i Producenta przeczesze w nocy 50 sklepów z Japonii i rano automatycznie podepnie tu oferty kupna!

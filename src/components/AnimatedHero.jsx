@@ -59,13 +59,12 @@ const ParticleHero = ({
             key={particle.id}
             className="absolute rounded-full"
             style={{
-              backgroundColor: 'var(--color-particles, rgba(255, 71, 87, 0.6))',
-              width: particle.size,
-              height: particle.size,
+              backgroundColor: 'var(--color-particles)',
+              width: `${particle.size}px`,
+              height: `${particle.size}px`,
               left: `${particle.x}%`,
               top: `${particle.y}%`,
             }}
-            initial={{ opacity: 0.5, y: 0, x: 0 }}
             animate={{
               y: [0, particle.speed * -15, 0],
               x: [0, particle.speed * 10, 0],
