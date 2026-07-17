@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Check, Trash2, Clock, AlertCircle, Edit3, X } from 'lucide-react';
+import { Check, Trash2, Clock, AlertCircle, Edit3, X, Lock } from 'lucide-react';
 
 export default function AdminDashboard({ onBack }) {
   const [pendingFigures, setPendingFigures] = useState([]);
@@ -10,6 +10,7 @@ export default function AdminDashboard({ onBack }) {
   // Edit mode state
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     fetchPending();
@@ -142,38 +143,6 @@ export default function AdminDashboard({ onBack }) {
                     <button 
                       className="btn-secondary" 
                       style={{ border: 'none', display: 'flex', alignItems: 'center', gap: '8px', padding: '0.5rem 1rem' }}
-                      onClick={async () => {
-                        const originalName = fig.name;
-                        setLoading(true);
-                        try {
-                          alert('Rozpoczynam szukanie danych przez AI. To potrwa kilka sekund...');
-                          const response = await fetch(`/api/fetch-figure?name=${encodeURIComponent(originalName)}`);
-                          const data = await response.json();
-                          if (response.ok) {
-                            handleEditClick(fig);
-                            // Pre-fill with AI data
-                            setEditForm(prev => ({
-                              ...prev,
-                              ...data
-                            }));
-                            alert('Pobrano dane pomyślnie!');
-                          } else {
-                            throw new Error(data.error || 'Błąd API');
-                          }
-                        } catch(err) {
-                          alert('Nie udało się pobrać danych: ' + err.message);
-                        } finally {
-                          setLoading(false);
-                        }
-                      }}
-                    >
-                      🤖 Szukaj Danych
-                    </button>
-                  )}
-                  {editingId !== fig.id && (
-                    <button 
-                      className="btn-secondary" 
-                      style={{ border: 'none', display: 'flex', alignItems: 'center', gap: '8px', padding: '0.5rem 1rem' }}
                       onClick={() => handleEditClick(fig)}
                     >
                       <Edit3 size={18} /> Edytuj
@@ -185,7 +154,7 @@ export default function AdminDashboard({ onBack }) {
                       style={{ background: '#2ed573', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
                       onClick={() => handleApprove(fig.id, editForm.name || fig.name)}
                     >
-                      <Check size={18} /> Zatwierdź Zmiany
+                      <Check size={18} /> Zatwierdź Zmiany (dodaj do Gabloty)
                     </button>
                   )}
                   {editingId !== fig.id && (
@@ -203,35 +172,93 @@ export default function AdminDashboard({ onBack }) {
               {/* Edit Form Expansion */}
               {editingId === fig.id && (
                 <div style={{ padding: '1.5rem', background: 'rgba(0,0,0,0.2)', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <h4 style={{ margin: 0, opacity: 0.8 }}>Weryfikacja i uzupełnianie danych</h4>
+                    <button 
+                      className="btn-secondary" 
+                      disabled={isSearching}
+                      style={{ border: '1px solid #3b82f6', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '8px' }}
+                      onClick={async () => {
+                        const originalName = editForm.name || fig.name;
+                        setIsSearching(true);
+                        try {
+                          const response = await fetch(`/api/fetch-figure?name=${encodeURIComponent(originalName)}`);
+                          const data = await response.json();
+                          if (response.ok) {
+                            // Merge all truthy values, don't overwrite if data has empty string
+                            setEditForm(prev => {
+                              const newForm = { ...prev };
+                              for (const key in data) {
+                                if (data[key] && data[key].trim() !== '') {
+                                  newForm[key] = data[key];
+                                }
+                              }
+                              return newForm;
+                            });
+                          } else {
+                            console.error(data.error || 'Błąd API');
+                          }
+                        } catch(err) {
+                          console.error(err);
+                        } finally {
+                          setIsSearching(false);
+                        }
+                      }}
+                    >
+                      {isSearching ? <span className="animate-pulse">ff Szukam...</span> : '🤖 Szukaj Danych (AI/Scraping)'}
+                    </button>
+                  </div>
+
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                     <div className="form-group">
                       <label>Nazwa postaci</label>
-                      <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} />
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} style={{ width: '100%', borderColor: !editForm.name ? '#ff4757' : undefined }} />
+                        {!editForm.name && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
+                      </div>
                     </div>
                     <div className="form-group">
                       <label>Nazwa Japońska</label>
-                      <input type="text" value={editForm.japanese_name} onChange={e => setEditForm({...editForm, japanese_name: e.target.value})} />
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input type="text" value={editForm.japanese_name} onChange={e => setEditForm({...editForm, japanese_name: e.target.value})} style={{ width: '100%', borderColor: !editForm.japanese_name ? '#ff4757' : undefined }} />
+                        {!editForm.japanese_name && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
+                      </div>
                     </div>
                     <div className="form-group">
                       <label>Seria</label>
-                      <input type="text" value={editForm.series} onChange={e => setEditForm({...editForm, series: e.target.value})} />
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input type="text" value={editForm.series} onChange={e => setEditForm({...editForm, series: e.target.value})} style={{ width: '100%', borderColor: !editForm.series ? '#ff4757' : undefined }} />
+                        {!editForm.series && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
+                      </div>
                     </div>
                     <div className="form-group">
                       <label>Producent</label>
-                      <input type="text" value={editForm.manufacturer} onChange={e => setEditForm({...editForm, manufacturer: e.target.value})} />
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input type="text" value={editForm.manufacturer} onChange={e => setEditForm({...editForm, manufacturer: e.target.value})} style={{ width: '100%', borderColor: !editForm.manufacturer ? '#ff4757' : undefined }} />
+                        {!editForm.manufacturer && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
+                      </div>
                     </div>
                     <div className="form-group">
                       <label>Skala</label>
-                      <input type="text" value={editForm.scale} onChange={e => setEditForm({...editForm, scale: e.target.value})} />
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input type="text" value={editForm.scale} onChange={e => setEditForm({...editForm, scale: e.target.value})} style={{ width: '100%', borderColor: !editForm.scale ? '#ff4757' : undefined }} />
+                        {!editForm.scale && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
+                      </div>
                     </div>
                     <div className="form-group">
                       <label>Cena pierwotna</label>
-                      <input type="text" placeholder="np. 15 000 JPY" value={editForm.original_price} onChange={e => setEditForm({...editForm, original_price: e.target.value})} />
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <input type="text" placeholder="np. 15 000 JPY" value={editForm.original_price} onChange={e => setEditForm({...editForm, original_price: e.target.value})} style={{ width: '100%', borderColor: !editForm.original_price ? '#ff4757' : undefined }} />
+                        {!editForm.original_price && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
+                      </div>
                     </div>
                   </div>
                   <div className="form-group" style={{ marginBottom: '1rem' }}>
                     <label>URL Obrazka (np. miku_figure, albo pełny link http...)</label>
-                    <input type="text" value={editForm.official_image_url} onChange={e => setEditForm({...editForm, official_image_url: e.target.value})} />
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <input type="text" value={editForm.official_image_url} onChange={e => setEditForm({...editForm, official_image_url: e.target.value})} style={{ width: '100%', borderColor: !editForm.official_image_url ? '#ff4757' : undefined }} />
+                      {!editForm.official_image_url && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
+                    </div>
                   </div>
                   <button className="btn-secondary" onClick={() => setEditingId(null)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <X size={16} /> Anuluj Edycję

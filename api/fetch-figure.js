@@ -1,6 +1,71 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
+import * as cheerio from "cheerio";
+
+async function scrapeMFC(name) {
+  try {
+    const searchUrl = `https://myfigurecollection.net/browse.v4.php?keywords=${encodeURIComponent(name)}`;
+    const res = await fetch(searchUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const $ = cheerio.load(html);
+    const firstLink = $('.item-icon a').attr('href');
+    if (!firstLink) return null;
+
+    const itemUrl = `https://myfigurecollection.net${firstLink}`;
+    const itemRes = await fetch(itemUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
+    if (!itemRes.ok) return null;
+    const itemHtml = await itemRes.text();
+    const $item = cheerio.load(itemHtml);
+
+    const data = {
+      japanese_name: $item('.form-field:contains("Japanese") .value').text().trim() || "",
+      manufacturer: $item('.form-field:contains("Manufacturer") .value').text().trim() || "",
+      series: $item('.form-field:contains("Origin") .value').text().trim() || "",
+      scale: $item('.form-field:contains("Scale") .value').text().trim() || "",
+      original_price: $item('.form-field:contains("Price") .value').text().trim() || "",
+      official_image_url: $item('.item-picture img').attr('src') || ""
+    };
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function scrapeGoodSmile(name) {
+  try {
+    const searchUrl = `https://www.goodsmile.info/en/products/search?utf8=%E2%9C%93&search%5Bquery%5D=${encodeURIComponent(name)}`;
+    const res = await fetch(searchUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const $ = cheerio.load(html);
+    const firstLink = $('.hitItem a').attr('href');
+    if (!firstLink) return null;
+
+    const itemUrl = firstLink.startsWith('http') ? firstLink : `https://www.goodsmile.info${firstLink}`;
+    const itemRes = await fetch(itemUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!itemRes.ok) return null;
+    const itemHtml = await itemRes.text();
+    const $item = cheerio.load(itemHtml);
+
+    const priceMatch = $item('.detailBox dt:contains("Price")').next('dd').text().trim();
+    const specMatch = $item('.detailBox dt:contains("Specifications")').next('dd').text();
+    const scale = specMatch ? (specMatch.match(/(1\/\d+)/)?.[1] || "") : "";
+    const imgUrl = $item('.itemImg img').attr('src');
+
+    return {
+      japanese_name: "", // Czasem brak na wersji EN
+      manufacturer: "Good Smile Company",
+      series: $item('.detailBox dt:contains("Series")').next('dd').text().trim() || "",
+      scale: scale,
+      original_price: priceMatch,
+      official_image_url: imgUrl ? (imgUrl.startsWith('http') ? imgUrl : `https:${imgUrl}`) : ""
+    };
+  } catch (e) {
+    return null;
+  }
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -12,50 +77,82 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing figure name' });
   }
 
-  console.log(`Pobieranie danych dla: ${name}`);
+  console.log(`Rozpoczęto kaskadowe pobieranie danych dla: ${name}`);
 
   try {
-    const genAI = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    let figureData = {
+      name: name,
+      japanese_name: "",
+      series: "",
+      manufacturer: "",
+      scale: "",
+      original_price: "",
+      official_image_url: ""
+    };
 
-    // Step 1: Use Gemini to find data
-    const prompt = `Jesteś ekspertem ds. figurek anime. Przeszukaj swoją bazę wiedzy i znajdź oficjalne dane o figurce o nazwie: "${name}". 
-Jeżeli figurka ma wiele wersji, wybierz najbardziej standardową lub popularną (np. 1/7 scale PVC).
-
-ZASADY KRYTYCZNE (BEZWZGLĘDNIE PRZESTRZEGAJ):
-1. NIE ZMYŚLAJ DANYCH. Jeśli nie znasz oficjalnej japońskiej nazwy, zostaw pole jako pusty ciąg znaków "".
-2. NIE GENERUJ FIKCYJNYCH LINKÓW DO ZDJĘĆ. Musisz znaleźć RZECZYWISTY, działający publicznie URL oryginalnego zdjęcia na stronach producenta (GoodSmile) lub baz (MyFigureCollection, AmiAmi). Jeśli nie masz 100% pewności, że link istnieje w rzeczywistości, zostaw pole "official_image_url" CAŁKOWICIE PUSTE ("").
-3. Korzystaj tylko z weryfikowalnych źródeł. Nie wymyślaj cen ani dat.
-
-Zwróć wynik TYLKO w czystym formacie JSON bez znaczników \`\`\`json. Format odpowiedzi:
-{
-  "name": "${name}",
-  "japanese_name": "Japońska nazwa (tylko prawdziwa, inaczej \"\")",
-  "series": "Seria/Anime z którego pochodzi (np. Hatsune Miku, Evangelion)",
-  "manufacturer": "Producent (np. Good Smile Company, Alter)",
-  "scale": "Skala (np. 1/7, 1/8, Non-scale)",
-  "original_price": "Cena w JPY w momencie premiery (np. 15000 JPY)",
-  "official_image_url": "Bezpośredni publiczny URL do dużego oficjalnego zdjęcia figurki w JPG/PNG. TYLKO PRAWDZIWY LINK. Inaczej zostaw puste."
-}`;
-
-    console.log('Wysyłam zapytanie do Gemini API...');
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
-    console.log('Odpowiedź Gemini:', responseText);
-
-    let figureData;
-    try {
-      const cleanJsonStr = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-      figureData = JSON.parse(cleanJsonStr);
-    } catch (e) {
-      console.error("Błąd parsowania JSON od AI:", e, responseText);
-      return res.status(500).json({ error: 'AI returned invalid JSON format' });
+    // OPCJA 1: MyFigureCollection
+    console.log("-> Opcja 1: MyFigureCollection...");
+    const mfcData = await scrapeMFC(name);
+    if (mfcData) {
+      console.log("Znaleziono w MFC!");
+      Object.keys(mfcData).forEach(k => {
+        if (mfcData[k]) figureData[k] = mfcData[k];
+      });
     }
 
-    // Step 2: Download and convert image if available
+    // Sprawdzenie czy mamy braki
+    const hasMissingFields = Object.values(figureData).some(val => !val);
+
+    // OPCJA 2: GoodSmile Company
+    if (hasMissingFields) {
+      console.log("-> Opcja 2: GoodSmile...");
+      const gscData = await scrapeGoodSmile(name);
+      if (gscData) {
+        console.log("Znaleziono w GSC!");
+        Object.keys(gscData).forEach(k => {
+          if (!figureData[k] && gscData[k]) figureData[k] = gscData[k];
+        });
+      }
+    }
+
+    // Sprawdzenie czy NADAL mamy braki
+    const stillHasMissingFields = Object.values(figureData).some(val => !val);
+
+    // OPCJA 3: AI (Gemini)
+    if (stillHasMissingFields) {
+      console.log("-> Opcja 3: AI Gemini (Wypełnianie braków)...");
+      try {
+        const genAI = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY);
+        // Używamy nowszego stabilnego modelu, flash-latest lub pro by unikać 404
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+
+        const prompt = `Jesteś ekspertem ds. figurek anime. Uzupełnij brakujące dane o figurce: "${name}". 
+Obecne dane: ${JSON.stringify(figureData)}
+ZASADY KRYTYCZNE:
+1. Uzupełnij TYLKO puste pola (""). Nie nadpisuj tych, które już mają wartość.
+2. NIE ZMYŚLAJ DANYCH.
+3. Link do zdjęcia MUSI być prawdziwy, publiczny (.jpg/.png). Jeśli nie masz pewności, zostaw pusty ciąg "".
+Zwróć wynik TYLKO w czystym formacie JSON bez znaczników \`\`\`json. Format musi mieć dokładnie te same klucze co "Obecne dane".`;
+
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text();
+        
+        const cleanJsonStr = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const aiData = JSON.parse(cleanJsonStr);
+        
+        Object.keys(aiData).forEach(k => {
+          if (!figureData[k] && aiData[k]) figureData[k] = aiData[k];
+        });
+      } catch (aiError) {
+        console.error("Błąd AI podczas dopełniania:", aiError.message);
+        // Kontynuujemy z tym co mamy
+      }
+    }
+
+    // Przetwarzanie i konwersja obrazka WebP
     let supabaseImageUrl = '';
     
-    if (figureData.official_image_url && figureData.official_image_url.startsWith('http')) {
+    if (figureData.official_image_url && figureData.official_image_url.startsWith('http') && !figureData.official_image_url.includes('supabase.co')) {
       console.log(`Pobieranie obrazka z URL: ${figureData.official_image_url}`);
       
       try {
@@ -70,15 +167,12 @@ Zwróć wynik TYLKO w czystym formacie JSON bez znaczników \`\`\`json. Format o
             .webp({ quality: 80 })
             .toBuffer();
           
-          // Generate unique filename
           const filename = `${name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.webp`;
-          
           const supabaseUrl = process.env.VITE_SUPABASE_URL;
           const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
           
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
           
-          console.log(`Upload do Supabase Storage jako: ${filename}...`);
           const { error: uploadError } = await supabase
             .storage
             .from('figure-images')
@@ -87,23 +181,16 @@ Zwróć wynik TYLKO w czystym formacie JSON bez znaczników \`\`\`json. Format o
               upsert: true
             });
             
-          if (uploadError) {
-            console.error("Supabase Upload Error:", uploadError);
-          } else {
+          if (!uploadError) {
             const { data: publicUrlData } = supabase.storage.from('figure-images').getPublicUrl(filename);
             supabaseImageUrl = publicUrlData.publicUrl;
-            console.log('Upload zakończony sukcesem:', supabaseImageUrl);
+            figureData.official_image_url = supabaseImageUrl;
           }
-        } else {
-          console.warn(`Obrazek niedostępny (HTTP ${imgResponse.status}) z podanego linku AI`);
         }
       } catch (imgError) {
-        console.error('Błąd pobierania/konwersji obrazka:', imgError.message);
+        console.error('Błąd konwersji obrazka:', imgError.message);
       }
     }
-    
-    // Replace the raw URL with our self-hosted WebP url
-    figureData.official_image_url = supabaseImageUrl;
 
     res.status(200).json(figureData);
   } catch (error) {
