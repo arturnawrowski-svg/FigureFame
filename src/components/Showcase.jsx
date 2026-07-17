@@ -135,35 +135,7 @@ export default function Showcase({ onSelectFigure }) {
     }
   };
 
-  useEffect(() => {
-    let animationFrameId;
-    let lastTimestamp = performance.now();
-    let accumulatedScroll = 0;
-    
-    const animateScroll = (timestamp) => {
-      const delta = timestamp - lastTimestamp;
-      lastTimestamp = timestamp;
-
-      if (sliderRef.current && !isHovered && searchTerm === '') {
-        // Dodajemy 0.05 piksela na milisekundę (ok. 3 piksele na klatkę przy 60fps)
-        accumulatedScroll += 0.05 * delta;
-        
-        if (accumulatedScroll >= 1) {
-          const pixelsToScroll = Math.floor(accumulatedScroll);
-          sliderRef.current.scrollLeft += pixelsToScroll;
-          
-          if (sliderRef.current.scrollLeft >= sliderRef.current.scrollWidth - sliderRef.current.clientWidth - 1) {
-            sliderRef.current.scrollLeft = 0;
-          }
-          accumulatedScroll -= pixelsToScroll;
-        }
-      }
-      animationFrameId = requestAnimationFrame(animateScroll);
-    };
-
-    animationFrameId = requestAnimationFrame(animateScroll);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [isHovered, searchTerm]);
+  // Usunięto ciężką pętlę requestAnimationFrame, animacja odbywa się przez CSS
 
   useEffect(() => {
     async function fetchFigures() {
@@ -228,48 +200,50 @@ export default function Showcase({ onSelectFigure }) {
       ) : (
         <div 
           className="showcase-wrapper" 
-          style={{ position: 'relative' }}
-          onMouseEnter={() => setIsHovered(true)}
+          onMouseEnter={() => setIsHovered(true)} 
           onMouseLeave={() => setIsHovered(false)}
         >
-          
-          <button 
-            onClick={scrollLeftBtn} 
-            style={{ position: 'absolute', left: '-20px', top: '50%', transform: 'translateY(-50%)', zIndex: 100, background: 'rgba(0,0,0,0.5)', borderRadius: '50%', padding: '10px', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}
-          >
-            <ChevronLeft size={30} />
-          </button>
+          {searchTerm !== '' && (
+            <button 
+              onClick={scrollLeftBtn} 
+              style={{ position: 'absolute', left: '-20px', top: '50%', transform: 'translateY(-50%)', zIndex: 100, background: 'rgba(0,0,0,0.5)', borderRadius: '50%', padding: '10px', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}
+            >
+              <ChevronLeft size={30} />
+            </button>
+          )}
 
-          <div className="showcase-grid" ref={sliderRef} style={{ perspective: '1000px' }}>
-            {filteredFigures.map((fig) => (
-              <div 
-                key={fig.id} 
-                className="figure-card"
-              >
-                <div className="figure-name-badge">{fig.name}</div>
-                <div className={`ambient-light ${fig.lightClass}`}></div>
-                <div className="figure-image-container">
-                  {fig.isHttpImage ? (
-                    <img src={fig.image} alt={fig.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
-                  ) : (
-                    <picture>
-                      <source srcSet={`${fig.image}.avif`} type="image/avif" />
-                      <source srcSet={`${fig.image}.webp`} type="image/webp" />
-                      <img src={`${fig.image}.jpg`} alt={fig.name} loading="lazy" />
-                    </picture>
-                  )}
+          <div className={searchTerm === '' ? 'showcase-viewport' : 'showcase-grid'} ref={sliderRef} style={{ perspective: '1000px' }}>
+            <div className={searchTerm === '' ? `showcase-track ${isHovered ? 'paused' : ''}` : 'showcase-track-static'} style={{ display: 'flex', gap: '3rem' }}>
+              {(searchTerm === '' ? [...filteredFigures, ...filteredFigures] : filteredFigures).map((fig, index) => (
+                <div 
+                  key={`${fig.id}-${index}`} 
+                  className="figure-card"
+                >
+                  <div className="figure-name-badge">{fig.name}</div>
+                  <div className={`ambient-light ${fig.lightClass}`}></div>
+                  <div className="figure-image-container">
+                    {fig.isHttpImage ? (
+                      <img src={fig.image} alt={fig.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+                    ) : (
+                      <picture>
+                        <source srcSet={`${fig.image}.avif`} type="image/avif" />
+                        <source srcSet={`${fig.image}.webp`} type="image/webp" />
+                        <img src={`${fig.image}.jpg`} alt={fig.name} loading="lazy" />
+                      </picture>
+                    )}
+                  </div>
+                  <div className="hover-panel">
+                  <div className="market-value">
+                    <span>Najlepsza oferta:</span>
+                    <strong>~ {fig.originalPrice ? (fig.originalPrice.replace('¥', '').trim() + (fig.originalPrice.includes('JPY') ? '' : ' JPY')) : 'Brak danych'}</strong>
+                  </div>
+                  <button className="btn-primary" onClick={() => onSelectFigure(fig)} style={{ width: '100%', marginTop: '1rem' }}>
+                    Szczegóły i Oferty <ArrowRight size={16} />
+                  </button>
                 </div>
-                <div className="hover-panel">
-                <div className="market-value">
-                  <span>Najlepsza oferta:</span>
-                  <strong>~ {fig.originalPrice ? (fig.originalPrice.replace('¥', '').trim() + (fig.originalPrice.includes('JPY') ? '' : ' JPY')) : 'Brak danych'}</strong>
                 </div>
-                <button className="btn-primary" onClick={() => onSelectFigure(fig)} style={{ width: '100%', marginTop: '1rem' }}>
-                  Szczegóły i Oferty <ArrowRight size={16} />
-                </button>
-              </div>
-              </div>
-            ))}
+              ))}
+            </div>
             {filteredFigures.length === 0 && (
               <div className="no-results">
                 <p>Nie znaleziono figurek pasujących do "{searchTerm}".</p>
@@ -277,12 +251,14 @@ export default function Showcase({ onSelectFigure }) {
             )}
           </div>
 
-          <button 
-            onClick={scrollRightBtn} 
-            style={{ position: 'absolute', right: '-20px', top: '50%', transform: 'translateY(-50%)', zIndex: 100, background: 'rgba(0,0,0,0.5)', borderRadius: '50%', padding: '10px', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}
-          >
-            <ChevronRight size={30} />
-          </button>
+          {searchTerm !== '' && (
+            <button 
+              onClick={scrollRightBtn} 
+              style={{ position: 'absolute', right: '-20px', top: '50%', transform: 'translateY(-50%)', zIndex: 100, background: 'rgba(0,0,0,0.5)', borderRadius: '50%', padding: '10px', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}
+            >
+              <ChevronRight size={30} />
+            </button>
+          )}
         </div>
       )}
     </div>
