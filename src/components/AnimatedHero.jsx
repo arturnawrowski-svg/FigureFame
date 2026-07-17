@@ -5,7 +5,7 @@ const ParticleHero = ({
   title = "FIGURE FAME",
   subtitle = "Twoja Baza Danych i Agregator",
   description = "Największy zbiór zaufanych danych, cen rynkowych i historii japońskich figurek kolekcjonerskich anime.",
-  particleCount = 15,
+  particleCount = 50,
   primaryButton = { text: "Eksploruj Kolekcję", onClick: () => {} }
 }) => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });

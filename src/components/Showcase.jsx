@@ -149,17 +149,21 @@ export default function Showcase({ onSelectFigure }) {
         
         if (data && data.length > 0) {
           // Map DB columns to frontend state format if needed
-          const mappedData = data.map(fig => ({
-            ...fig,
-            japaneseName: fig.japanese_name,
-            japaneseSeries: fig.japanese_series,
-            originalPrice: fig.original_price,
-            image: `/images/official/${fig.official_image_url}`,
-            lightClass: fig.light_class,
-            additionalInfo: fig.additional_info,
-            marketValue: fig.market_value,
-            whereToSearch: fig.where_to_search
-          }));
+          const mappedData = data.map(fig => {
+            const isHttp = fig.official_image_url && fig.official_image_url.startsWith('http');
+            return {
+              ...fig,
+              japaneseName: fig.japanese_name,
+              japaneseSeries: fig.japanese_series,
+              originalPrice: fig.original_price,
+              image: isHttp ? fig.official_image_url : `/images/official/${fig.official_image_url}`,
+              isHttpImage: isHttp,
+              lightClass: fig.light_class,
+              additionalInfo: fig.additional_info,
+              marketValue: fig.market_value,
+              whereToSearch: fig.where_to_search
+            };
+          });
           setFigures(mappedData);
         }
       } catch (err) {
@@ -208,11 +212,15 @@ export default function Showcase({ onSelectFigure }) {
                 <div className="figure-name-badge">{fig.name}</div>
                 <div className={`ambient-light ${fig.lightClass}`}></div>
                 <div className="figure-image-container">
-                  <picture>
-                    <source srcSet={`${fig.image}.avif`} type="image/avif" />
-                    <source srcSet={`${fig.image}.webp`} type="image/webp" />
-                    <img src={`${fig.image}.jpg`} alt={fig.name} loading="lazy" />
-                  </picture>
+                  {fig.isHttpImage ? (
+                    <img src={fig.image} alt={fig.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+                  ) : (
+                    <picture>
+                      <source srcSet={`${fig.image}.avif`} type="image/avif" />
+                      <source srcSet={`${fig.image}.webp`} type="image/webp" />
+                      <img src={`${fig.image}.jpg`} alt={fig.name} loading="lazy" />
+                    </picture>
+                  )}
                 </div>
                 <div className="hover-panel">
                   <div className="market-value">
