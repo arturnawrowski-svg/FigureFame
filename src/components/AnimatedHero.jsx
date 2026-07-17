@@ -47,33 +47,35 @@ const ParticleHero = ({
         marginBottom: '2rem'
       }}
     >
-      {/* Particles */}
-      {particles.map((particle) => (
-        <motion.div
-          key={particle.id}
-          className="absolute rounded-full"
-          style={{
-            background: 'rgba(255, 71, 87, 0.4)',
-            width: particle.size,
-            height: particle.size,
-            left: `${particle.x}%`,
-            top: `${particle.y}%`,
-          }}
-          animate={{
-            x: [(mousePosition.x - window.innerWidth / 2) * 0.05 * particle.speed, 0],
-            y: [(mousePosition.y - window.innerHeight / 2) * 0.05 * particle.speed, 0],
-            opacity: [0.2, 0.8, 0.2],
-          }}
-          transition={{
-            duration: 2 / particle.speed,
-            repeat: Infinity,
-            repeatType: "reverse",
-          }}
-        />
-      ))}
+      {/* Background container for particles covering the whole screen */}
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+        {particles.map((particle) => (
+          <motion.div
+            key={particle.id}
+            className="absolute rounded-full"
+            style={{
+              background: 'rgba(255, 71, 87, 0.4)',
+              width: particle.size,
+              height: particle.size,
+              left: `${particle.x}%`,
+              top: `${particle.y}%`,
+            }}
+            animate={{
+              x: [(mousePosition.x - window.innerWidth / 2) * 0.05 * particle.speed, 0],
+              y: [(mousePosition.y - window.innerHeight / 2) * 0.05 * particle.speed, 0],
+              opacity: [0.2, 0.8, 0.2],
+            }}
+            transition={{
+              duration: 2 / particle.speed,
+              repeat: Infinity,
+              repeatType: "reverse",
+            }}
+          />
+        ))}
+      </div>
 
       {/* Content */}
-      <div className="relative z-10 text-center px-4" style={{ pointerEvents: 'none' }}>
+      <div className="relative z-10 text-center px-4">
         <motion.h1
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
