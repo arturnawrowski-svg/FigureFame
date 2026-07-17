@@ -45,40 +45,36 @@ const ParticleHero = ({
         marginBottom: '2rem'
       }}
     >
-      {/* Background container for particles covering the hero */}
-      <motion.div 
-        style={{ position: 'absolute', top: '-10%', left: '-10%', width: '120%', height: '120%', zIndex: 1, pointerEvents: 'none', overflow: 'hidden' }}
-        animate={{
-          x: (mousePosition.x - (typeof window !== 'undefined' ? window.innerWidth / 2 : 0)) * -0.03,
-          y: (mousePosition.y - (typeof window !== 'undefined' ? window.innerHeight / 2 : 0)) * -0.03,
-        }}
-        transition={{ type: "spring", damping: 40, stiffness: 80 }}
+      {/* Particles from 21st.dev (Original) */}
+      <div 
+        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, pointerEvents: 'none', overflow: 'hidden' }}
       >
         {particles.map((particle) => (
           <motion.div
             key={particle.id}
+            className="absolute rounded-full"
             style={{
               position: 'absolute',
               borderRadius: '50%',
-              backgroundColor: 'var(--color-particles)',
+              background: 'rgba(255, 71, 87, 0.4)',
               width: `${particle.size}px`,
               height: `${particle.size}px`,
               left: `${particle.x}%`,
               top: `${particle.y}%`,
             }}
             animate={{
-              y: [0, particle.speed * -20, 0],
-              x: [0, particle.speed * 15, 0],
-              opacity: [0.1, 0.7, 0.1]
+              x: [(mousePosition.x - (typeof window !== 'undefined' ? window.innerWidth / 2 : 500)) * 0.05 * particle.speed, 0],
+              y: [(mousePosition.y - (typeof window !== 'undefined' ? window.innerHeight / 2 : 500)) * 0.05 * particle.speed, 0],
+              opacity: [0.2, 0.8, 0.2],
             }}
             transition={{
-              duration: particle.speed * 4,
+              duration: 2 / particle.speed,
               repeat: Infinity,
-              ease: "easeInOut"
+              repeatType: "reverse",
             }}
           />
         ))}
-      </motion.div>
+      </div>
 
       {/* Content */}
       <div className="relative z-10 text-center px-4">
