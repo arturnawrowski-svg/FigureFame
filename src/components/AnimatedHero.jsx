@@ -68,8 +68,8 @@ const ParticleHero = ({
         top: ${row * 1.8}rem;
         transform: scale(${scale});
         opacity: ${opacity};
-        background: hsl(350, 100%, ${lightness}%);
-        box-shadow: 0 0 ${glowSize * 0.2}rem 0 hsl(350, 100%, 60%);
+        background: hsl(4, 85%, ${lightness}%);
+        box-shadow: 0 0 ${glowSize * 0.2}rem 0 hsl(4, 85%, 60%);
         mix-blend-mode: screen;
         z-index: ${Math.round(totalParticles - distanceFromCenter * 5)};
         transition: transform 0.05s linear;
@@ -246,6 +246,13 @@ const ParticleHero = ({
             {description}
           </p>
         </motion.div>
+      </div>
+
+      {/* Ambient Effects */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 0 }}>
+        <div style={{ position: 'absolute', top: '5rem', left: '5rem', width: '20rem', height: '20rem', backgroundColor: 'rgba(220, 38, 38, 0.05)', borderRadius: '50%', filter: 'blur(60px)' }}></div>
+        <div style={{ position: 'absolute', bottom: '5rem', right: '5rem', width: '24rem', height: '24rem', backgroundColor: 'rgba(234, 88, 12, 0.05)', borderRadius: '50%', filter: 'blur(60px)' }}></div>
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '120vh', height: '120vh', background: 'radial-gradient(circle, rgba(127, 29, 29, 0.03) 0%, transparent 70%)', borderRadius: '50%' }}></div>
       </div>
     </div>
   );
