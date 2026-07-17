@@ -96,16 +96,32 @@ header p {
   transform: translateY(-2px);
 }
 
-/* Showcase Grid */
 .showcase-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  display: flex;
   gap: 3rem;
   perspective: 1000px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 2rem;
+  /* Hide scrollbar */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.showcase-grid::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.showcase-wrapper {
+  position: relative;
+  width: 100%;
 }
 
 .figure-card {
   position: relative;
+  flex: 0 0 320px;
+  scroll-snap-align: center;
   height: 500px;
   background: var(--color-bg-shelf);
   border-radius: 16px;

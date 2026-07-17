@@ -5,6 +5,7 @@ import AddFigure from './components/AddFigure'
 import Login from './components/Login'
 import AdminDashboard from './components/AdminDashboard'
 import { User, Info, LogOut, Plus, Sun, Moon, ShieldAlert } from 'lucide-react'
+import ParticleHero from './components/AnimatedHero'
 import { supabase } from './lib/supabaseClient'
 
 function App() {
@@ -28,7 +29,7 @@ function App() {
       } else {
         setIsAdmin(false)
       }
-    } catch (err) {
+    } catch (_) {
       setIsAdmin(false)
     }
   }
@@ -123,10 +124,7 @@ function App() {
         </div>
       </nav>
 
-      <header style={{ cursor: 'pointer' }} onClick={handleBackToHome}>
-        <h1>FigureFame</h1>
-        <p>Baza Danych Figurek i Agregator Ofert</p>
-      </header>
+      <ParticleHero />
 
       <main>
         {view === 'home' && (

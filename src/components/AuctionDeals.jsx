@@ -1,7 +1,7 @@
-import { ShoppingBag, ArrowRight, ExternalLink, Clock, RefreshCw, ChevronDown } from 'lucide-react';
+import { ShoppingBag, ExternalLink, Clock, RefreshCw, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 
-export default function AuctionDeals({ figure, type = 'top' }) {
+export default function AuctionDeals({ type = 'top' }) {
   const [showOthers, setShowOthers] = useState(false);
 
   // Symulowane dane z "API" - Top 10 (najbardziej trafne)

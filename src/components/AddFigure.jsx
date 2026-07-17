@@ -1,4 +1,4 @@
-import { ArrowLeft, Save, Upload, User, Info } from 'lucide-react';
+import { ArrowLeft, Save, User, Info } from 'lucide-react';
 import { useState } from 'react';
 
 import { supabase } from '../lib/supabaseClient';

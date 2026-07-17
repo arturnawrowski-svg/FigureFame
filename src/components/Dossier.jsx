@@ -1,4 +1,4 @@
-import { ArrowLeft, Tag, Calendar, Building2, Ruler, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Tag, Building2, Ruler, HelpCircle } from 'lucide-react';
 import AuctionDeals from './AuctionDeals';
 import OfficialShops from './OfficialShops';
 

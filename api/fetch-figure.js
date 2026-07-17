@@ -22,16 +22,20 @@ export default async function handler(req, res) {
     const prompt = `Jesteś ekspertem ds. figurek anime. Przeszukaj swoją bazę wiedzy i znajdź oficjalne dane o figurce o nazwie: "${name}". 
 Jeżeli figurka ma wiele wersji, wybierz najbardziej standardową lub popularną (np. 1/7 scale PVC).
 
-Zwróć wynik TYLKO w czystym formacie JSON bez znaczników \`\`\`json. 
-Jeżeli czegoś nie wiesz, wpisz pusty string "". Format odpowiedzi:
+ZASADY KRYTYCZNE (BEZWZGLĘDNIE PRZESTRZEGAJ):
+1. NIE ZMYŚLAJ DANYCH. Jeśli nie znasz oficjalnej japońskiej nazwy, zostaw pole jako pusty ciąg znaków "".
+2. NIE GENERUJ FIKCYJNYCH LINKÓW DO ZDJĘĆ. Musisz znaleźć RZECZYWISTY, działający publicznie URL oryginalnego zdjęcia na stronach producenta (GoodSmile) lub baz (MyFigureCollection, AmiAmi). Jeśli nie masz 100% pewności, że link istnieje w rzeczywistości, zostaw pole "official_image_url" CAŁKOWICIE PUSTE ("").
+3. Korzystaj tylko z weryfikowalnych źródeł. Nie wymyślaj cen ani dat.
+
+Zwróć wynik TYLKO w czystym formacie JSON bez znaczników \`\`\`json. Format odpowiedzi:
 {
   "name": "${name}",
-  "japanese_name": "Japońska nazwa",
+  "japanese_name": "Japońska nazwa (tylko prawdziwa, inaczej \"\")",
   "series": "Seria/Anime z którego pochodzi (np. Hatsune Miku, Evangelion)",
   "manufacturer": "Producent (np. Good Smile Company, Alter)",
   "scale": "Skala (np. 1/7, 1/8, Non-scale)",
   "original_price": "Cena w JPY w momencie premiery (np. 15000 JPY)",
-  "official_image_url": "Bezpośredni publiczny URL do dużego oficjalnego zdjęcia figurki w JPG/PNG z np. GoodSmile, AmiAmi, MyFigureCollection (musi być to poprawny link HTTP do obrazka, nie link do podstrony!). Jeśli nie masz absolutnej pewności co do działającego linku do zdjęcia, zostaw pole całkowicie puste."
+  "official_image_url": "Bezpośredni publiczny URL do dużego oficjalnego zdjęcia figurki w JPG/PNG. TYLKO PRAWDZIWY LINK. Inaczej zostaw puste."
 }`;
 
     console.log('Wysyłam zapytanie do Gemini API...');
@@ -75,7 +79,7 @@ Jeżeli czegoś nie wiesz, wpisz pusty string "". Format odpowiedzi:
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
           
           console.log(`Upload do Supabase Storage jako: ${filename}...`);
-          const { data: uploadData, error: uploadError } = await supabase
+          const { error: uploadError } = await supabase
             .storage
             .from('figure-images')
             .upload(filename, webpBuffer, {

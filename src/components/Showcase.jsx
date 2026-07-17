@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Search, ArrowRight } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Search, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
 const fallbackFiguresData = [
@@ -122,6 +122,19 @@ export default function Showcase({ onSelectFigure }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [figures, setFigures] = useState(fallbackFiguresData);
   const [loading, setLoading] = useState(true);
+  const sliderRef = useRef(null);
+
+  const scrollLeft = () => {
+    if (sliderRef.current) {
+      sliderRef.current.scrollBy({ left: -350, behavior: 'smooth' });
+    }
+  };
+
+  const scrollRight = () => {
+    if (sliderRef.current) {
+      sliderRef.current.scrollBy({ left: 350, behavior: 'smooth' });
+    }
+  };
 
   useEffect(() => {
     async function fetchFigures() {
@@ -180,34 +193,51 @@ export default function Showcase({ onSelectFigure }) {
       {loading ? (
         <div style={{ textAlign: 'center', marginTop: '3rem' }}>Ładowanie bazy figurek...</div>
       ) : (
-        <div className="showcase-grid">
-          {filteredFigures.map(fig => (
-            <div key={fig.id} className="figure-card">
-              <div className="figure-name-badge">{fig.name}</div>
-              <div className={`ambient-light ${fig.lightClass}`}></div>
-              <div className="figure-image-container">
-                <picture>
-                  <source srcSet={`${fig.image}.avif`} type="image/avif" />
-                  <source srcSet={`${fig.image}.webp`} type="image/webp" />
-                  <img src={`${fig.image}.jpg`} alt={fig.name} loading="lazy" />
-                </picture>
-              </div>
-              <div className="hover-panel">
-                <div className="market-value">
-                  <span>Najlepsza oferta:</span>
-                  <strong>~ {fig.originalPrice}</strong>
+        <div className="showcase-wrapper" style={{ position: 'relative' }}>
+          
+          <button 
+            onClick={scrollLeft} 
+            style={{ position: 'absolute', left: '-20px', top: '50%', transform: 'translateY(-50%)', zIndex: 100, background: 'rgba(0,0,0,0.5)', borderRadius: '50%', padding: '10px', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}
+          >
+            <ChevronLeft size={30} />
+          </button>
+
+          <div className="showcase-grid" ref={sliderRef}>
+            {filteredFigures.map((fig) => (
+              <div key={fig.id} className="figure-card">
+                <div className="figure-name-badge">{fig.name}</div>
+                <div className={`ambient-light ${fig.lightClass}`}></div>
+                <div className="figure-image-container">
+                  <picture>
+                    <source srcSet={`${fig.image}.avif`} type="image/avif" />
+                    <source srcSet={`${fig.image}.webp`} type="image/webp" />
+                    <img src={`${fig.image}.jpg`} alt={fig.name} loading="lazy" />
+                  </picture>
                 </div>
-                <button className="btn-primary" onClick={() => onSelectFigure(fig)} style={{ width: '100%', marginTop: '1rem' }}>
-                  Szczegóły i Oferty <ArrowRight size={16} />
-                </button>
+                <div className="hover-panel">
+                  <div className="market-value">
+                    <span>Najlepsza oferta:</span>
+                    <strong>~ {fig.originalPrice}</strong>
+                  </div>
+                  <button className="btn-primary" onClick={() => onSelectFigure(fig)} style={{ width: '100%', marginTop: '1rem' }}>
+                    Szczegóły i Oferty <ArrowRight size={16} />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
-          {filteredFigures.length === 0 && (
-            <div className="no-results">
-              <p>Nie znaleziono figurek pasujących do "{searchTerm}".</p>
-            </div>
-          )}
+            ))}
+            {filteredFigures.length === 0 && (
+              <div className="no-results">
+                <p>Nie znaleziono figurek pasujących do "{searchTerm}".</p>
+              </div>
+            )}
+          </div>
+
+          <button 
+            onClick={scrollRight} 
+            style={{ position: 'absolute', right: '-20px', top: '50%', transform: 'translateY(-50%)', zIndex: 100, background: 'rgba(0,0,0,0.5)', borderRadius: '50%', padding: '10px', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}
+          >
+            <ChevronRight size={30} />
+          </button>
         </div>
       )}
     </div>
