@@ -207,6 +207,10 @@ export default function AdminDashboard({ onBack }) {
                               }
                               return newForm;
                             });
+
+                            if (data._aiError) {
+                              alert(`Uwaga: Wyszukiwarka AI napotkała problem (np. wyczerpany limit zapytań). Niektóre dane (jak Encyklopedia) mogą być puste. Szczegóły: ${data._aiError}`);
+                            }
                           } else {
                             console.error(data.error || 'Błąd API');
                           }
