@@ -36,14 +36,12 @@ const ParticleHero = ({
   return (
     <div 
       ref={containerRef}
-      className="relative w-full overflow-hidden"
+      className="hero-container relative w-full overflow-hidden"
       style={{
         minHeight: '40vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(to bottom, rgba(10, 10, 10, 0.8), rgba(0, 0, 0, 0))',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
         marginBottom: '2rem'
       }}
     >
@@ -61,12 +59,13 @@ const ParticleHero = ({
             key={particle.id}
             className="absolute rounded-full"
             style={{
-              background: 'rgba(255, 71, 87, 0.4)',
+              backgroundColor: 'var(--color-particles, rgba(255, 71, 87, 0.6))',
               width: particle.size,
               height: particle.size,
               left: `${particle.x}%`,
               top: `${particle.y}%`,
             }}
+            initial={{ opacity: 0.5, y: 0, x: 0 }}
             animate={{
               y: [0, particle.speed * -15, 0],
               x: [0, particle.speed * 10, 0],
