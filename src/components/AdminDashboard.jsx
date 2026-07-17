@@ -189,39 +189,54 @@ export default function AdminDashboard({ onBack }) {
                           const response = await fetch(`/api/fetch-figure?name=${encodeURIComponent(originalName)}`);
                           const data = await response.json();
                           if (response.ok) {
-                            // Merge all truthy values
+                            // Merge all truthy values (and map them properly)
                             setEditForm(prev => {
                               const newForm = { ...prev };
-                              for (const key in data) {
-                                if (data[key] !== null && data[key] !== undefined && data[key] !== '') {
-                                  if (typeof data[key] === 'string') {
-                                    if (data[key].trim() !== '') {
-                                      newForm[key] = data[key];
-                                    }
-                                  } else if (Array.isArray(data[key])) {
-                                    if (data[key].length > 0) newForm[key] = data[key];
-                                  } else {
-                                    newForm[key] = data[key];
+                              const safeAssign = (targetKey, val, isArrayField) => {
+                                if (val === null || val === undefined || val === '') return;
+                                if (isArrayField) {
+                                  if (typeof val === 'string' && val.trim() !== '') {
+                                    newForm[targetKey] = val.split('\n').filter(line => line.trim() !== '');
+                                  } else if (Array.isArray(val) && val.length > 0) {
+                                    newForm[targetKey] = val;
+                                  }
+                                } else {
+                                  if (typeof val === 'string' && val.trim() !== '') {
+                                    newForm[targetKey] = val;
+                                  } else if (typeof val !== 'string') {
+                                    newForm[targetKey] = val;
                                   }
                                 }
+                              };
+
+                              for (const key in data) {
+                                // Zabezpieczenie przed dziwnymi kluczami od AI
+                                if (key === 'additionalInfo' || key === 'additional_info') safeAssign('additional_info', data[key], true);
+                                else if (key === 'whereToSearch' || key === 'where_to_search') safeAssign('where_to_search', data[key], true);
+                                else if (key === 'strategy') safeAssign('strategy', data[key], true);
+                                else if (key === 'marketValueAverage' || key === 'market_value_average') {
+                                  if (data[key]) newForm['market_value'] = { average: data[key] };
+                                }
+                                else safeAssign(key, data[key], false);
                               }
                               return newForm;
                             });
 
                             if (data._aiError) {
-                              alert(`Uwaga: Wyszukiwarka AI napotkała problem (np. wyczerpany limit zapytań). Niektóre dane (jak Encyklopedia) mogą być puste. Szczegóły: ${data._aiError}`);
+                              alert(`Uwaga: Wyszukiwarka AI napotkała problem. Szczegóły: ${data._aiError}`);
                             }
                           } else {
                             console.error(data.error || 'Błąd API');
                           }
                         } catch(err) {
                           console.error(err);
+                          alert("Wystąpił nieoczekiwany błąd podczas szukania danych. Sprawdź konsolę.");
                         } finally {
                           setIsSearching(false);
                         }
                       }}
                     >
-                      {isSearching ? <span className="animate-pulse">ff Szukam...</span> : '🤖 Szukaj Danych (AI/Scraping)'}
+                      {isSearching ? <span className="animate-pulse">FigureFame szuka danych...</span> : '🤖 Szukaj Danych (AI/Scraping)'}
                     </button>
                   </div>
 
