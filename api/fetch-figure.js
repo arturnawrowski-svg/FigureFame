@@ -3,10 +3,22 @@ import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 import * as cheerio from "cheerio";
 
+const PROXY_URL = process.env.PROXY_URL; // np. "https://api.scraperapi.com?api_key=TWÓJ_KLUCZ&url="
+
+// Helper do odpytywania stron z ominięciem Cloudflare jeśli ustalone jest PROXY
+async function fetchWithProxy(url, options = {}) {
+  if (PROXY_URL) {
+    const fullUrl = `${PROXY_URL}${encodeURIComponent(url)}`;
+    console.log("Fetching via proxy:", fullUrl);
+    return fetch(fullUrl, options);
+  }
+  return fetch(url, options);
+}
+
 async function scrapeMFC(name) {
   try {
     const searchUrl = `https://myfigurecollection.net/browse.v4.php?keywords=${encodeURIComponent(name)}`;
-    const res = await fetch(searchUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
+    const res = await fetchWithProxy(searchUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
     if (!res.ok) return null;
     const html = await res.text();
     const $ = cheerio.load(html);
@@ -14,7 +26,7 @@ async function scrapeMFC(name) {
     if (!firstLink) return null;
 
     const itemUrl = `https://myfigurecollection.net${firstLink}`;
-    const itemRes = await fetch(itemUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
+    const itemRes = await fetchWithProxy(itemUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
     if (!itemRes.ok) return null;
     const itemHtml = await itemRes.text();
     const $item = cheerio.load(itemHtml);
@@ -36,7 +48,7 @@ async function scrapeMFC(name) {
 async function scrapeGoodSmile(name) {
   try {
     const searchUrl = `https://www.goodsmile.info/en/products/search?utf8=%E2%9C%93&search%5Bquery%5D=${encodeURIComponent(name)}`;
-    const res = await fetch(searchUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    const res = await fetchWithProxy(searchUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!res.ok) return null;
     const html = await res.text();
     const $ = cheerio.load(html);
@@ -44,7 +56,7 @@ async function scrapeGoodSmile(name) {
     if (!firstLink) return null;
 
     const itemUrl = firstLink.startsWith('http') ? firstLink : `https://www.goodsmile.info${firstLink}`;
-    const itemRes = await fetch(itemUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    const itemRes = await fetchWithProxy(itemUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     if (!itemRes.ok) return null;
     const itemHtml = await itemRes.text();
     const $item = cheerio.load(itemHtml);
@@ -52,7 +64,7 @@ async function scrapeGoodSmile(name) {
     const priceMatch = $item('.detailBox dt:contains("Price")').next('dd').text().trim();
     const specMatch = $item('.detailBox dt:contains("Specifications")').next('dd').text();
     const scale = specMatch ? (specMatch.match(/(1\/\d+)/)?.[1] || "") : "";
-    const imgUrl = $item('.itemImg img').attr('src');
+    const imgUrl = $item('img[itemprop="image"]').attr('src');
 
     return {
       japanese_name: "", // Czasem brak na wersji EN
@@ -160,7 +172,7 @@ Zwróć wynik TYLKO w czystym formacie JSON bez znaczników \`\`\`json. Format m
       console.log(`Pobieranie obrazka z URL: ${figureData.official_image_url}`);
       
       try {
-        const imgResponse = await fetch(figureData.official_image_url);
+        const imgResponse = await fetchWithProxy(figureData.official_image_url);
         
         if (imgResponse.ok) {
           const arrayBuffer = await imgResponse.arrayBuffer();
