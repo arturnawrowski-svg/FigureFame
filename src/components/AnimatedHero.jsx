@@ -1,103 +1,226 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { motion, useAnimation } from 'framer-motion';
+import React, { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 
 const ParticleHero = ({
   title = "FIGURE FAME",
   subtitle = "Twoja Baza Danych i Agregator",
   description = "Największy zbiór zaufanych danych, cen rynkowych i historii japońskich figurek kolekcjonerskich anime.",
-  particleCount = 50,
+  particleCount = 15,
   primaryButton = { text: "Eksploruj Kolekcję", onClick: () => {} }
 }) => {
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const containerRef = useRef(null);
+  const particlesRef = useRef([]);
+  const animationFrameRef = useRef();
+  const timeoutRef = useRef();
   
+  const [cursor, setCursor] = useState({ x: 0, y: 0 });
+  const [staticCursor, setStaticCursor] = useState({ x: 0, y: 0 });
+  const [isAutoMode, setIsAutoMode] = useState(true);
+  const [isStaticAnimation, setIsStaticAnimation] = useState(false);
+  
+  const startTimeRef = useRef(Date.now());
+  const lastMouseMoveRef = useRef(Date.now());
+
+  const rows = particleCount;
+  const totalParticles = rows * rows;
+
+  // Initialize particles
   useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        setMousePosition({
-          x: e.clientX - rect.left,
-          y: e.clientY - rect.top,
-        });
+    if (!containerRef.current) return;
+    
+    const container = containerRef.current;
+    container.innerHTML = '';
+    particlesRef.current = [];
+
+    for (let i = 0; i < totalParticles; i++) {
+      const particle = document.createElement('div');
+      
+      // Calculate grid position
+      const row = Math.floor(i / rows);
+      const col = i % rows;
+      const centerRow = Math.floor(rows / 2);
+      const centerCol = Math.floor(rows / 2);
+      
+      // Distance from center for stagger effects
+      const distanceFromCenter = Math.sqrt(
+        Math.pow(row - centerRow, 2) + Math.pow(col - centerCol, 2)
+      );
+      
+      // Staggered scale (larger in center)
+      const scale = Math.max(0.1, 1.2 - distanceFromCenter * 0.12);
+      
+      // Staggered opacity (more opaque in center)
+      const opacity = Math.max(0.05, 1 - distanceFromCenter * 0.1);
+      
+      // Color intensity based on distance
+      const lightness = Math.max(15, 75 - distanceFromCenter * 6);
+      
+      // Glow intensity
+      const glowSize = Math.max(0.5, 6 - distanceFromCenter * 0.5);
+      
+      particle.style.cssText = `
+        position: absolute;
+        border-radius: 50%;
+        will-change: transform;
+        width: 0.4rem;
+        height: 0.4rem;
+        left: ${col * 1.8}rem;
+        top: ${row * 1.8}rem;
+        transform: scale(${scale});
+        opacity: ${opacity};
+        background: hsl(350, 100%, ${lightness}%);
+        box-shadow: 0 0 ${glowSize * 0.2}rem 0 hsl(350, 100%, 60%);
+        mix-blend-mode: screen;
+        z-index: ${Math.round(totalParticles - distanceFromCenter * 5)};
+        transition: transform 0.05s linear;
+      `;
+      
+      container.appendChild(particle);
+      particlesRef.current.push(particle);
+    }
+  }, [rows, totalParticles]);
+
+  // Continuous animation
+  useEffect(() => {
+    const animate = () => {
+      const currentTime = (Date.now() - startTimeRef.current) * 0.001;
+      
+      if (isAutoMode) {
+        const x = Math.sin(currentTime * 0.3) * 200 + Math.sin(currentTime * 0.17) * 100;
+        const y = Math.cos(currentTime * 0.2) * 150 + Math.cos(currentTime * 0.23) * 80;
+        setCursor({ x, y });
+      } else if (isStaticAnimation) {
+        const timeSinceLastMove = Date.now() - lastMouseMoveRef.current;
+        
+        if (timeSinceLastMove > 200) {
+          const animationStrength = Math.min((timeSinceLastMove - 200) / 1000, 1);
+          const subtleX = Math.sin(currentTime * 1.5) * 20 * animationStrength;
+          const subtleY = Math.cos(currentTime * 1.2) * 16 * animationStrength;
+          
+          setCursor({
+            x: staticCursor.x + subtleX,
+            y: staticCursor.y + subtleY
+          });
+        }
+      }
+      
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+    
+    animate();
+    
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
     };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
+  }, [isAutoMode, isStaticAnimation, staticCursor]);
 
-  const [particles] = useState(() => Array.from({ length: 80 }).map((_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 4 + 2,
-    speed: Math.random() * 2 + 0.5,
-  })));
+  // Update particle positions
+  useEffect(() => {
+    particlesRef.current.forEach((particle, i) => {
+      const row = Math.floor(i / rows);
+      const col = i % rows;
+      const centerRow = Math.floor(rows / 2);
+      const centerCol = Math.floor(rows / 2);
+      const distanceFromCenter = Math.sqrt(
+        Math.pow(row - centerRow, 2) + Math.pow(col - centerCol, 2)
+      );
+      
+      const delay = distanceFromCenter * 8;
+      const originalScale = Math.max(0.1, 1.2 - distanceFromCenter * 0.12);
+      const dampening = Math.max(0.3, 1 - distanceFromCenter * 0.08);
+      
+      setTimeout(() => {
+        const moveX = cursor.x * dampening;
+        const moveY = cursor.y * dampening;
+        
+        particle.style.transform = `translate(${moveX}px, ${moveY}px) scale(${originalScale})`;
+        particle.style.transition = `transform ${120 + distanceFromCenter * 20}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
+      }, delay);
+    });
+  }, [cursor, rows]);
+
+  // Mouse/touch movement handler
+  const handlePointerMove = (e) => {
+    const event = e.touches ? e.touches[0] : e;
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    
+    const newCursor = {
+      x: (event.clientX - centerX) * 0.8,
+      y: (event.clientY - centerY) * 0.8
+    };
+    
+    setCursor(newCursor);
+    setStaticCursor(newCursor);
+    setIsAutoMode(false);
+    setIsStaticAnimation(false);
+    lastMouseMoveRef.current = Date.now();
+    
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = setTimeout(() => {
+      setIsStaticAnimation(true);
+    }, 500);
+    
+    setTimeout(() => {
+      if (Date.now() - lastMouseMoveRef.current >= 4000) {
+        setIsAutoMode(true);
+        setIsStaticAnimation(false);
+        startTimeRef.current = Date.now();
+      }
+    }, 4000);
+  };
 
   return (
     <div 
-      ref={containerRef}
-      className="hero-container relative w-full overflow-hidden"
+      className="relative w-full overflow-hidden"
+      onMouseMove={handlePointerMove}
+      onTouchMove={handlePointerMove}
       style={{
-        minHeight: '40vh',
+        minHeight: '60vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        background: 'linear-gradient(to bottom, rgba(10, 10, 10, 0.8), rgba(0, 0, 0, 0))',
+        borderBottom: '1px solid rgba(255,255,255,0.05)',
         marginBottom: '2rem'
       }}
     >
-      {/* Particles from 21st.dev (Original) */}
-      <div 
-        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, pointerEvents: 'none', overflow: 'hidden' }}
-      >
-        {particles.map((particle) => (
-          <motion.div
-            key={particle.id}
-            className="absolute rounded-full"
-            style={{
-              position: 'absolute',
-              borderRadius: '50%',
-              background: 'rgba(255, 71, 87, 0.4)',
-              width: `${particle.size}px`,
-              height: `${particle.size}px`,
-              left: `${particle.x}%`,
-              top: `${particle.y}%`,
-            }}
-            animate={{
-              x: [(mousePosition.x - (typeof window !== 'undefined' ? window.innerWidth / 2 : 500)) * 0.05 * particle.speed, 0],
-              y: [(mousePosition.y - (typeof window !== 'undefined' ? window.innerHeight / 2 : 500)) * 0.05 * particle.speed, 0],
-              opacity: [0.2, 0.8, 0.2],
-            }}
-            transition={{
-              duration: 2 / particle.speed,
-              repeat: Infinity,
-              repeatType: "reverse",
-            }}
-          />
-        ))}
+      {/* Particle Animation Background from 21st.dev */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1, pointerEvents: 'none' }}>
+        <div
+          ref={containerRef}
+          style={{
+            position: 'relative',
+            width: `${rows * 1.8}rem`,
+            height: `${rows * 1.8}rem`
+          }}
+        />
       </div>
 
       {/* Content */}
-      <div className="relative z-10 text-center px-4">
-        <a href="/" style={{ textDecoration: 'none' }}>
-          <motion.h1
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            style={{
-              fontSize: 'clamp(2.5rem, 6vw, 5rem)',
-              fontWeight: 900,
-              letterSpacing: '-0.05em',
-              margin: '0 0 1rem 0',
-              background: 'linear-gradient(135deg, #ff4757 0%, #ff7eb3 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              textShadow: '0 10px 30px rgba(255, 71, 87, 0.3)',
-              cursor: 'pointer'
-            }}
-          >
-            {title}
-          </motion.h1>
-        </a>
+      <div className="relative z-10 text-center px-4" style={{ pointerEvents: 'none' }}>
+        <motion.h1
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          style={{
+            fontSize: 'clamp(2.5rem, 6vw, 5rem)',
+            fontWeight: 900,
+            letterSpacing: '-0.05em',
+            margin: '0 0 1rem 0',
+            background: 'linear-gradient(135deg, #ff4757 0%, #ff7eb3 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            textShadow: '0 10px 30px rgba(255, 71, 87, 0.3)'
+          }}
+        >
+          {title}
+        </motion.h1>
         
         <motion.div
           initial={{ opacity: 0, y: 20 }}
