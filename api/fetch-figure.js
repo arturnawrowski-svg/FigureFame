@@ -141,14 +141,16 @@ export default async function handler(req, res) {
           tools: [{ googleSearch: {} }]
         });
 
-        const prompt = `Jesteś ekspertem ds. figurek anime. Uzupełnij brakujące dane o figurce: "${name}". 
-Obecne dane: ${JSON.stringify(figureData)}
-ZASADY KRYTYCZNE:
-1. Masz włączone narzędzie Google Search. Użyj go, aby przeszukać internet (w tym strony producentów np. Kotobukiya, MyFigureCollection, AmiAmi, Wikipedia).
-2. Uzupełnij TYLKO puste pola (""). Nie nadpisuj tych, które już mają wartość.
-3. NIE ZMYŚLAJ DANYCH.
-4. Link do zdjęcia MUSI być prawdziwy, publiczny (.jpg/.png) pochodzący prosto z oficjalnych sklepów lub baz figurek.
-Zwróć wynik TYLKO w czystym formacie JSON bez znaczników \`\`\`json. Format musi mieć dokładnie te same klucze co "Obecne dane".`;
+        const prompt = `Jesteś ekspertem ds. figurek anime. Uzupełnij brakujące dane (jeśli możliwe i wyszukaj je korzystając z wyszukiwarki Google) dla figurki anime z poniższych danych: ${JSON.stringify(figureData)}.
+        Wyszukaj również po japońsku jeśli trzeba (szczególnie na Kotobukiya lub AmiAmi).
+        Zwróć dane w formacie JSON z polami: 
+        - name, japanese_name, series, manufacturer, scale, original_price (najlepiej w JPY)
+        - official_image_url (bezpośredni, oficjalny link .jpg lub .png dobrej jakości)
+        - additional_info (tablica 2-3 ciekawostek z detalami figurki)
+        - where_to_search (tablica 3 nazw japońskich sklepów gdzie można jej szukać)
+        - strategy (tablica 2 krótkich porad jak ją kupić najtaniej)
+        - market_value_average (jako pojedynczy string tekstowy z szacowaną obecną wartością rynkową w PLN lub JPY)
+        JSON musi być w bloku \`\`\`json. Jeśli nie znajdziesz danych do któregoś pola, zostaw puste. Szukaj mocno w necie!`;
 
         const result = await model.generateContent(prompt);
         const responseText = result.response.text();
@@ -157,7 +159,13 @@ Zwróć wynik TYLKO w czystym formacie JSON bez znaczników \`\`\`json. Format m
         const aiData = JSON.parse(cleanJsonStr);
         
         Object.keys(aiData).forEach(k => {
-          if (!figureData[k] && aiData[k]) figureData[k] = aiData[k];
+          if (k === 'market_value_average') {
+            if (!figureData.market_value && aiData[k]) {
+              figureData.market_value = { average: aiData[k] };
+            }
+          } else {
+            if (!figureData[k] && aiData[k]) figureData[k] = aiData[k];
+          }
         });
       } catch (aiError) {
         console.error("Błąd AI podczas dopełniania:", aiError.message);

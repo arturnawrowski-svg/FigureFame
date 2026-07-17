@@ -45,7 +45,11 @@ export default function AdminDashboard({ onBack }) {
       manufacturer: fig.manufacturer || '',
       scale: fig.scale || '1/7',
       official_image_url: fig.official_image_url || '',
-      original_price: fig.original_price || ''
+      original_price: fig.original_price || '',
+      additional_info: fig.additional_info || null,
+      where_to_search: fig.where_to_search || null,
+      strategy: fig.strategy || null,
+      market_value: fig.market_value || null
     });
   };
 
@@ -260,6 +264,27 @@ export default function AdminDashboard({ onBack }) {
                       {!editForm.official_image_url && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                     </div>
                   </div>
+
+                  <h5 style={{ margin: '1.5rem 0 0.5rem 0', opacity: 0.8 }}>Encyklopedia</h5>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div className="form-group">
+                      <label>Dodatkowe informacje (Linijka po linijce)</label>
+                      <textarea className="form-input" rows="3" value={editForm.additional_info ? editForm.additional_info.join('\n') : ''} onChange={e => setEditForm({...editForm, additional_info: e.target.value ? e.target.value.split('\n') : null})} style={{ width: '100%' }}></textarea>
+                    </div>
+                    <div className="form-group">
+                      <label>Gdzie szukać (Linijka po linijce)</label>
+                      <textarea className="form-input" rows="3" value={editForm.where_to_search ? editForm.where_to_search.join('\n') : ''} onChange={e => setEditForm({...editForm, where_to_search: e.target.value ? e.target.value.split('\n') : null})} style={{ width: '100%' }}></textarea>
+                    </div>
+                    <div className="form-group">
+                      <label>Strategia zakupowa (Linijka po linijce)</label>
+                      <textarea className="form-input" rows="3" value={editForm.strategy ? editForm.strategy.join('\n') : ''} onChange={e => setEditForm({...editForm, strategy: e.target.value ? e.target.value.split('\n') : null})} style={{ width: '100%' }}></textarea>
+                    </div>
+                    <div className="form-group">
+                      <label>Wartość Rynkowa (Średnia)</label>
+                      <textarea className="form-input" rows="3" value={editForm.market_value?.average || ''} onChange={e => setEditForm({...editForm, market_value: { average: e.target.value }})} style={{ width: '100%' }}></textarea>
+                    </div>
+                  </div>
+
                   <button className="btn-secondary" onClick={() => setEditingId(null)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <X size={16} /> Anuluj Edycję
                   </button>

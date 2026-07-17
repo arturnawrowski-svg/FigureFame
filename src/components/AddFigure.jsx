@@ -11,7 +11,10 @@ export default function AddFigure({ onBack, user }) {
     scale: '1/7',
     releaseDate: '',
     originalPrice: '',
-    description: ''
+    additionalInfo: '',
+    marketValueAverage: '',
+    whereToSearch: '',
+    strategy: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -27,7 +30,11 @@ export default function AddFigure({ onBack, user }) {
         manufacturer: formData.manufacturer || null,
         scale: formData.scale || null,
         status: 'PENDING',
-        submitted_by: user?.id || null
+        submitted_by: user?.id || null,
+        additional_info: formData.additionalInfo ? formData.additionalInfo.split('\\n').filter(s => s.trim() !== '') : null,
+        where_to_search: formData.whereToSearch ? formData.whereToSearch.split('\\n').filter(s => s.trim() !== '') : null,
+        strategy: formData.strategy ? formData.strategy.split('\\n').filter(s => s.trim() !== '') : null,
+        market_value: formData.marketValueAverage ? { average: formData.marketValueAverage } : null
       });
 
       if (error) throw error;
@@ -95,9 +102,27 @@ export default function AddFigure({ onBack, user }) {
           </div>
         </div>
 
-        <div style={{ padding: '1rem', border: '1px solid rgba(46, 213, 115, 0.3)', borderRadius: '12px', textAlign: 'center', background: 'rgba(46, 213, 115, 0.05)' }}>
-          <h4 style={{ margin: '0 0 5px 0', color: '#2ed573' }}>Zdjęcia i Encyklopedia</h4>
-          <p style={{ opacity: 0.7, margin: 0, fontSize: '0.9rem' }}>Nasz system backendowy samodzielnie pobierze oficjalne Stock Photo oraz detale po zatwierdzeniu wpisu!</p>
+        <div className="divider" style={{ margin: '1rem 0' }}></div>
+        <h3 style={{ margin: 0 }}>Encyklopedia (Opcjonalne, ale zalecane)</h3>
+        <p style={{ opacity: 0.7, marginTop: 0 }}>Możesz dodać własne opisy i strategie dla tej figurki. Każda linijka w polu to jeden punkt widoczny później na liście w encyklopedii.</p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontWeight: 'bold', opacity: 0.9 }}>Dodatkowe informacje (Linijka po linijce)</label>
+            <textarea className="form-input" rows="4" placeholder="np. Figurka w wersji klasycznej...&#10;Wykorzystano przezroczyste elementy..." value={formData.additionalInfo} onChange={(e) => setFormData({...formData, additionalInfo: e.target.value})}></textarea>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontWeight: 'bold', opacity: 0.9 }}>Gdzie szukać (Linijka po linijce)</label>
+            <textarea className="form-input" rows="4" placeholder="np. Solaris Japan&#10;Mandarake&#10;Yahoo Auctions" value={formData.whereToSearch} onChange={(e) => setFormData({...formData, whereToSearch: e.target.value})}></textarea>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontWeight: 'bold', opacity: 0.9 }}>Strategia zakupowa (Linijka po linijce)</label>
+            <textarea className="form-input" rows="4" placeholder="np. Ustaw alerty na Yahoo Auctions&#10;Korzystaj z Neokyo" value={formData.strategy} onChange={(e) => setFormData({...formData, strategy: e.target.value})}></textarea>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontWeight: 'bold', opacity: 0.9 }}>Wartość Rynkowa (Opisówka - jedno zdanie)</label>
+            <textarea className="form-input" rows="4" placeholder="np. około 15 000 JPY za egzemplarz w bardzo dobrym stanie." value={formData.marketValueAverage} onChange={(e) => setFormData({...formData, marketValueAverage: e.target.value})}></textarea>
+          </div>
         </div>
 
         <div className="divider" style={{ margin: '1rem 0' }}></div>
