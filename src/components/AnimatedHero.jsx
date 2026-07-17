@@ -27,16 +27,16 @@ const ParticleHero = ({
 
   const [particles] = useState(() => {
     const generateFFPoint = () => {
-      // Definiujemy bloki tworzące litery FF (współrzędne od -1 do 1 od środka)
+      // Definiujemy bloki tworzące małe litery 'ff' (współrzędne znormalizowane)
       const rects = [
-        // F 1
-        { xMin: -0.4, xMax: -0.3, yMin: -0.5, yMax: 0.5, weight: 10 }, // Pion
-        { xMin: -0.3, xMax: -0.05, yMin: -0.5, yMax: -0.35, weight: 5 }, // Góra poziom
-        { xMin: -0.3, xMax: -0.15, yMin: -0.1, yMax: 0.05, weight: 4 }, // Środek poziom
-        // F 2
-        { xMin: 0.1, xMax: 0.2, yMin: -0.5, yMax: 0.5, weight: 10 }, // Pion
-        { xMin: 0.2, xMax: 0.45, yMin: -0.5, yMax: -0.35, weight: 5 }, // Góra poziom
-        { xMin: 0.2, xMax: 0.35, yMin: -0.1, yMax: 0.05, weight: 4 }, // Środek poziom
+        // f 1
+        { xMin: -0.35, xMax: -0.25, yMin: -0.4, yMax: 0.4, weight: 12 }, // Pion
+        { xMin: -0.25, xMax: -0.1, yMin: -0.4, yMax: -0.3, weight: 4 },  // Górne "zaokrąglenie"
+        { xMin: -0.45, xMax: -0.1, yMin: -0.1, yMax: 0.0, weight: 6 },   // Poprzeczka pozioma
+        // f 2
+        { xMin: 0.15, xMax: 0.25, yMin: -0.4, yMax: 0.4, weight: 12 },   // Pion
+        { xMin: 0.25, xMax: 0.4, yMin: -0.4, yMax: -0.3, weight: 4 },    // Górne "zaokrąglenie"
+        { xMin: 0.05, xMax: 0.4, yMin: -0.1, yMax: 0.0, weight: 6 },     // Poprzeczka pozioma
       ];
       
       const totalWeight = rects.reduce((sum, r) => sum + r.weight, 0);
@@ -50,13 +50,13 @@ const ParticleHero = ({
         rand -= r.weight;
       }
       
-      // Dodajemy "rozmycie" - fuzz, żeby to była chmura, a nie idealne prostokąty
-      const fuzz = 0.06;
+      // Mniejsze rozmycie (fuzz) by litery były smuklejsze
+      const fuzz = 0.04;
       const xRaw = chosen.xMin + Math.random() * (chosen.xMax - chosen.xMin) + (Math.random() * fuzz * 2 - fuzz);
       const yRaw = chosen.yMin + Math.random() * (chosen.yMax - chosen.yMin) + (Math.random() * fuzz * 2 - fuzz);
       
-      // Mapujemy z powrotem na procenty (środek to 50%, szerokość chmury to 40% ekranu)
-      return { x: 50 + xRaw * 30, y: 50 + yRaw * 35 };
+      // Zmniejszamy mnożniki by chmura była mniejsza, gęstsza i bliżej środka
+      return { x: 50 + xRaw * 15, y: 50 + yRaw * 20 };
     };
 
     // Zwiększamy ilość cząsteczek, żeby napis był widoczny

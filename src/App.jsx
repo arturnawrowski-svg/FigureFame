@@ -11,8 +11,8 @@ import { supabase } from './lib/supabaseClient'
 function App() {
   const [view, setView] = useState('home')
   const [selectedFigure, setSelectedFigure] = useState(null)
-  
-  const [user, setUser] = useState(null) 
+
+  const [user, setUser] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [theme, setTheme] = useState('dark') // 'dark' | 'light'
@@ -91,7 +91,7 @@ function App() {
           <button className="nav-btn" onClick={toggleTheme}>
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />} Motyw
           </button>
-          
+
           <button className="nav-btn" title="Język Polski" style={{ border: '1px solid var(--color-glass-border)', borderRadius: '20px', padding: '4px 12px', background: 'rgba(255, 255, 255, 0.05)' }}>
             <img src="https://flagcdn.com/w20/pl.png" alt="PL" style={{ width: '20px', borderRadius: '2px' }} /> PL
           </button>
@@ -99,7 +99,7 @@ function App() {
           <button className="nav-btn" onClick={() => alert("FigureFame\n\nBaza wiedzy o figurkach anime oraz agregator aukcji i ofert.")}>
             <Info size={18} /> O aplikacji
           </button>
-          
+
           {isAdmin && (
             <button className="nav-btn" onClick={() => setView('admin')} style={{ color: '#ff4757', fontWeight: 'bold' }}>
               <ShieldAlert size={18} /> Panel Moderatora
@@ -132,21 +132,21 @@ function App() {
         )}
 
         {view === 'dossier' && selectedFigure && (
-          <Dossier 
-            figure={selectedFigure} 
+          <Dossier
+            figure={selectedFigure}
             onBack={handleBackToHome}
           />
         )}
 
         {view === 'add' && (
-          <AddFigure 
+          <AddFigure
             onBack={handleBackToHome}
             user={user}
           />
         )}
 
         {view === 'admin' && isAdmin && (
-          <AdminDashboard 
+          <AdminDashboard
             onBack={handleBackToHome}
           />
         )}
