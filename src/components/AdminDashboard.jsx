@@ -121,7 +121,7 @@ export default function AdminDashboard({ onBack }) {
         </div>
       ) : (
         <div style={{ display: 'grid', gap: '1rem' }}>
-          {pendingFigures.map(fig => (
+          {pendingFigures.filter(fig => editingId ? fig.id === editingId : true).map(fig => (
             <div key={fig.id} style={{
               background: 'rgba(255, 255, 255, 0.05)',
               borderRadius: '12px',
@@ -189,12 +189,20 @@ export default function AdminDashboard({ onBack }) {
                           const response = await fetch(`/api/fetch-figure?name=${encodeURIComponent(originalName)}`);
                           const data = await response.json();
                           if (response.ok) {
-                            // Merge all truthy values, don't overwrite if data has empty string
+                            // Merge all truthy values
                             setEditForm(prev => {
                               const newForm = { ...prev };
                               for (const key in data) {
-                                if (data[key] && data[key].trim() !== '') {
-                                  newForm[key] = data[key];
+                                if (data[key] !== null && data[key] !== undefined && data[key] !== '') {
+                                  if (typeof data[key] === 'string') {
+                                    if (data[key].trim() !== '') {
+                                      newForm[key] = data[key];
+                                    }
+                                  } else if (Array.isArray(data[key])) {
+                                    if (data[key].length > 0) newForm[key] = data[key];
+                                  } else {
+                                    newForm[key] = data[key];
+                                  }
                                 }
                               }
                               return newForm;
@@ -263,6 +271,11 @@ export default function AdminDashboard({ onBack }) {
                       <input type="text" value={editForm.official_image_url} onChange={e => setEditForm({...editForm, official_image_url: e.target.value})} style={{ width: '100%', borderColor: !editForm.official_image_url ? '#ff4757' : undefined }} />
                       {!editForm.official_image_url && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                     </div>
+                    {editForm.official_image_url && (
+                      <div style={{ marginTop: '0.5rem' }}>
+                        <img src={editForm.official_image_url.startsWith('http') ? editForm.official_image_url : `https://images.myfigurecollection.net/item/original/${editForm.official_image_url}.jpg`} alt="Podgląd" style={{ maxHeight: '150px', borderRadius: '8px', objectFit: 'contain', background: '#000' }} onError={(e) => e.target.style.display = 'none'} onLoad={(e) => e.target.style.display = 'block'} />
+                      </div>
+                    )}
                   </div>
 
                   <h5 style={{ margin: '1.5rem 0 0.5rem 0', opacity: 0.8 }}>Encyklopedia</h5>
@@ -285,7 +298,7 @@ export default function AdminDashboard({ onBack }) {
                     </div>
                   </div>
 
-                  <button className="btn-secondary" onClick={() => setEditingId(null)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button className="btn-primary" onClick={() => setEditingId(null)} style={{ background: '#ff4757', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <X size={16} /> Anuluj Edycję
                   </button>
                 </div>
