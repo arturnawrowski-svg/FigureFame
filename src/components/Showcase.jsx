@@ -126,13 +126,13 @@ export default function Showcase({ onSelectFigure }) {
 
   const scrollLeft = () => {
     if (sliderRef.current) {
-      sliderRef.current.scrollBy({ left: -350, behavior: 'smooth' });
+      sliderRef.current.scrollBy({ left: -368, behavior: 'smooth' });
     }
   };
 
   const scrollRight = () => {
     if (sliderRef.current) {
-      sliderRef.current.scrollBy({ left: 350, behavior: 'smooth' });
+      sliderRef.current.scrollBy({ left: 368, behavior: 'smooth' });
     }
   };
 
