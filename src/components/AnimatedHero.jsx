@@ -47,13 +47,14 @@ const ParticleHero = ({
     >
       {/* Background container for particles covering the hero */}
       <div 
-        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, pointerEvents: 'none', overflow: 'hidden' }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1, pointerEvents: 'none', overflow: 'hidden' }}
       >
         {particles.map((particle) => (
           <motion.div
             key={particle.id}
-            className="absolute rounded-full"
             style={{
+              position: 'absolute',
+              borderRadius: '50%',
               backgroundColor: 'var(--color-particles)',
               width: `${particle.size}px`,
               height: `${particle.size}px`,
@@ -61,15 +62,13 @@ const ParticleHero = ({
               top: `${particle.y}%`,
             }}
             animate={{
-              y: particle.speed * -30,
-              x: particle.speed * 20,
-              opacity: [0.2, 0.8, 0.2]
+              x: (mousePosition.x - (typeof window !== 'undefined' ? window.innerWidth / 2 : 500)) * 0.05 * particle.speed,
+              y: (mousePosition.y - (typeof window !== 'undefined' ? window.innerHeight / 2 : 500)) * 0.05 * particle.speed,
             }}
             transition={{
-              duration: particle.speed * 4,
-              repeat: Infinity,
-              repeatType: "reverse",
-              ease: "easeInOut"
+              type: "spring",
+              damping: 30,
+              stiffness: 60
             }}
           />
         ))}
