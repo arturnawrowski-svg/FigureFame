@@ -35,14 +35,16 @@ export default function AuctionDeals({ type = 'top' }) {
   // Generowanie pełnych 40 ofert
   const otherDeals = Array.from({ length: 40 }).map((_, index) => {
     const base = baseOtherDeals[index % baseOtherDeals.length];
+    const randomizedPrice = base.price + (Math.floor(Math.random() * 50) * 100);
     return {
       id: 11 + index,
       platform: base.platform,
       condition: base.condition,
-      price: `${(base.price + (Math.floor(Math.random() * 50) * 100)).toLocaleString('pl-PL')} JPY`,
+      priceValue: randomizedPrice,
+      price: `${randomizedPrice.toLocaleString('pl-PL')} JPY`,
       seller: `${base.seller}_${Math.floor(Math.random() * 9999)}`
     };
-  }).sort((a, b) => a.platform.localeCompare(b.platform)); // Alfabetycznie
+  }).sort((a, b) => a.priceValue - b.priceValue); // Sortowanie od najtańszej (najbardziej interesującej)
 
   if (type === 'all') {
     return (
@@ -56,15 +58,15 @@ export default function AuctionDeals({ type = 'top' }) {
 
         {showOthers && (
           <div className="other-deals-container" style={{ marginTop: '1rem', background: 'var(--color-bg-shelf)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--color-glass-border)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
               {otherDeals.map(deal => (
-                <div key={deal.id} className="other-deal-item" style={{ padding: '12px', borderBottom: '1px solid var(--color-glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div key={deal.id} className="other-deal-item" style={{ background: 'var(--color-bg-obsidian)', padding: '16px', borderRadius: '12px', border: '1px solid var(--color-glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <strong className="deal-platform-text" style={{ fontSize: '1rem' }}>{deal.platform}</strong>
-                    <div className="seller" style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: '4px' }}>{deal.seller}</div>
+                    <div className="seller" style={{ fontSize: '0.85rem', opacity: 0.7, marginTop: '4px' }}>Stan: {deal.condition} • {deal.seller}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <span className="price" style={{ fontSize: '1rem', fontWeight: 'bold' }}>{deal.price}</span>
+                    <span className="price" style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--color-text-highlight)' }}>{deal.price}</span>
                   </div>
                 </div>
               ))}

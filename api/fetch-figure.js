@@ -134,11 +134,6 @@ export default async function handler(req, res) {
     if (stillHasMissingFields) {
       console.log("-> Opcja 3: AI Gemini (Wypełnianie braków)...");
       try {
-        const genAI = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ 
-          model: "gemini-flash-latest"
-        });
-
         const prompt = `Jesteś ekspertem ds. figurek anime. Uzupełnij brakujące dane (jeśli możliwe i wyszukaj je korzystając z wyszukiwarki Google) dla figurki anime z poniższych danych: ${JSON.stringify(figureData)}.
         Wyszukaj również po japońskiej nazwie aby mieć pewność.
         Zwróć wynik TYLKO jako czysty obiekt JSON (bez znaczników markdown typu \`\`\`json i bez dodatkowego tekstu), z ewentualnie poprawionymi lub uzupełnionymi kluczami:
@@ -154,29 +149,51 @@ export default async function handler(req, res) {
         - where_to_search (gdzie obecnie najlepiej szukać tej figurki żeby ją kupić, wymień ze 3 serwisy)
         - strategy (czy radzisz kupić teraz bo drożeje, czy poczekać na re-release itp.)
         Klucze muszą być dokładnie w języku angielskim jak wyżej. Nie pomijaj żadnego klucza. Jeśli nie znalazłeś info - zostaw wartość jako pusty string.`;
-        
+
         let responseText = "";
-        try {
+        let retries = 2;
+        let success = false;
+
+        while (retries > 0 && !success) {
+          try {
+            const genAI = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY);
+            const model = genAI.getGenerativeModel({
+              model: "gemini-1.5-flash"
+            });
             const result = await model.generateContent(prompt);
             responseText = result.response.text();
-        } catch (err1) {
-            console.error("Pierwszy klucz API padł:", err1.message);
-            if (process.env.VITE_GEMINI_API_KEY_2) {
+            success = true;
+          } catch (err1) {
+            console.error(`Błąd API Gemini (Pozostało prób: ${retries - 1}):`, err1.message);
+            retries -= 1;
+            
+            if (retries === 0) {
+              if (process.env.VITE_GEMINI_API_KEY_2) {
                 console.log("Próbuję z użyciem klucza zapasowego...");
-                const genAI2 = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY_2);
-                const model2 = genAI2.getGenerativeModel({ 
-                  model: "gemini-flash-latest"
-                });
-                const result2 = await model2.generateContent(prompt);
-                responseText = result2.response.text();
+                try {
+                  const genAI2 = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY_2);
+                  const model2 = genAI2.getGenerativeModel({
+                    model: "gemini-1.5-flash"
+                  });
+                  const result2 = await model2.generateContent(prompt);
+                  responseText = result2.response.text();
+                  success = true;
+                } catch (err2) {
+                  throw err2;
+                }
+              } else {
+                throw err1;
+              }
             } else {
-                throw err1; // brak drugiego klucza, rzucamy dalej
+              // Wait 2 seconds before retrying
+              await new Promise(resolve => setTimeout(resolve, 2000));
             }
+          }
         }
 
         const cleanJsonStr = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         const aiData = JSON.parse(cleanJsonStr);
-        
+
         Object.keys(aiData).forEach(k => {
           if (k === 'market_value_average') {
             figureData.marketValueAverage = aiData[k];
@@ -198,28 +215,28 @@ export default async function handler(req, res) {
 
     // Przetwarzanie i konwersja obrazka WebP
     let supabaseImageUrl = '';
-    
+
     if (figureData.official_image_url && figureData.official_image_url.startsWith('http') && !figureData.official_image_url.includes('supabase.co')) {
       console.log(`Pobieranie obrazka z URL: ${figureData.official_image_url}`);
-      
+
       try {
         const imgResponse = await fetchWithProxy(figureData.official_image_url);
-        
+
         if (imgResponse.ok) {
           const arrayBuffer = await imgResponse.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
-          
+
           console.log('Konwersja na WebP...');
           const webpBuffer = await sharp(buffer)
             .webp({ quality: 80 })
             .toBuffer();
-          
+
           const filename = `${name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.webp`;
           const supabaseUrl = process.env.VITE_SUPABASE_URL;
           const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
-          
+
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
-          
+
           const { error: uploadError } = await supabase
             .storage
             .from('figure-images')
@@ -227,7 +244,7 @@ export default async function handler(req, res) {
               contentType: 'image/webp',
               upsert: true
             });
-            
+
           if (!uploadError) {
             const { data: publicUrlData } = supabase.storage.from('figure-images').getPublicUrl(filename);
             supabaseImageUrl = publicUrlData.publicUrl;
