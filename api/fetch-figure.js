@@ -150,7 +150,7 @@ export default async function handler(req, res) {
         - original_price (np. 14800 JPY)
         - official_image_url (bezpośredni link do największego oficjalnego zdjęcia produktu, absolutnie kluczowe)
         - additional_info (krótki, 2-zdaniowy zarys kim jest ta postać lub z czego słynie figurka)
-        - market_value_average (jaka jest jej średnia wartość rynkowa na rynku wtórnym obecnie, wpisz kwotę w PLN lub USD lub JPY)
+        - market_value_average (jaka jest jej średnia wartość rynkowa na rynku wtórnym obecnie. ZAWSZE podawaj w JPY, a w nawiasie w przybliżeniu w USD i PLN, schemat: "~ 22 500 JPY (ok. 150 USD / 600 PLN)")
         - where_to_search (gdzie obecnie najlepiej szukać tej figurki żeby ją kupić, wymień ze 3 serwisy)
         - strategy (czy radzisz kupić teraz bo drożeje, czy poczekać na re-release itp.)
         Klucze muszą być dokładnie w języku angielskim jak wyżej. Nie pomijaj żadnego klucza. Jeśli nie znalazłeś info - zostaw wartość jako pusty string.`;
