@@ -141,29 +141,55 @@ export default async function handler(req, res) {
         });
 
         const prompt = `Jesteś ekspertem ds. figurek anime. Uzupełnij brakujące dane (jeśli możliwe i wyszukaj je korzystając z wyszukiwarki Google) dla figurki anime z poniższych danych: ${JSON.stringify(figureData)}.
-        Wyszukaj również po japońsku jeśli trzeba (szczególnie na Kotobukiya lub AmiAmi).
-        Zwróć dane w formacie JSON z polami: 
-        - name, japanese_name, series, manufacturer, scale, original_price (najlepiej w JPY)
-        - official_image_url (bezpośredni, oficjalny link .jpg lub .png dobrej jakości)
-        - additional_info (tablica 2-3 ciekawostek z detalami figurki)
-        - where_to_search (tablica 3 nazw japońskich sklepów gdzie można jej szukać)
-        - strategy (tablica 2 krótkich porad jak ją kupić najtaniej)
-        - market_value_average (jako pojedynczy string tekstowy z szacowaną obecną wartością rynkową w PLN lub JPY)
-        JSON musi być w bloku \`\`\`json. Jeśli nie znajdziesz danych do któregoś pola, zostaw puste. Szukaj mocno w necie!`;
-
-        const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
+        Wyszukaj również po japońskiej nazwie aby mieć pewność.
+        Zwróć wynik TYLKO jako czysty obiekt JSON (bez znaczników markdown typu \`\`\`json i bez dodatkowego tekstu), z ewentualnie poprawionymi lub uzupełnionymi kluczami:
+        - name (angielska nazwa postaci i wersji)
+        - japanese_name (jeśli puste, znajdź japońskie znaki)
+        - series (pełna nazwa serii anime/mangi)
+        - manufacturer (np. Good Smile Company, Kotobukiya)
+        - scale (jeśli dotyczy)
+        - original_price (np. 14800 JPY)
+        - official_image_url (bezpośredni link do największego oficjalnego zdjęcia produktu, absolutnie kluczowe)
+        - additional_info (krótki, 2-zdaniowy zarys kim jest ta postać lub z czego słynie figurka)
+        - market_value_average (jaka jest jej średnia wartość rynkowa na rynku wtórnym obecnie, wpisz kwotę w PLN lub USD lub JPY)
+        - where_to_search (gdzie obecnie najlepiej szukać tej figurki żeby ją kupić, wymień ze 3 serwisy)
+        - strategy (czy radzisz kupić teraz bo drożeje, czy poczekać na re-release itp.)
+        Klucze muszą być dokładnie w języku angielskim jak wyżej. Nie pomijaj żadnego klucza. Jeśli nie znalazłeś info - zostaw wartość jako pusty string.`;
         
+        let responseText = "";
+        try {
+            const result = await model.generateContent(prompt);
+            responseText = result.response.text();
+        } catch (err1) {
+            console.error("Pierwszy klucz API padł:", err1.message);
+            if (process.env.VITE_GEMINI_API_KEY_2) {
+                console.log("Próbuję z użyciem klucza zapasowego...");
+                const genAI2 = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY_2);
+                const model2 = genAI2.getGenerativeModel({ 
+                  model: "gemini-flash-latest",
+                  tools: [{ googleSearch: {} }]
+                });
+                const result2 = await model2.generateContent(prompt);
+                responseText = result2.response.text();
+            } else {
+                throw err1; // brak drugiego klucza, rzucamy dalej
+            }
+        }
+
         const cleanJsonStr = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         const aiData = JSON.parse(cleanJsonStr);
         
         Object.keys(aiData).forEach(k => {
           if (k === 'market_value_average') {
-            if (!figureData.market_value && aiData[k]) {
-              figureData.market_value = { average: aiData[k] };
-            }
-          } else {
-            if (!figureData[k] && aiData[k]) figureData[k] = aiData[k];
+            figureData.marketValueAverage = aiData[k];
+          } else if (k === 'additional_info') {
+            figureData.additionalInfo = aiData[k];
+          } else if (k === 'where_to_search') {
+            figureData.whereToSearch = aiData[k];
+          } else if (k === 'strategy') {
+            figureData.strategy = aiData[k];
+          } else if (!figureData[k] && aiData[k]) {
+            figureData[k] = aiData[k];
           }
         });
       } catch (aiError) {
