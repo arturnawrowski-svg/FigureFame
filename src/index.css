@@ -73,6 +73,12 @@ header p {
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
+.hero-title {
+  background: linear-gradient(135deg, #ff4757 0%, #ff7eb3 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 /* Top Nav */
 .top-nav {
   display: flex;

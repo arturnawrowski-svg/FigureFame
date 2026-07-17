@@ -123,8 +123,7 @@ export default function Showcase({ onSelectFigure }) {
   const [figures, setFigures] = useState(fallbackFiguresData);
   const [loading, setLoading] = useState(true);
   const sliderRef = useRef(null);
-
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [isHovered, setIsHovered] = useState(false);
 
   const scrollLeft = () => {
     if (sliderRef.current) {
@@ -138,12 +137,22 @@ export default function Showcase({ onSelectFigure }) {
     }
   };
 
-  const handleMouseMove = (e) => {
-    const { innerWidth, innerHeight } = window;
-    const x = (e.clientX / innerWidth - 0.5) * 20; // maks 10 stopni wychylenia
-    const y = -(e.clientY / innerHeight - 0.5) * 20;
-    setMousePos({ x, y });
-  };
+  useEffect(() => {
+    let animationFrameId;
+    const autoScroll = () => {
+      if (sliderRef.current && !isHovered) {
+        sliderRef.current.scrollLeft += 1; // prędkość przewijania
+        // Jeśli dojechaliśmy do końca (z małym marginesem błędu), wróć na początek
+        if (sliderRef.current.scrollLeft >= (sliderRef.current.scrollWidth - sliderRef.current.clientWidth - 1)) {
+          sliderRef.current.scrollLeft = 0;
+        }
+      }
+      animationFrameId = requestAnimationFrame(autoScroll);
+    };
+    
+    animationFrameId = requestAnimationFrame(autoScroll);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isHovered]);
 
   useEffect(() => {
     async function fetchFigures() {
@@ -192,12 +201,12 @@ export default function Showcase({ onSelectFigure }) {
   );
 
   return (
-    <div className="showcase-container animate-fade-in" onMouseMove={handleMouseMove}>
+    <div className="showcase-container animate-fade-in">
       <div className="search-bar-wrapper">
         <Search className="search-icon" size={20} />
         <input 
           type="text" 
-          placeholder="Szukaj figurek (np. Hatsune, Miku, Sonico)..." 
+          placeholder="Wyszukaj po nazwie, serii lub tagach..." 
           className="search-input"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -207,7 +216,12 @@ export default function Showcase({ onSelectFigure }) {
       {loading ? (
         <div style={{ textAlign: 'center', marginTop: '3rem' }}>Ładowanie bazy figurek...</div>
       ) : (
-        <div className="showcase-wrapper" style={{ position: 'relative' }}>
+        <div 
+          className="showcase-wrapper" 
+          style={{ position: 'relative' }}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
           
           <button 
             onClick={scrollLeft} 
@@ -221,10 +235,6 @@ export default function Showcase({ onSelectFigure }) {
               <div 
                 key={fig.id} 
                 className="figure-card"
-                style={{ 
-                  transform: `rotateY(${mousePos.x}deg) rotateX(${mousePos.y}deg)`,
-                  transition: 'transform 0.1s ease-out'
-                }}
               >
                 <div className="figure-name-badge">{fig.name}</div>
                 <div className={`ambient-light ${fig.lightClass}`}></div>
@@ -240,14 +250,14 @@ export default function Showcase({ onSelectFigure }) {
                   )}
                 </div>
                 <div className="hover-panel">
-                  <div className="market-value">
-                    <span>Najlepsza oferta:</span>
-                    <strong>~ {fig.originalPrice}</strong>
-                  </div>
-                  <button className="btn-primary" onClick={() => onSelectFigure(fig)} style={{ width: '100%', marginTop: '1rem' }}>
-                    Szczegóły i Oferty <ArrowRight size={16} />
-                  </button>
+                <div className="market-value">
+                  <span>Najlepsza oferta:</span>
+                  <strong>~ {fig.originalPrice ? (fig.originalPrice.replace('¥', '').trim() + (fig.originalPrice.includes('JPY') ? '' : ' JPY')) : 'Brak danych'}</strong>
                 </div>
+                <button className="btn-primary" onClick={() => onSelectFigure(fig)} style={{ width: '100%', marginTop: '1rem' }}>
+                  Szczegóły i Oferty <ArrowRight size={16} />
+                </button>
+              </div>
               </div>
             ))}
             {filteredFigures.length === 0 && (

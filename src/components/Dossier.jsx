@@ -64,7 +64,7 @@ export default function Dossier({ figure, onBack }) {
               <Tag size={18} className="meta-icon"/>
               <div>
                 <span className="meta-label">Oryginalna cena</span>
-                <strong className="meta-value">{figure.originalPrice}</strong>
+                <strong className="meta-value">{figure.originalPrice ? (figure.originalPrice.replace('¥', '').trim() + (figure.originalPrice.includes('JPY') ? '' : ' JPY')) : 'Brak danych'}</strong>
               </div>
             </div>
           </div>
@@ -92,7 +92,7 @@ export default function Dossier({ figure, onBack }) {
             <h3 style={{ marginBottom: '0.5rem', color: 'var(--color-text-highlight)' }}>Aktualna wartość rynkowa</h3>
             <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>Według serwisów śledzących ceny kolekcjonerskie:</p>
             <ul style={{ paddingLeft: '1.5rem', marginBottom: '1rem', color: 'var(--color-text-muted)', lineHeight: '1.6' }}>
-              <li><strong>średnia wartość:</strong> {figure.marketValue?.average}</li>
+              <li><strong>Średnia wartość:</strong> {figure.marketValue?.average ? (figure.marketValue.average.replace('¥', '').trim() + (figure.marketValue.average.includes('JPY') ? '' : ' JPY')) : 'Brak danych'}</li>
             </ul>
             <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>Społeczność kolekcjonerów podaje, że:</p>
             <ul style={{ paddingLeft: '1.5rem', marginBottom: '1.5rem', color: 'var(--color-text-muted)', lineHeight: '1.6' }}>

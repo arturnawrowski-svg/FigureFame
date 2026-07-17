@@ -206,6 +206,7 @@ const ParticleHero = ({
       {/* Content */}
       <div className="relative z-10 text-center px-4">
         <motion.h1
+          className="hero-title"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
@@ -215,9 +216,6 @@ const ParticleHero = ({
             fontWeight: 900,
             letterSpacing: '-0.05em',
             margin: '0 0 1rem 0',
-            background: 'linear-gradient(135deg, #ff4757 0%, #ff7eb3 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
             textShadow: '0 10px 30px rgba(255, 71, 87, 0.3)',
             cursor: onTitleClick ? 'pointer' : 'default'
           }}
