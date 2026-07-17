@@ -143,7 +143,7 @@ export default function Showcase({ onSelectFigure }) {
           .from('figures')
           .select('*')
           .neq('status', 'PENDING')
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: true });
 
         if (error) throw error;
         
