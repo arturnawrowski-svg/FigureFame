@@ -123,7 +123,6 @@ export default function Showcase({ onSelectFigure }) {
   const [figures, setFigures] = useState(fallbackFiguresData);
   const [loading, setLoading] = useState(true);
   const sliderRef = useRef(null);
-  const [isHovered, setIsHovered] = useState(false);
 
   const scrollLeft = () => {
     if (sliderRef.current) {
@@ -138,35 +137,17 @@ export default function Showcase({ onSelectFigure }) {
   };
 
   useEffect(() => {
-    let animationFrameId;
-    const autoScroll = () => {
-      if (sliderRef.current && !isHovered) {
-        sliderRef.current.scrollLeft += 1; // prędkość przewijania
-        // Jeśli dojechaliśmy do końca (z małym marginesem błędu), wróć na początek
-        if (sliderRef.current.scrollLeft >= (sliderRef.current.scrollWidth - sliderRef.current.clientWidth - 1)) {
-          sliderRef.current.scrollLeft = 0;
-        }
-      }
-      animationFrameId = requestAnimationFrame(autoScroll);
-    };
-    
-    animationFrameId = requestAnimationFrame(autoScroll);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [isHovered]);
-
-  useEffect(() => {
     async function fetchFigures() {
       try {
         const { data, error } = await supabase
           .from('figures')
           .select('*')
-          .neq('status', 'PENDING')
+          .eq('status', 'APPROVED')
           .order('created_at', { ascending: true });
 
         if (error) throw error;
         
         if (data && data.length > 0) {
-          // Map DB columns to frontend state format if needed
           const mappedData = data.map(fig => {
             const isHttp = fig.official_image_url && fig.official_image_url.startsWith('http');
             return {
@@ -177,10 +158,10 @@ export default function Showcase({ onSelectFigure }) {
               image: isHttp ? fig.official_image_url : `/images/official/${fig.official_image_url}`,
               isHttpImage: isHttp,
               lightClass: fig.light_class,
-              additionalInfo: fig.additional_info ? fig.additional_info.split('\n') : [],
+              additionalInfo: Array.isArray(fig.additional_info) ? fig.additional_info : (fig.additional_info ? String(fig.additional_info).split('\n') : []),
               marketValue: typeof fig.market_value === 'string' ? { average: fig.market_value } : fig.market_value,
-              whereToSearch: fig.where_to_search ? fig.where_to_search.split('\n') : [],
-              strategy: fig.strategy ? fig.strategy.split('\n') : []
+              whereToSearch: Array.isArray(fig.where_to_search) ? fig.where_to_search : (fig.where_to_search ? String(fig.where_to_search).split('\n') : []),
+              strategy: Array.isArray(fig.strategy) ? fig.strategy : (fig.strategy ? String(fig.strategy).split('\n') : [])
             };
           });
           setFigures(mappedData);
@@ -196,8 +177,8 @@ export default function Showcase({ onSelectFigure }) {
   }, []);
 
   const filteredFigures = figures.filter(fig => 
-    fig.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    fig.series.toLowerCase().includes(searchTerm.toLowerCase())
+    fig.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    fig.series?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -219,8 +200,6 @@ export default function Showcase({ onSelectFigure }) {
         <div 
           className="showcase-wrapper" 
           style={{ position: 'relative' }}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
         >
           
           <button 
