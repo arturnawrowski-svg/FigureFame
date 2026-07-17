@@ -137,13 +137,25 @@ export default function Showcase({ onSelectFigure }) {
 
   useEffect(() => {
     let animationFrameId;
+    let lastTimestamp = performance.now();
+    let accumulatedScroll = 0;
     
-    const animateScroll = () => {
+    const animateScroll = (timestamp) => {
+      const delta = timestamp - lastTimestamp;
+      lastTimestamp = timestamp;
+
       if (sliderRef.current && !isHovered && searchTerm === '') {
-        sliderRef.current.scrollLeft += 0.5;
+        // Dodajemy 0.05 piksela na milisekundę (ok. 3 piksele na klatkę przy 60fps)
+        accumulatedScroll += 0.05 * delta;
         
-        if (sliderRef.current.scrollLeft >= sliderRef.current.scrollWidth - sliderRef.current.clientWidth - 1) {
-          sliderRef.current.scrollLeft = 0;
+        if (accumulatedScroll >= 1) {
+          const pixelsToScroll = Math.floor(accumulatedScroll);
+          sliderRef.current.scrollLeft += pixelsToScroll;
+          
+          if (sliderRef.current.scrollLeft >= sliderRef.current.scrollWidth - sliderRef.current.clientWidth - 1) {
+            sliderRef.current.scrollLeft = 0;
+          }
+          accumulatedScroll -= pixelsToScroll;
         }
       }
       animationFrameId = requestAnimationFrame(animateScroll);
