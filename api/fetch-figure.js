@@ -123,15 +123,19 @@ export default async function handler(req, res) {
       console.log("-> Opcja 3: AI Gemini (Wypełnianie braków)...");
       try {
         const genAI = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY);
-        // Używamy nowszego stabilnego modelu, flash-latest lub pro by unikać 404
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+        // Używamy nowszego stabilnego modelu, z włączonym wyszukiwaniem Google
+        const model = genAI.getGenerativeModel({ 
+          model: "gemini-1.5-pro",
+          tools: [{ googleSearch: {} }]
+        });
 
         const prompt = `Jesteś ekspertem ds. figurek anime. Uzupełnij brakujące dane o figurce: "${name}". 
 Obecne dane: ${JSON.stringify(figureData)}
 ZASADY KRYTYCZNE:
-1. Uzupełnij TYLKO puste pola (""). Nie nadpisuj tych, które już mają wartość.
-2. NIE ZMYŚLAJ DANYCH.
-3. Link do zdjęcia MUSI być prawdziwy, publiczny (.jpg/.png). Jeśli nie masz pewności, zostaw pusty ciąg "".
+1. Masz włączone narzędzie Google Search. Użyj go, aby przeszukać internet (w tym strony producentów np. Kotobukiya, MyFigureCollection, AmiAmi, Wikipedia).
+2. Uzupełnij TYLKO puste pola (""). Nie nadpisuj tych, które już mają wartość.
+3. NIE ZMYŚLAJ DANYCH.
+4. Link do zdjęcia MUSI być prawdziwy, publiczny (.jpg/.png) pochodzący prosto z oficjalnych sklepów lub baz figurek.
 Zwróć wynik TYLKO w czystym formacie JSON bez znaczników \`\`\`json. Format musi mieć dokładnie te same klucze co "Obecne dane".`;
 
         const result = await model.generateContent(prompt);
