@@ -124,7 +124,7 @@ function App() {
         </div>
       </nav>
 
-      <ParticleHero />
+      <ParticleHero onTitleClick={() => setView('home')} />
 
       <main>
         {view === 'home' && (

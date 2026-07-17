@@ -6,7 +6,8 @@ const ParticleHero = ({
   subtitle = "Twoja Baza Danych i Agregator",
   description = "Największy zbiór zaufanych danych, cen rynkowych i historii japońskich figurek kolekcjonerskich anime.",
   particleCount = 15,
-  primaryButton = { text: "Eksploruj Kolekcję", onClick: () => {} }
+  primaryButton = { text: "Eksploruj Kolekcję", onClick: () => {} },
+  onTitleClick
 }) => {
   const containerRef = useRef(null);
   const particlesRef = useRef([]);
@@ -208,6 +209,7 @@ const ParticleHero = ({
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
+          onClick={onTitleClick}
           style={{
             fontSize: 'clamp(2.5rem, 6vw, 5rem)',
             fontWeight: 900,
@@ -216,7 +218,8 @@ const ParticleHero = ({
             background: 'linear-gradient(135deg, #ff4757 0%, #ff7eb3 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
-            textShadow: '0 10px 30px rgba(255, 71, 87, 0.3)'
+            textShadow: '0 10px 30px rgba(255, 71, 87, 0.3)',
+            cursor: onTitleClick ? 'pointer' : 'default'
           }}
         >
           {title}
