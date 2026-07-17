@@ -124,6 +124,8 @@ export default function Showcase({ onSelectFigure }) {
   const [loading, setLoading] = useState(true);
   const sliderRef = useRef(null);
 
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
   const scrollLeft = () => {
     if (sliderRef.current) {
       sliderRef.current.scrollBy({ left: -368, behavior: 'smooth' });
@@ -134,6 +136,13 @@ export default function Showcase({ onSelectFigure }) {
     if (sliderRef.current) {
       sliderRef.current.scrollBy({ left: 368, behavior: 'smooth' });
     }
+  };
+
+  const handleMouseMove = (e) => {
+    const { innerWidth, innerHeight } = window;
+    const x = (e.clientX / innerWidth - 0.5) * 20; // maks 10 stopni wychylenia
+    const y = -(e.clientY / innerHeight - 0.5) * 20;
+    setMousePos({ x, y });
   };
 
   useEffect(() => {
@@ -182,7 +191,7 @@ export default function Showcase({ onSelectFigure }) {
   );
 
   return (
-    <div className="showcase-container animate-fade-in">
+    <div className="showcase-container animate-fade-in" onMouseMove={handleMouseMove}>
       <div className="search-bar-wrapper">
         <Search className="search-icon" size={20} />
         <input 
@@ -206,9 +215,16 @@ export default function Showcase({ onSelectFigure }) {
             <ChevronLeft size={30} />
           </button>
 
-          <div className="showcase-grid" ref={sliderRef}>
+          <div className="showcase-grid" ref={sliderRef} style={{ perspective: '1000px' }}>
             {filteredFigures.map((fig) => (
-              <div key={fig.id} className="figure-card">
+              <div 
+                key={fig.id} 
+                className="figure-card"
+                style={{ 
+                  transform: `rotateY(${mousePos.x}deg) rotateX(${mousePos.y}deg)`,
+                  transition: 'transform 0.1s ease-out'
+                }}
+              >
                 <div className="figure-name-badge">{fig.name}</div>
                 <div className={`ambient-light ${fig.lightClass}`}></div>
                 <div className="figure-image-container">
