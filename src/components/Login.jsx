@@ -70,6 +70,7 @@ export default function Login({ onClose }) {
             }
           }}
           providers={['google', 'discord']}
+          redirectTo={window.location.origin}
           theme="dark"
           localization={{
             variables: {
