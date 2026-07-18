@@ -5,7 +5,12 @@ import { X as XIcon } from 'lucide-react'
 
 export default function Login({ onClose }) {
   const handleXLogin = async () => {
-    await supabase.auth.signInWithOAuth({ provider: 'x' })
+    await supabase.auth.signInWithOAuth({ 
+      provider: 'x',
+      options: {
+        redirectTo: window.location.origin
+      }
+    })
   }
 
   return (
