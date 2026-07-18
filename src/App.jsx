@@ -4,7 +4,8 @@ import Dossier from './components/Dossier'
 import AddFigure from './components/AddFigure'
 import Login from './components/Login'
 import AdminDashboard from './components/AdminDashboard'
-import { User, Info, LogOut, Plus, Sun, Moon, ShieldAlert } from 'lucide-react'
+import ProfilePage from './components/ProfilePage'
+import { User, Info, Plus, Sun, Moon, ShieldAlert } from 'lucide-react'
 import ParticleHero from './components/AnimatedHero'
 import { supabase } from './lib/supabaseClient'
 
@@ -77,7 +78,7 @@ function App() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    if (view === 'add') setView('home')
+    setView('home')
   }
 
   return (
@@ -113,8 +114,8 @@ function App() {
           )}
 
           {user ? (
-            <button className="nav-btn" onClick={handleLogout}>
-              <LogOut size={18} /> Wyloguj
+            <button className="nav-btn" onClick={() => setView('profile')} style={{ color: 'var(--color-text-highlight)', fontWeight: 'bold' }}>
+              <User size={18} /> Mój Profil
             </button>
           ) : (
             <button className="nav-btn" onClick={() => setShowLoginModal(true)}>
@@ -148,6 +149,13 @@ function App() {
         {view === 'admin' && isAdmin && (
           <AdminDashboard
             onBack={handleBackToHome}
+          />
+        )}
+
+        {view === 'profile' && user && (
+          <ProfilePage
+            user={user}
+            onLogout={handleLogout}
           />
         )}
       </main>

@@ -143,9 +143,12 @@ export default function AddFigure({ onBack, user }) {
         <div className="divider" style={{ margin: '1rem 0' }}></div>
 
         <div className="info-box" style={{ padding: '1.5rem', borderRadius: '12px', display: 'flex', gap: '16px' }}>
-          <Info size={32} style={{ color: '#ffb142', flexShrink: 0 }}/>
-          <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>
-            <strong>Ceny i oferty:</strong> Zauważ, że nie dodajesz tu żadnych ofert ze sklepów. Nasz zautomatyzowany system regularnie przeszukuje internet, w tym aukcje, sklepy internetowe, fora kolekcjonerskie i inne miejsca, by dostarczyć Ci satysfakcjonujący kontent - najnowsze informacje, aktualne ceny oraz najlepsze oferty kupna na rynku.
+          <div className="form-info-box">
+            <Info className="info-icon" size={24} />
+            <div>
+              <h4>Ceny i oferty (Automatyzacja)</h4>
+              <p>Nie musisz ręcznie dodawać ofert ze sklepów. Nasz inteligentny system agregatora (Backend), bazując na wprowadzonych przez Ciebie danych (Nazwa, Seria, Producent), w nocy automatycznie przeszuka internet, aukcje, sklepy internetowe, fora kolekcjonerskie i inne globalne rynki. O poranku system zaktualizuje profil figurki o wyselekcjonowane, interesujące oferty, informacje oraz zawartość multimedialną.</p>
+            </div>
           </div>
         </div>
 
