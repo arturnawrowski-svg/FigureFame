@@ -30,7 +30,7 @@ export default function Login({ onClose }) {
               }
             }
           }}
-          providers={['google', 'discord', 'twitter']}
+          providers={['google', 'discord', 'twitter_oauth2']}
           theme="dark"
           localization={{
             variables: {
