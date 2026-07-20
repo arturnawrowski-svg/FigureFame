@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { User, Mail, Globe, Hash, Save, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState({
     username: '',
     country: '',
@@ -20,9 +22,11 @@ export default function ProfilePage() {
     if (user) {
       fetchProfile();
       fetchFiguresCount();
+    } else {
+      // If user becomes null (e.g., after logout), redirect to home page
+      navigate('/');
     }
-  }, [user]);
-
+  }, [user, navigate]);
   const fetchProfile = async () => {
     try {
       const { data, error } = await supabase
