@@ -158,7 +158,7 @@ export default async function handler(req, res) {
           try {
             const genAI = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY);
             const model = genAI.getGenerativeModel({
-              model: "gemini-1.5-flash"
+              model: "gemini-3.5-flash"
             });
             const result = await model.generateContent(prompt);
             responseText = result.response.text();
@@ -173,7 +173,7 @@ export default async function handler(req, res) {
                 try {
                   const genAI2 = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY_2);
                   const model2 = genAI2.getGenerativeModel({
-                    model: "gemini-1.5-flash"
+                    model: "gemini-3.5-flash"
                   });
                   const result2 = await model2.generateContent(prompt);
                   responseText = result2.response.text();

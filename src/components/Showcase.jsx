@@ -3,6 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { Search, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
+const generateGlowColor = (name) => {
+  const colors = ['#00d2d3', '#ff9ff3', '#feca57', '#ff6b6b', '#48dbfb', '#1dd1a1', '#5f27cd', '#ff3f34'];
+  if (!name) return colors[0];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
 const fallbackFiguresData = [
   {
     id: 1,
@@ -222,7 +232,7 @@ export default function Showcase() {
                   className="figure-card"
                 >
                   <div className="figure-name-badge">{fig.name}</div>
-                  <div className={`ambient-light ${fig.lightClass}`}></div>
+                  <div className={`ambient-light ${fig.lightClass || ''}`} style={!fig.lightClass ? { background: generateGlowColor(fig.name) } : {}}></div>
                   <div className="figure-image-container">
                     {fig.isHttpImage ? (
                       <img src={fig.image} alt={fig.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />

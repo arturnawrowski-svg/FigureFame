@@ -3,6 +3,14 @@ import { supabase } from '../lib/supabaseClient';
 import { Check, Trash2, Clock, AlertCircle, Edit3, X, Lock, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+const generateGlowColor = (name) => {
+  const colors = ['#00d2d3', '#ff9ff3', '#feca57', '#ff6b6b', '#48dbfb', '#1dd1a1', '#5f27cd', '#ff3f34'];
+  if (!name) return colors[0];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+};
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('PENDING'); // PENDING | APPROVED | ARCHIVED
@@ -245,13 +253,22 @@ export default function AdminDashboard() {
                   )}
                   
                   {activeTab === 'APPROVED' && (
-                    <button 
-                      className="btn-secondary" 
-                      style={{ background: '#f39c12', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
-                      onClick={() => handleChangeStatus(fig.id, fig.name, 'ARCHIVED')}
-                    >
-                      Archiwizuj
-                    </button>
+                    <>
+                      <button 
+                        className="btn-secondary" 
+                        style={{ background: '#ffa502', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        onClick={() => handleChangeStatus(fig.id, fig.name, 'PENDING')}
+                      >
+                        Cofnij do Edycji
+                      </button>
+                      <button 
+                        className="btn-secondary" 
+                        style={{ background: '#f39c12', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        onClick={() => handleChangeStatus(fig.id, fig.name, 'ARCHIVED')}
+                      >
+                        Archiwizuj
+                      </button>
+                    </>
                   )}
 
                   {activeTab === 'ARCHIVED' && (
@@ -419,8 +436,26 @@ export default function AdminDashboard() {
                       {!editForm.official_image_url && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                     </div>
                     {editForm.official_image_url && (
-                      <div style={{ marginTop: '0.5rem' }}>
-                        <img src={editForm.official_image_url.startsWith('http') ? editForm.official_image_url : `https://images.myfigurecollection.net/item/original/${editForm.official_image_url}.jpg`} alt="Podgląd" style={{ maxHeight: '150px', borderRadius: '8px', objectFit: 'contain', background: '#000' }} onError={(e) => e.target.style.display = 'none'} onLoad={(e) => e.target.style.display = 'block'} />
+                      <div style={{ marginTop: '1.5rem', width: '320px' }}>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', opacity: 0.8 }}>Podgląd karty w Gablocie (Live):</label>
+                        <div style={{ transform: 'scale(0.8)', transformOrigin: 'top left', width: '368px', height: '500px' }}>
+                          <div className="figure-card">
+                            <div className="figure-name-badge">{editForm.name || 'Nazwa figurki'}</div>
+                            <div className="ambient-light" style={{ background: generateGlowColor(editForm.name || 'x') }}></div>
+                            <div className="figure-image-container">
+                              <img src={editForm.official_image_url.startsWith('http') ? editForm.official_image_url : `https://images.myfigurecollection.net/item/original/${editForm.official_image_url}.jpg`} alt="Podgląd" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} onError={(e) => e.target.style.display = 'none'} onLoad={(e) => e.target.style.display = 'block'} />
+                            </div>
+                            <div className="hover-panel">
+                              <div className="market-value">
+                                <span>Najlepsza oferta:</span>
+                                <strong>~ {editForm.original_price || 'Brak danych'}</strong>
+                              </div>
+                              <button className="btn-primary" style={{ width: '100%', marginTop: '1rem' }} disabled>
+                                Szczegóły i Oferty
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
