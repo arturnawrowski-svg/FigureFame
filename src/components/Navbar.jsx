@@ -42,7 +42,7 @@ export default function Navbar() {
             <img src="https://flagcdn.com/w20/pl.png" alt="PL" style={{ width: '20px', borderRadius: '2px' }} /> PL
           </button>
 
-          <button className="nav-btn" onClick={() => alert("FigureFame\n\nBaza wiedzy o figurkach anime oraz agregator aukcji i ofert.")}>
+          <button className="nav-btn" title="Soon" style={{ opacity: 0.6, cursor: 'not-allowed' }}>
             <Info size={18} /> O aplikacji
           </button>
 

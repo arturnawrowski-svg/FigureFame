@@ -168,7 +168,7 @@ export default function Showcase() {
               japaneseName: fig.japanese_name,
               japaneseSeries: fig.japanese_series,
               originalPrice: fig.original_price,
-              image: isHttp ? fig.official_image_url : `/images/official/${fig.official_image_url}`,
+              image: isHttp ? fig.official_image_url : `/images/${fig.official_image_url}`,
               isHttpImage: isHttp,
               lightClass: fig.light_class,
               additionalInfo: Array.isArray(fig.additional_info) ? fig.additional_info : (fig.additional_info ? String(fig.additional_info).split('\n') : []),
@@ -237,11 +237,7 @@ export default function Showcase() {
                     {fig.isHttpImage ? (
                       <img src={fig.image} alt={fig.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
                     ) : (
-                      <picture>
-                        <source srcSet={`${fig.image}.avif`} type="image/avif" />
-                        <source srcSet={`${fig.image}.webp`} type="image/webp" />
-                        <img src={`${fig.image}.jpg`} alt={fig.name} loading="lazy" />
-                      </picture>
+                      <img src={`${fig.image}.png`} alt={fig.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
                     )}
                   </div>
                   <div className="hover-panel">

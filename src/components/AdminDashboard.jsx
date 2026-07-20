@@ -24,6 +24,12 @@ export default function AdminDashboard() {
   const [editForm, setEditForm] = useState({});
   const [isSaved, setIsSaved] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
+
+  const showToast = (message) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   useEffect(() => {
     fetchFigures();
@@ -83,10 +89,14 @@ export default function AdminDashboard() {
 
       if (error) throw error;
       
-      alert(`Zmieniono status na ${newStatus}: ${name}`);
+      showToast(`Zmieniono status na ${newStatus}: ${name}`);
+      if (newStatus === 'APPROVED') {
+        setActiveTab('APPROVED');
+        setEditingId(null);
+      }
       fetchFigures();
     } catch (err) {
-      alert(`Błąd podczas zmiany statusu: ${err.message}`);
+      showToast(`Błąd podczas zmiany statusu: ${err.message}`);
     }
   };
 
@@ -102,14 +112,11 @@ export default function AdminDashboard() {
 
       if (error) throw error;
       
-      setIsSaved(true);
-      setTimeout(() => {
-        setIsSaved(false);
-        setEditingId(null);
-      }, 2000);
+      showToast('Zapisano edycję pomyślnie!');
+      setEditingId(null);
       fetchFigures();
     } catch (err) {
-      alert(`Błąd podczas zapisywania: ${err.message}`);
+      showToast(`Błąd zapisu: ${err.message}`);
     }
   };
 
@@ -124,10 +131,10 @@ export default function AdminDashboard() {
 
       if (error) throw error;
       
-      alert(`Usunięto: ${name}`);
+      showToast(`Usunięto: ${name}`);
       fetchFigures();
     } catch (err) {
-      alert(`Błąd podczas usuwania: ${err.message}`);
+      showToast(`Błąd podczas usuwania: ${err.message}`);
     }
   };
 
@@ -259,7 +266,7 @@ export default function AdminDashboard() {
                         style={{ background: '#ffa502', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
                         onClick={() => handleChangeStatus(fig.id, fig.name, 'PENDING')}
                       >
-                        Cofnij do Edycji
+                        Wycofaj z Gabloty (Do poprawy)
                       </button>
                       <button 
                         className="btn-secondary" 
@@ -351,14 +358,14 @@ export default function AdminDashboard() {
                             });
 
                             if (data._aiError) {
-                              alert(`Uwaga: Wyszukiwarka AI napotkała problem. Szczegóły: ${data._aiError}`);
+                              showToast(`Uwaga: Wyszukiwarka AI napotkała problem. Szczegóły: ${data._aiError}`);
                             }
                           } else {
                             console.error(data.error || 'Błąd API');
                           }
                         } catch(err) {
                           console.error(err);
-                          alert("Wystąpił nieoczekiwany błąd podczas szukania danych. Sprawdź konsolę.");
+                          showToast("Wystąpił nieoczekiwany błąd podczas szukania danych. Sprawdź konsolę.");
                         } finally {
                           setIsSearching(false);
                         }
@@ -443,7 +450,7 @@ export default function AdminDashboard() {
                             <div className="figure-name-badge">{editForm.name || 'Nazwa figurki'}</div>
                             <div className="ambient-light" style={{ background: generateGlowColor(editForm.name || 'x') }}></div>
                             <div className="figure-image-container">
-                              <img src={editForm.official_image_url.startsWith('http') ? editForm.official_image_url : `https://images.myfigurecollection.net/item/original/${editForm.official_image_url}.jpg`} alt="Podgląd" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} onError={(e) => e.target.style.display = 'none'} onLoad={(e) => e.target.style.display = 'block'} />
+                              <img src={editForm.official_image_url?.startsWith('http') ? editForm.official_image_url : editForm.official_image_url?.includes('_figure') ? `/images/${editForm.official_image_url}.png` : `https://images.myfigurecollection.net/item/original/${editForm.official_image_url}.jpg`} alt="Podgląd" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} onError={(e) => { e.target.style.display = 'none'; }} onLoad={(e) => { e.target.style.display = 'block'; }} />
                             </div>
                             <div className="hover-panel">
                               <div className="market-value">
@@ -487,6 +494,12 @@ export default function AdminDashboard() {
               )}
             </div>
           ))}
+        </div>
+      )}
+      
+      {toastMessage && (
+        <div style={{ position: 'fixed', bottom: '20px', right: '20px', background: 'var(--color-bg-shelf)', border: '1px solid var(--color-text-highlight)', padding: '12px 24px', borderRadius: '8px', color: 'var(--color-text-highlight)', zIndex: 9999, boxShadow: '0 4px 12px rgba(0,0,0,0.5)', animation: 'fadeIn 0.3s', fontWeight: 'bold' }}>
+          {toastMessage}
         </div>
       )}
     </div>
