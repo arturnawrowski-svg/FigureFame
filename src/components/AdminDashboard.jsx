@@ -75,11 +75,39 @@ export default function AdminDashboard() {
     });
   };
 
+  const processImageIfNeeded = async (formObj) => {
+    const url = formObj.official_image_url;
+    if (url && url.startsWith('http') && !url.includes('supabase.co')) {
+      showToast('Przetwarzanie i optymalizacja obrazka...');
+      try {
+        const response = await fetch('/api/process-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageUrl: url, figureName: formObj.name || 'figure' })
+        });
+        const data = await response.json();
+        if (response.ok && data.url) {
+          formObj.official_image_url = data.url;
+          // Aktualizuj również lokalny stan, żeby podgląd "na żywo" natychmiast załapał nowy link
+          setEditForm(prev => ({ ...prev, official_image_url: data.url }));
+        } else {
+          throw new Error(data.error || 'Unknown API error');
+        }
+      } catch (err) {
+        showToast(`Błąd konwersji obrazka: ${err.message}`);
+        throw err;
+      }
+    }
+    return formObj;
+  };
+
   const handleChangeStatus = async (id, name, newStatus) => {
     try {
-      const updates = { status: newStatus };
+      let updates = { status: newStatus };
       if (editingId === id) {
-        Object.assign(updates, editForm);
+        const processedForm = await processImageIfNeeded({ ...editForm });
+        Object.assign(updates, processedForm);
+        delete updates._aiError;
       }
 
       const { error } = await supabase
@@ -102,8 +130,10 @@ export default function AdminDashboard() {
 
   const handleSaveEdits = async (id) => {
     try {
-      const dataToSave = { ...editForm };
+      let dataToSave = { ...editForm };
       delete dataToSave._aiError; // just in case
+
+      dataToSave = await processImageIfNeeded(dataToSave);
 
       const { error } = await supabase
         .from('figures')
