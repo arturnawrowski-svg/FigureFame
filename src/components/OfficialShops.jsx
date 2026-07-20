@@ -6,7 +6,8 @@ export default function OfficialShops({ figure }) {
     { name: 'AmiAmi', type: 'Partner' },
     { name: 'Solaris Japan', type: 'Partner' },
     { name: 'Nin-Nin Game', type: 'Partner' },
-    { name: 'HobbySearch', type: 'Partner' }
+    { name: 'HobbySearch', type: 'Partner' },
+    { name: 'Goods Republic', type: 'Partner' }
   ];
 
   return (

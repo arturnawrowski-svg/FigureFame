@@ -29,7 +29,8 @@ export default function AuctionDeals({ type = 'top' }) {
     { platform: 'ZenMarket', condition: 'Proxy', price: 19500, seller: 'Różni' },
     { platform: 'From Japan', condition: 'Proxy', price: 21000, seller: 'Różni' },
     { platform: 'Nin-Nin Game', condition: 'Używana (B+)', price: 17500, seller: 'Sklep' },
-    { platform: 'Hobby-Genki', condition: 'Nowa', price: 22000, seller: 'Sklep' }
+    { platform: 'Hobby-Genki', condition: 'Nowa', price: 22000, seller: 'Sklep' },
+    { platform: 'Goods Republic', condition: 'Nowa/Używana', price: 25000, seller: 'Sklep' }
   ];
 
   // Generowanie pełnych 40 ofert
@@ -66,7 +67,7 @@ export default function AuctionDeals({ type = 'top' }) {
                     <div className="seller" style={{ fontSize: '0.85rem', opacity: 0.7, marginTop: '4px' }}>Stan: {deal.condition} • {deal.seller}</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <span className="price" style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--color-text-highlight)' }}>{deal.price}</span>
+                    <span className="price" style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>{deal.price}</span>
                   </div>
                 </div>
               ))}

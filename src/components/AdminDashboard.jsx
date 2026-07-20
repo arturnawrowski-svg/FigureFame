@@ -84,9 +84,12 @@ export default function AdminDashboard() {
 
   const handleSaveEdits = async (id) => {
     try {
+      const dataToSave = { ...editForm };
+      delete dataToSave._aiError; // just in case
+
       const { error } = await supabase
         .from('figures')
-        .update(editForm)
+        .update(dataToSave)
         .eq('id', id);
 
       if (error) throw error;
@@ -317,6 +320,7 @@ export default function AdminDashboard() {
                               };
 
                               for (const key in data) {
+                                if (key === '_aiError') continue;
                                 // Zabezpieczenie przed dziwnymi kluczami od AI
                                 if (key === 'additionalInfo' || key === 'additional_info') safeAssign('additional_info', data[key], true);
                                 else if (key === 'whereToSearch' || key === 'where_to_search') safeAssign('where_to_search', data[key], true);

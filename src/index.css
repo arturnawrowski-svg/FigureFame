@@ -13,7 +13,7 @@ html {
   
   --color-miku-cyan: rgba(0, 255, 255, 0.6);
   --color-sonico-pink: rgba(255, 102, 204, 0.6);
-  --color-particles: rgba(255, 71, 87, 0.5);
+  --color-particles: rgba(250, 204, 21, 0.5);
   
   --font-main: 'Inter', sans-serif;
   --font-heading: 'Outfit', sans-serif;
@@ -68,7 +68,7 @@ header {
 header h1 {
   font-size: 3rem;
   letter-spacing: 2px;
-  background: linear-gradient(90deg, #fff, #888);
+  background: linear-gradient(90deg, #facc15, #f97316);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -81,10 +81,13 @@ header p {
 .hero-container {
   background: linear-gradient(to bottom, rgba(10, 10, 10, 0.8), rgba(0, 0, 0, 0));
   border-bottom: 1px solid rgba(255,255,255,0.05);
+  --color-ambient-1: rgba(250, 204, 21, 0.05);
+  --color-ambient-2: rgba(249, 115, 22, 0.05);
+  --color-ambient-radial: radial-gradient(circle, rgba(250, 204, 21, 0.03) 0%, transparent 70%);
 }
 
 .hero-title {
-  background: linear-gradient(135deg, #ff4757 0%, #ff7eb3 100%);
+  background: linear-gradient(135deg, #facc15 0%, #f97316 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -299,21 +302,23 @@ header p {
 }
 
 .btn-primary {
-  background: #ffffff;
-  color: #000000;
+  background: #facc15;
+  color: #111827;
   padding: 12px 24px;
   border-radius: 8px;
-  font-weight: 600;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(250, 204, 21, 0.3);
 }
 
 .btn-primary:hover {
-  background: #e0e0e0;
+  background: #eab308;
   transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(250, 204, 21, 0.4);
 }
 
 .btn-secondary {
@@ -583,10 +588,13 @@ header p {
   gap: 8px;
 }
 
+.price {
+  color: #2ed573;
+}
+
 .deal-action .price {
   font-size: 1.2rem;
   font-weight: 700;
-  color: #2ed573;
 }
 
 .btn-buy {
@@ -719,12 +727,16 @@ body.light-mode {
 }
 
 body.light-mode .hero-container {
-  background: #ffffff;
-  border: 1px solid #000000;
-  border-radius: 16px;
+  background: linear-gradient(135deg, #ffffff 0%, #f9f9fb 100%);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 24px;
   margin: 1rem 2rem;
   width: calc(100% - 4rem) !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.03);
+  --particle-blend: multiply;
+  --color-ambient-1: rgba(250, 204, 21, 0.15);
+  --color-ambient-2: rgba(249, 115, 22, 0.15);
+  --color-ambient-radial: radial-gradient(circle, rgba(250, 204, 21, 0.05) 0%, transparent 70%);
 }
 
 body.light-mode .figure-name-badge {
@@ -733,7 +745,7 @@ body.light-mode .figure-name-badge {
 }
 
 body.light-mode header h1 {
-  background: linear-gradient(90deg, #111827, #6b7280);
+  background: linear-gradient(90deg, #d97706, #b45309);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -748,12 +760,12 @@ body.light-mode .btn-secondary:hover {
 }
 
 body.light-mode .btn-primary {
-  background: #111827;
-  color: #ffffff;
+  background: #facc15;
+  color: #111827;
 }
 
 body.light-mode .btn-primary:hover {
-  background: #374151;
+  background: #eab308;
 }
 
 body.light-mode .search-input {

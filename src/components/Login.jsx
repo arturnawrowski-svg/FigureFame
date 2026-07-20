@@ -23,8 +23,8 @@ const TwitterIcon = () => (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="#1DA1F2">
       <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />
     </svg>
-    <span style={{ opacity: 0.5, fontSize: '14px' }}>/</span>
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+    <span style={{ opacity: 0.5, fontSize: '14px', color: 'var(--color-text-main)' }}>/</span>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
       <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
     </svg>
   </div>
@@ -40,17 +40,17 @@ const SocialButton = ({ onClick, icon, label }) => (
       justifyContent: 'center',
       gap: '12px',
       padding: '12px 16px',
-      background: 'rgba(255,255,255,0.03)',
-      color: 'white',
-      border: '1px solid rgba(255,255,255,0.1)',
+      background: 'var(--color-glass-bg)',
+      color: 'var(--color-text-main)',
+      border: '1px solid var(--color-glass-border)',
       borderRadius: '8px',
       fontSize: '14px',
       fontFamily: 'inherit',
       cursor: 'pointer',
       transition: 'all 0.2s ease',
     }}
-    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-    onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+    onMouseEnter={e => e.currentTarget.style.background = 'var(--color-glass-border)'}
+    onMouseLeave={e => e.currentTarget.style.background = 'var(--color-glass-bg)'}
   >
     {icon}
     <span>{label}</span>
@@ -99,9 +99,9 @@ export default function Login({ onClose }) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', margin: '24px 0', opacity: 0.3 }}>
-          <div style={{ flex: 1, height: '1px', background: 'white' }}></div>
-          <span style={{ padding: '0 10px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>Lub emailem</span>
-          <div style={{ flex: 1, height: '1px', background: 'white' }}></div>
+          <div style={{ flex: 1, height: '1px', background: 'var(--color-text-main)' }}></div>
+          <span style={{ padding: '0 10px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-text-main)' }}>Lub emailem</span>
+          <div style={{ flex: 1, height: '1px', background: 'var(--color-text-main)' }}></div>
         </div>
 
         <Auth
@@ -113,17 +113,23 @@ export default function Login({ onClose }) {
                 colors: {
                   brand: '#4f46e5',
                   brandAccent: '#4338ca',
-                  inputBackground: 'rgba(255, 255, 255, 0.05)',
-                  inputText: 'white',
-                  inputBorder: 'rgba(255, 255, 255, 0.1)',
-                  messageText: 'white',
+                  inputBackground: 'transparent',
+                  inputText: 'var(--color-text-main)',
+                  inputBorder: 'var(--color-glass-border)',
+                  messageText: 'var(--color-text-main)',
+                  inputLabelText: 'var(--color-text-main)',
+                  anchorTextColor: 'var(--color-text-main)',
+                  dividerBackground: 'var(--color-glass-border)',
+                  defaultButtonBackground: 'var(--color-glass-bg)',
+                  defaultButtonBackgroundHover: 'var(--color-glass-border)',
+                  defaultButtonBorder: 'var(--color-glass-border)',
+                  defaultButtonText: 'var(--color-text-main)'
                 }
               }
             }
           }}
           providers={[]} // Empty array to hide Supabase's native social buttons
           redirectTo={window.location.origin}
-          theme="dark"
           localization={{
             variables: {
               sign_up: {

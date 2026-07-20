@@ -33,7 +33,7 @@ export default function Dossier() {
         const { data, error } = await supabase
           .from('figures')
           .select('*')
-          .eq('id', parseInt(id))
+          .eq('id', id)
           .single();
 
         if (error) throw error;
@@ -56,7 +56,7 @@ export default function Dossier() {
         }
       } catch (err) {
         console.warn('Nie udało się pobrać z Supabase, próbuję fallback.', err);
-        const fallback = fallbackFigures[parseInt(id)];
+        const fallback = fallbackFigures[id];
         if (fallback) setFigure(fallback);
       } finally {
         setLoading(false);
