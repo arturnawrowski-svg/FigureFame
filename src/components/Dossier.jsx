@@ -97,9 +97,9 @@ export default function Dossier() {
         {/* Right column: Data and Auctions */}
         <div className="dossier-info-section">
           <div className="dossier-header">
-            <h2>{figure.name} <span style={{ opacity: 0.7, fontSize: '0.8em' }}>({figure.japaneseName})</span></h2>
+            <h2>{figure.name} <span className="japanese-text" style={{ opacity: 0.7, fontSize: '0.8em' }}>({figure.japaneseName})</span></h2>
             <div className="dossier-tags">
-              <span className="tag"><Tag size={12}/> {figure.series} ({figure.japaneseSeries})</span>
+              <span className="tag"><Tag size={12}/> {figure.series} {figure.japaneseSeries && <span className="japanese-text" style={{opacity: 0.8}}>({figure.japaneseSeries})</span>}</span>
             </div>
           </div>
 
