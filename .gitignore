@@ -25,3 +25,9 @@ dist-ssr
 
 .vercel
 .env*
+
+# Pliki tymczasowe i zrzuty bazy
+*.zip
+*.csv
+*.sql
+*.txt
