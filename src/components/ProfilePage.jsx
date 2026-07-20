@@ -23,8 +23,8 @@ export default function ProfilePage() {
       fetchProfile();
       fetchFiguresCount();
     } else {
-      // If user becomes null (e.g., after logout), redirect to home page
-      navigate('/');
+      // If user becomes null (e.g., after logout), redirect to home page and open login modal
+      navigate('/', { state: { openLogin: true } });
     }
   }, [user, navigate]);
   const fetchProfile = async () => {

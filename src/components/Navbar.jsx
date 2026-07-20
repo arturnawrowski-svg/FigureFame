@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { User, Info, Plus, Sun, Moon, ShieldAlert } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
@@ -9,6 +9,17 @@ export default function Navbar() {
   const { user, isAdmin } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const [showLoginModal, setShowLoginModal] = useState(false)
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    // If navigated here with a request to open login modal
+    if (location.state?.openLogin) {
+      setShowLoginModal(true)
+      // Clear the state so it doesn't pop up again on refresh
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location, navigate])
 
   // Auto-close login modal when user logs in
   useEffect(() => {
