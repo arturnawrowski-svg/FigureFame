@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -116,7 +117,8 @@ const fallbackFiguresData = [
   }
 ];
 
-export default function Showcase({ onSelectFigure }) {
+export default function Showcase() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [figures, setFigures] = useState(fallbackFiguresData);
   const [loading, setLoading] = useState(true);
@@ -237,7 +239,7 @@ export default function Showcase({ onSelectFigure }) {
                     <span>Najlepsza oferta:</span>
                     <strong>~ {fig.originalPrice ? (fig.originalPrice.replace('¥', '').trim() + (fig.originalPrice.includes('JPY') ? '' : ' JPY')) : 'Brak danych'}</strong>
                   </div>
-                  <button className="btn-primary" onClick={() => onSelectFigure(fig)} style={{ width: '100%', marginTop: '1rem' }}>
+                  <button className="btn-primary" onClick={() => navigate(`/dossier/${fig.id}`)} style={{ width: '100%', marginTop: '1rem' }}>
                     Szczegóły i Oferty <ArrowRight size={16} />
                   </button>
                 </div>

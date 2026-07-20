@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { Check, Trash2, Clock, AlertCircle, Edit3, X, Lock } from 'lucide-react';
+import { Check, Trash2, Clock, AlertCircle, Edit3, X, Lock, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-export default function AdminDashboard({ onBack }) {
+export default function AdminDashboard() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('PENDING'); // PENDING | APPROVED | ARCHIVED
   const [searchQuery, setSearchQuery] = useState('');
   const [figures, setFigures] = useState([]);
@@ -127,8 +129,8 @@ export default function AdminDashboard({ onBack }) {
   return (
     <div className="dossier-container animate-fade-in" style={{ padding: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <button className="btn-secondary" onClick={onBack}>
-          &larr; Wróć do Gabloty
+        <button className="btn-secondary" onClick={() => navigate('/')}>
+          <ArrowLeft size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Wróć do bazy
         </button>
         <div style={{ display: 'flex', gap: '1rem', background: 'rgba(128,128,128,0.1)', padding: '0.5rem', borderRadius: '12px' }}>
           <button 

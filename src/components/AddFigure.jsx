@@ -1,9 +1,12 @@
 import { ArrowLeft, Save, User, Info } from 'lucide-react';
 import { useState } from 'react';
-
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
 
-export default function AddFigure({ onBack, user }) {
+export default function AddFigure() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     series: '',
@@ -42,7 +45,7 @@ export default function AddFigure({ onBack, user }) {
       if (error) throw error;
 
       alert(`Dziękujemy! Figurka "${formData.name}" została wysłana i oczekuje na zatwierdzenie (PENDING). Backend automatycznie uzupełni resztę danych i zdjęcia!`);
-      onBack();
+      navigate('/');
     } catch (err) {
       console.error(err);
       alert('Wystąpił błąd podczas dodawania figurki: ' + err.message);
@@ -53,7 +56,7 @@ export default function AddFigure({ onBack, user }) {
 
   return (
     <div className="add-figure-view add-form-container animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto', padding: '3rem', borderRadius: '24px' }}>
-      <button className="btn-secondary" onClick={onBack} style={{ marginBottom: '2rem' }}>
+      <button className="btn-secondary" onClick={() => navigate('/')} style={{ marginBottom: '2rem' }}>
         <ArrowLeft size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Wróć do bazy
       </button>
 

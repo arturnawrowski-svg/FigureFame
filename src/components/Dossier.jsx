@@ -1,11 +1,77 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Tag, Building2, Ruler, HelpCircle } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 import AuctionDeals from './AuctionDeals';
 import OfficialShops from './OfficialShops';
 
-export default function Dossier({ figure, onBack }) {
+// Fallback data for when DB is unavailable
+const fallbackFigures = {
+  1: {
+    id: 1, name: 'Hatsune Miku', japaneseName: '初音ミク', series: 'Vocaloid',
+    japaneseSeries: 'ボーカロイド', manufacturer: 'Good Smile Company', scale: '1/7',
+    type: 'gotowa figurka kolekcjonerska (PVC)',
+    status: 'wydanie archiwalne, obecnie zwykle dostępna tylko na rynku wtórnym',
+    originalPrice: '15 000 JPY', image: '/images/official/miku_figure',
+    lightClass: 'light-miku',
+    additionalInfo: ['Figurka w wersji klasycznej, wyrzeźbiona z niezwykłą dbałością o detale.', 'Jej słynne, turkusowe kucyki (twintails) zostały odtworzone z wykorzystaniem przezroczystych elementów PVC.'],
+    marketValue: { average: 'około 15 000 JPY (ok. 400 zł) za egzemplarz w bardzo dobrym stanie.', community: ['okazje zdarzają się od 300 USD', 'typowe oferty mieszczą się w okolicach 400 USD'] },
+    whereToSearch: ['Solaris Japan', 'Mandarake', 'Yahoo! Auctions Japan'],
+    strategy: ['ustawić alerty na Yahoo Auctions Japan', 'korzystać z pośrednika typu Neokyo lub Buyee']
+  }
+};
+
+export default function Dossier() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [figure, setFigure] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchFigure() {
+      try {
+        const { data, error } = await supabase
+          .from('figures')
+          .select('*')
+          .eq('id', parseInt(id))
+          .single();
+
+        if (error) throw error;
+
+        if (data) {
+          const isHttp = data.official_image_url && data.official_image_url.startsWith('http');
+          setFigure({
+            ...data,
+            japaneseName: data.japanese_name,
+            japaneseSeries: data.japanese_series,
+            originalPrice: data.original_price,
+            image: isHttp ? data.official_image_url : `/images/official/${data.official_image_url}`,
+            isHttpImage: isHttp,
+            lightClass: data.light_class,
+            additionalInfo: Array.isArray(data.additional_info) ? data.additional_info : (data.additional_info ? String(data.additional_info).split('\n') : []),
+            marketValue: typeof data.market_value === 'string' ? { average: data.market_value } : data.market_value,
+            whereToSearch: Array.isArray(data.where_to_search) ? data.where_to_search : (data.where_to_search ? String(data.where_to_search).split('\n') : []),
+            strategy: Array.isArray(data.strategy) ? data.strategy : (data.strategy ? String(data.strategy).split('\n') : [])
+          });
+        }
+      } catch (err) {
+        console.warn('Nie udało się pobrać z Supabase, próbuję fallback.', err);
+        const fallback = fallbackFigures[parseInt(id)];
+        if (fallback) setFigure(fallback);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchFigure();
+  }, [id]);
+
+  if (loading) return <div style={{ textAlign: 'center', padding: '4rem' }}>Ładowanie dossier...</div>;
+  if (!figure) return <div style={{ textAlign: 'center', padding: '4rem' }}>Nie znaleziono figurki o ID: {id}</div>;
+
   return (
     <div className="dossier-view animate-fade-in">
-      <button className="btn-secondary" onClick={onBack} style={{ marginBottom: '2rem' }}>
+      <button className="btn-secondary" onClick={() => navigate('/')} style={{ marginBottom: '2rem' }}>
         <ArrowLeft size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Wróć do bazy
       </button>
 
