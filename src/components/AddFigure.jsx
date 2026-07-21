@@ -34,6 +34,7 @@ export default function AddFigure() {
         manufacturer: formData.manufacturer || null,
         scale: formData.scale || null,
         type: formData.type || null,
+        release_date: formData.releaseDate || null,
         status: 'PENDING',
         submitted_by: user?.id || null,
         additional_info: formData.additionalInfo ? formData.additionalInfo.split('\n').filter(s => s.trim() !== '') : null,

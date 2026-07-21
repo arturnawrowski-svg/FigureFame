@@ -46,64 +46,13 @@ export default function ProfilePage() {
           phone: data.phone || '',
           avatar_url: data.avatar_url || ''
         });
-
-        // AUTO-ELEVATE TO ADMIN HACK (since RLS allows updating own profile)
-        if (user.email?.toLowerCase() === 'admin@figurefame.com' && !data.is_admin) {
-          const { error: updateErr } = await supabase.from('profiles').update({
-            is_admin: true,
-            username: 'FigureFame.com admin'
-          }).eq('id', user.id);
-
-          if (!updateErr) {
-            setProfile(prev => ({ ...prev, username: 'FigureFame.com admin' }));
-            window.location.reload();
-          }
-        }
+        // Uwaga: uprawnienia admina nadaje wyłącznie baza (RLS + trigger).
+        // Dawny hack auto-elewacji został usunięty (Etap 1).
       }
     } catch (error) {
       console.error('Błąd pobierania profilu:', error.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleRescue = async () => {
-    try {
-      setSaving(true);
-      // 1. Force Admin
-      await supabase.from('profiles').update({ is_admin: true, username: 'FigureFame.com admin' }).eq('id', user.id);
-
-      // 2. Insert Figures
-      const figuresToRescue = [
-        { name: 'Kurisu Makise', japanese_name: '牧瀬紅莉栖', series: 'Steins;Gate', manufacturer: 'Good Smile Company', scale: '1/8', type: 'Scale Figure', status: 'PENDING', original_price: '11000 JPY' },
-        { name: 'Rem', japanese_name: 'ハルモニアハミング レム', series: 'Harmonia bloom', manufacturer: 'Good Smile Company', scale: 'Non-scale', type: 'Scale Figure', status: 'APPROVED', original_price: '5500 JPY', official_image_url: 'https://gesdckcfwxuegybjkcab.supabase.co/storage/v1/object/public/figure-images/rem_1784275291260.webp', additional_info: ['Rem to jedna z popularnych bliźniaczych pokojówek z serii Re:Zero. Ta wyjątkowa lalka z linii Harmonia humming posiada ruchome stawy, szklane oczy, prawdziwe włosy oraz szczegółowy, uszyty z materiału strój pokojówki.'], market_value: { average: 'ok. 700 - 900 PLN (170 - 220 USD)' }, where_to_search: ['AmiAmi (sekcja Pre-owned)', 'Mandarake', 'Solaris Japan'], strategy: ['Zaleca się zakup teraz na japońskim rynku wtórnym (np. AmiAmi lub Mandarake). Cena lalki po premierze nieco spadła i obecnie można ją upolować poniżej pierwotnej ceny detalicznej, a szanse na re-release są bardzo małe.'] },
-        { name: 'Saber Motored Cuirassier', japanese_name: 'セイバー・モータード・キュイラッシェ', series: 'Fate/Zero', manufacturer: 'Good Smile Company', scale: '1/8', type: 'Scale Figure', status: 'PENDING', original_price: '13800 JPY' },
-        { name: 'Kinomoto Sakura: Stars Bless You', japanese_name: '木之本桜 Stars Bless You', series: 'Cardcaptor Sakura: Clear Card-hen', manufacturer: 'Good Smile Company', scale: '1/7', type: 'Scale Figure', status: 'PENDING', original_price: '25000 JPY' },
-        { name: 'Super Sonico Base', japanese_name: 'すーぱーそに子', series: 'Nitroplus', manufacturer: 'Alter', scale: '1/7', type: 'Gotowa figurka kolekcjonerska (PVC)', status: 'APPROVED', original_price: '18 500 JPY', official_image_url: 'sonico_figure', light_class: 'light-sonico', additional_info: ['Zjawiskowa figurka wirtualnej idolki w letnim stroju z zarzuconą kurtką.', 'Gra cieni na skórze postaci jest po prostu zdumiewająca. Skala 1/7 pozwala na imponującą prezencję na półce.'], market_value: { average: 'około 20 000 JPY (ok. 530 zł) za egzemplarz w bardzo dobrym stanie.', community: ['okazje zdarzają się od 150 USD', 'typowe oferty mieszczą się w okolicach 200-250 USD'] }, where_to_search: ['Solaris Japan', 'AmiAmi Pre-owned', 'Mandarake'], strategy: ['Obserwować AmiAmi Pre-owned', 'Ustawić alert na Mandarake'] },
-        { name: 'Hitagi Senjougahara', japanese_name: '戦場ヶ原ひたぎ', series: 'Bakemonogatari', manufacturer: 'Good Smile Company', scale: '1/8', type: 'Scale Figure', status: 'PENDING', original_price: '10266 JPY' },
-        { name: 'Hatsune Miku Base', japanese_name: '初音ミク', series: 'Vocaloid', manufacturer: 'Good Smile Company', scale: '1/7', type: 'Gotowa figurka kolekcjonerska (PVC)', status: 'APPROVED', original_price: '15 000 JPY', official_image_url: 'miku_figure', light_class: 'light-miku', additional_info: ['Figurka w wersji klasycznej, wyrzeźbiona z niezwykłą dbałością o detale.', 'Jej słynne, turkusowe kucyki (twintails) zostały odtworzone z wykorzystaniem przezroczystych elementów PVC.'], market_value: { average: 'około 15 000 JPY (ok. 400 zł) za egzemplarz w bardzo dobrym stanie.', community: ['okazje zdarzają się od 300 USD', 'typowe oferty mieszczą się w okolicach 400 USD'] }, where_to_search: ['Solaris Japan', 'Mandarake', 'Yahoo! Auctions Japan'], strategy: ['Ustawić alerty na Yahoo Auctions Japan', 'Korzystać z pośrednika typu Neokyo lub Buyee'] },
-        { name: 'Ultimate Madoka', japanese_name: 'アルティメットまどか', series: 'Puella Magi Madoka Magica', manufacturer: 'Good Smile Company', scale: '1/8', type: 'Scale Figure', status: 'PENDING', original_price: '14800 JPY' },
-        { name: 'Shikinami Asuka Langley: Jersey Ver.', japanese_name: '式波・アスカ・ラングレー ジャージVer.', series: 'Evangelion: 3.0 You Can (Not) Redo', manufacturer: 'Alter', scale: '1/7', type: 'Scale Figure', status: 'PENDING', original_price: '10800 JPY' },
-        { name: 'Hatsune Miku: V4X', japanese_name: '初音ミク V4X', series: 'Character Vocal Series 01: Hatsune Miku', manufacturer: 'Good Smile Company', scale: '1/8', type: 'Gotowa figurka kolekcjonerska (PVC)', status: 'PENDING', original_price: '8900 JPY', strategy: ['Ustawić alerty na Yahoo Auctions Japan', 'Korzystać z pośrednika typu Neokyo lub Buyee'] },
-        { name: 'Miyuki Sone Base', japanese_name: '曾根 美雪', series: 'Kimi to Kanojo to Kanojo no Koi', manufacturer: 'Griffon Enterprises', scale: '1/8', type: 'Gotowa figurka kolekcjonerska (PVC)', status: 'APPROVED', original_price: '7 250 JPY', official_image_url: 'miyuki_figure', light_class: 'light-sonico', additional_info: ['Jest to figurka pochodząca z japońskiej gry visual novel dla dorosłych (18+), choć sama figurka nie przedstawia żadnych treści erotycznych.'], market_value: { average: 'około 170 000 JPY (ok. 4300-4500 zł) za egzemplarz w bardzo dobrym stanie, choć ceny mocno się wahają.', community: ['okazje zdarzają się od 400-600 USD'] }, where_to_search: ['Solaris Japan - obecnie wyprzedana, ale warto obserwować.', 'Yahoo! Auctions Japan'], strategy: ['Z uwagi na to że figurka jest rzadka, warto ustawić powiadomienia na Yahoo Auctions oraz Mercari.', 'Nie przepłacaj na eBay, ceny bywają tam znacznie zawyżone (nawet o 100%).', 'Szukaj ofert od zaufanych użytkowników na MyFigureCollection.'] },
-        { name: 'Levi - Fortitude Ver.', japanese_name: 'ARTFX J リヴァイ Fortitude ver.', series: 'Shingeki no Kyojin', manufacturer: 'Kotobukiya', scale: '1/7', type: 'Gotowa figurka kolekcjonerska (PVC)', status: 'PENDING', original_price: '14800 JPY', official_image_url: 'https://en.kotobukiya.co.jp/wp-content/uploads/2019/11/9d5a8df2ee43126be128827fa65b2675a6108183.jpg', additional_info: ['Levi Ackerman is the squad captain of the Special Operations Squad within the Survey Corps, widely known as humanity strongest soldier. This highly detailed figure captures him blood-splattered and battle-worn.'], market_value: { average: '~ 17,000 JPY (ok. 115 USD / 450 PLN)' }, where_to_search: ['AmiAmi (Pre-owned)', 'Mandarake', 'Solaris Japan', 'Yahoo! Auctions Japan'], strategy: ['Polować na restock w sklepie Kotobukiya.', 'Uważać na chińskie podróbki z AliExpress.'] },
-        { name: 'Zero Two: For My Darling', japanese_name: 'ゼロツー For My Darling', series: 'Darling in the Franxx', manufacturer: 'Good Smile Company', scale: '1/7', type: 'Scale Figure', status: 'PENDING', original_price: '25000 JPY' },
-        { name: 'Konata Izumi', japanese_name: null, series: 'Lucky star', manufacturer: 'Clayz', scale: '1/8', type: 'Scale Figure', status: 'PENDING' }
-      ];
-
-      // Insert figures, bypassing RLS using the submitted_by rule matching user.id
-      const { error: insertErr } = await supabase.from('figures').insert(
-        figuresToRescue.map(f => ({ ...f, submitted_by: user.id }))
-      );
-
-      if (insertErr) throw insertErr;
-
-      alert('Operacja ratunkowa zakończona! Masz admina i 14 figurek w bazie. Strona się odświeży.');
-      window.location.reload();
-    } catch (err) {
-      alert('Błąd ratunkowy: ' + err.message);
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -170,16 +119,6 @@ export default function ProfilePage() {
             <h3 style={{ fontSize: '0.9rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '1px' }}>Dodane figurki</h3>
             <p style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--color-text-highlight)' }}>{figuresCount}</p>
           </div>
-
-          {user?.email?.toLowerCase() === 'admin@figurefame.com' && (
-            <button
-              onClick={handleRescue}
-              disabled={saving}
-              style={{ width: '100%', padding: '0.75rem', background: '#ffa502', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1rem', fontWeight: 'bold' }}
-            >
-              🚑 Ratuj (Admin + Figurki)
-            </button>
-          )}
 
           <button
             onClick={async () => {

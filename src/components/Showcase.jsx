@@ -2,16 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
-
-const generateGlowColor = (name) => {
-  const colors = ['#00d2d3', '#ff9ff3', '#feca57', '#ff6b6b', '#48dbfb', '#1dd1a1', '#5f27cd', '#ff3f34'];
-  if (!name) return colors[0];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-};
+import { getImageUrl } from '../lib/getImageUrl';
+import { generateGlowColor } from '../lib/glowColor';
 
 const fallbackFiguresData = [
   {
@@ -162,14 +154,12 @@ export default function Showcase() {
         
         if (data && data.length > 0) {
           const mappedData = data.map(fig => {
-            const isHttp = fig.official_image_url && fig.official_image_url.startsWith('http');
             return {
               ...fig,
               japaneseName: fig.japanese_name,
               japaneseSeries: fig.japanese_series,
               originalPrice: fig.original_price,
-              image: isHttp ? fig.official_image_url : `/images/${fig.official_image_url}`,
-              isHttpImage: isHttp,
+              image: getImageUrl(fig.official_image_url),
               lightClass: fig.light_class,
               additionalInfo: Array.isArray(fig.additional_info) ? fig.additional_info : (fig.additional_info ? String(fig.additional_info).split('\n') : []),
               marketValue: typeof fig.market_value === 'string' ? { average: fig.market_value } : fig.market_value,
@@ -208,7 +198,9 @@ export default function Showcase() {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', marginTop: '3rem' }}>Ładowanie bazy figurek...</div>
+        <div className="skeleton-row" aria-busy="true" aria-label="Ładowanie bazy figurek">
+          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton-card" />)}
+        </div>
       ) : (
         <div 
           className="showcase-wrapper" 
@@ -234,11 +226,12 @@ export default function Showcase() {
                   <div className="figure-name-badge">{fig.name}</div>
                   <div className={`ambient-light ${fig.lightClass || ''}`} style={!fig.lightClass ? { background: generateGlowColor(fig.name) } : {}}></div>
                   <div className="figure-image-container">
-                    {fig.isHttpImage ? (
-                      <img src={fig.image} alt={fig.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
-                    ) : (
-                      <img src={`${fig.image}.png`} alt={fig.name} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
-                    )}
+                    <img
+                      src={fig.image?.startsWith('http') || /\.(png|jpe?g|webp|avif)$/i.test(fig.image || '') ? fig.image : `${fig.image}.png`}
+                      alt={fig.name}
+                      loading="lazy"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
+                    />
                   </div>
                   <div className="hover-panel">
                   <div className="market-value">

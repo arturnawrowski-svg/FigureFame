@@ -1,7 +1,7 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 import * as cheerio from "cheerio";
+import { callAIJson } from "./lib/aiClient.js";
 
 const PROXY_URL = process.env.PROXY_URL; // np. "https://api.scraperapi.com?api_key=TWÓJ_KLUCZ&url="
 
@@ -40,7 +40,7 @@ async function scrapeMFC(name) {
       official_image_url: $item('.item-picture img').attr('src') || ""
     };
     return data;
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -74,7 +74,7 @@ async function scrapeGoodSmile(name) {
       original_price: priceMatch,
       official_image_url: imgUrl ? (imgUrl.startsWith('http') ? imgUrl : `https:${imgUrl}`) : ""
     };
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -130,11 +130,11 @@ export default async function handler(req, res) {
     // Sprawdzenie czy NADAL mamy braki
     const stillHasMissingFields = Object.values(figureData).some(val => !val);
 
-    // OPCJA 3: AI (Gemini)
+    // OPCJA 3: AI (multi-provider fallback: Gemini-grounded → Groq → Cerebras → OpenRouter)
     if (stillHasMissingFields) {
-      console.log("-> Opcja 3: AI Gemini (Wypełnianie braków)...");
+      console.log("-> Opcja 3: AI (wypełnianie braków przez warstwę multi-AI)...");
       try {
-        const prompt = `Jesteś ekspertem ds. figurek anime. Uzupełnij brakujące dane (jeśli możliwe i wyszukaj je korzystając z wyszukiwarki Google) dla figurki anime z poniższych danych: ${JSON.stringify(figureData)}.
+        const prompt = `Jesteś ekspertem ds. figurek anime. Uzupełnij brakujące dane (jeśli możliwe, korzystając z wyszukiwarki Google) dla figurki anime z poniższych danych: ${JSON.stringify(figureData)}.
         Wyszukaj również po japońskiej nazwie aby mieć pewność.
         Zwróć wynik TYLKO jako czysty obiekt JSON (bez znaczników markdown typu \`\`\`json i bez dodatkowego tekstu), z ewentualnie poprawionymi lub uzupełnionymi kluczami:
         - name (angielska nazwa postaci i wersji)
@@ -150,49 +150,10 @@ export default async function handler(req, res) {
         - strategy (czy radzisz kupić teraz bo drożeje, czy poczekać na re-release itp.)
         Klucze muszą być dokładnie w języku angielskim jak wyżej. Nie pomijaj żadnego klucza. Jeśli nie znalazłeś info - zostaw wartość jako pusty string.`;
 
-        let responseText = "";
-        let retries = 2;
-        let success = false;
-
-        while (retries > 0 && !success) {
-          try {
-            const genAI = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY);
-            const model = genAI.getGenerativeModel({
-              model: "gemini-3.5-flash"
-            });
-            const result = await model.generateContent(prompt);
-            responseText = result.response.text();
-            success = true;
-          } catch (err1) {
-            console.error(`Błąd API Gemini (Pozostało prób: ${retries - 1}):`, err1.message);
-            retries -= 1;
-            
-            if (retries === 0) {
-              if (process.env.VITE_GEMINI_API_KEY_2) {
-                console.log("Próbuję z użyciem klucza zapasowego...");
-                try {
-                  const genAI2 = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY_2);
-                  const model2 = genAI2.getGenerativeModel({
-                    model: "gemini-3.5-flash"
-                  });
-                  const result2 = await model2.generateContent(prompt);
-                  responseText = result2.response.text();
-                  success = true;
-                } catch (err2) {
-                  throw err2;
-                }
-              } else {
-                throw err1;
-              }
-            } else {
-              // Wait 2 seconds before retrying
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            }
-          }
-        }
-
-        const cleanJsonStr = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-        const aiData = JSON.parse(cleanJsonStr);
+        const { data: aiData, provider } = await callAIJson(prompt);
+        console.log(`Dane AI uzupełnione przez providera: ${provider}`);
+        // Uwaga: nie dopinamy providera do figureData — trafiłby do formularza
+        // edycji i przy zapisie próbował wejść jako nieistniejąca kolumna.
 
         Object.keys(aiData).forEach(k => {
           if (k === 'market_value_average') {

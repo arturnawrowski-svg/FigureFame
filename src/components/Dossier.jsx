@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Tag, Building2, Ruler, HelpCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { getImageUrl } from '../lib/getImageUrl';
 import AuctionDeals from './AuctionDeals';
 import OfficialShops from './OfficialShops';
+import AskAI from './AskAI';
+import BootlegRisk from './BootlegRisk';
 
 // Fallback data for when DB is unavailable
 const fallbackFigures = {
@@ -39,14 +42,12 @@ export default function Dossier() {
         if (error) throw error;
 
         if (data) {
-          const isHttp = data.official_image_url && data.official_image_url.startsWith('http');
           setFigure({
             ...data,
             japaneseName: data.japanese_name,
             japaneseSeries: data.japanese_series,
             originalPrice: data.original_price,
-            image: isHttp ? data.official_image_url : `/images/official/${data.official_image_url}`,
-            isHttpImage: isHttp,
+            image: getImageUrl(data.official_image_url),
             lightClass: data.light_class,
             additionalInfo: Array.isArray(data.additional_info) ? data.additional_info : (data.additional_info ? String(data.additional_info).split('\n') : []),
             marketValue: typeof data.market_value === 'string' ? { average: data.market_value } : data.market_value,
@@ -79,15 +80,11 @@ export default function Dossier() {
         {/* Left column: Image */}
         <div className="dossier-image-section">
           <div className={`ambient-light ${figure.lightClass} dossier-ambient`}></div>
-          {figure.image && figure.image.startsWith('http') ? (
-            <img src={figure.image} alt={figure.name} className="dossier-main-img" />
-          ) : (
-            <picture>
-              <source srcSet={`${figure.image}.avif`} type="image/avif" />
-              <source srcSet={`${figure.image}.webp`} type="image/webp" />
-              <img src={`${figure.image}.jpg`} alt={figure.name} className="dossier-main-img" />
-            </picture>
-          )}
+          <img
+            src={figure.image?.startsWith('http') || /\.(png|jpe?g|webp|avif)$/i.test(figure.image || '') ? figure.image : `${figure.image}.png`}
+            alt={figure.name}
+            className="dossier-main-img"
+          />
           
           <div style={{ marginTop: '3rem', width: '100%' }}>
             <AuctionDeals figure={figure} />
@@ -186,6 +183,10 @@ export default function Dossier() {
               ))}
             </ol>
           </div>
+
+          <BootlegRisk figure={figure} />
+
+          <AskAI figure={figure} />
 
           <div className="divider"></div>
 

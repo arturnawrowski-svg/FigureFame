@@ -20,7 +20,7 @@ export function AuthProvider({ children }) {
       } else {
         setIsAdmin(false)
       }
-    } catch (_) {
+    } catch {
       setIsAdmin(false)
     }
   }

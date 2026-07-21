@@ -1,75 +1,71 @@
-import { ShoppingBag, ExternalLink, Clock, RefreshCw, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { ShoppingBag, ExternalLink, RefreshCw, ChevronDown, Clock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
 
-export default function AuctionDeals({ type = 'top' }) {
+// ============================================================================
+// AuctionDeals (Etap 3) — realne oferty z tabeli price_snapshots.
+// Dane zbiera endpoint /api/refresh-prices (eBay Browse API). Dopóki nic nie
+// zebrano — uczciwy pusty stan (bez zmyślonych ofert).
+//   type="top" → najtańsze oferty; type="all" → rozwijana reszta.
+// ============================================================================
+
+function fmtPrice(v, currency) {
+  if (v == null) return 'Brak danych';
+  const num = Number(v).toLocaleString('pl-PL', { maximumFractionDigits: 0 });
+  return `${num} ${currency || ''}`.trim();
+}
+
+export default function AuctionDeals({ figure, type = 'top' }) {
+  const [deals, setDeals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [lastCheck, setLastCheck] = useState(figure?.last_price_check || null);
   const [showOthers, setShowOthers] = useState(false);
 
-  // Symulowane dane z "API" - Top 10 (najbardziej trafne)
-  const topDeals = [
-    { id: 1, platform: 'eBay', condition: 'S (Nowa, Zafoliowana)', price: '22 500 JPY', seller: 'Akiba_Deals', time: 'Kończy się za 2h' },
-    { id: 2, platform: 'Mandarake', condition: 'A (Stan idealny)', price: '19 000 JPY', seller: 'Nakano Store', time: 'Kup Teraz' },
-    { id: 3, platform: 'AmiAmi', condition: 'B+ (Drobne ślady)', price: '17 800 JPY', seller: 'Pre-owned', time: 'Kup Teraz' },
-    { id: 4, platform: 'Yahoo! Auctions', condition: 'C (Brak pudełka)', price: '12 000 JPY', seller: 'hobby_japan', time: 'Licytacja (5 ofert)' },
-    { id: 5, platform: 'Mercari JP', condition: 'A (Stan idealny)', price: '19 500 JPY', seller: 'MikuFan99', time: 'Kup Teraz' },
-    { id: 6, platform: 'Solaris Japan', condition: 'S (Nowa)', price: '24 000 JPY', seller: 'Solaris', time: 'Kup Teraz' },
-    { id: 7, platform: 'eBay', condition: 'B (Kurz)', price: '15 000 JPY', seller: 'US_Seller', time: 'Kończy się za 10h' },
-    { id: 8, platform: 'Suruga-ya', condition: 'B (Drobne ślady)', price: '16 500 JPY', seller: 'Surugaya Shizuoka', time: 'Kup Teraz' },
-    { id: 9, platform: 'Yahoo! Auctions', condition: 'S (Nowa)', price: '21 000 JPY', seller: 'jp_collect', time: 'Licytacja (1 oferta)' },
-    { id: 10, platform: 'Rakuma', condition: 'A (Idealna)', price: '18 000 JPY', seller: 'OtaKing', time: 'Kup Teraz' },
-  ];
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      if (!figure?.id) { setLoading(false); return; }
+      try {
+        const { data, error } = await supabase
+          .from('price_snapshots')
+          .select('*')
+          .eq('figure_id', figure.id)
+          .order('price_value', { ascending: true });
+        if (error) throw error;
+        if (active) setDeals(data || []);
+      } catch (err) {
+        console.warn('Nie udało się pobrać ofert:', err.message);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    load();
+    return () => { active = false; };
+  }, [figure?.id]);
 
-  // Baza do wygenerowania 40 unikalnych ofert
-  const baseOtherDeals = [
-    { platform: 'AliExpress', condition: 'Nowa (Bootleg?)', price: 4000, seller: 'China_Toy' },
-    { platform: 'Amazon JP', condition: 'Używana', price: 26000, seller: 'Amazon Warehouse' },
-    { platform: 'Buyee', condition: 'Proxy', price: 20000, seller: 'Różni' },
-    { platform: 'eBay', condition: 'Używana', price: 14500, seller: 'UK_Collector' },
-    { platform: 'Neokyo', condition: 'Proxy', price: 18000, seller: 'Różni' },
-    { platform: 'Mercari', condition: 'Brak pudełka', price: 11000, seller: 'JP_Seller' },
-    { platform: 'ZenMarket', condition: 'Proxy', price: 19500, seller: 'Różni' },
-    { platform: 'From Japan', condition: 'Proxy', price: 21000, seller: 'Różni' },
-    { platform: 'Nin-Nin Game', condition: 'Używana (B+)', price: 17500, seller: 'Sklep' },
-    { platform: 'Hobby-Genki', condition: 'Nowa', price: 22000, seller: 'Sklep' },
-    { platform: 'Goods Republic', condition: 'Nowa/Używana', price: 25000, seller: 'Sklep' }
-  ];
+  const top = deals.slice(0, 10);
+  const others = deals.slice(10);
 
-  // Generowanie pełnych 40 ofert
-  const otherDeals = Array.from({ length: 40 }).map((_, index) => {
-    const base = baseOtherDeals[index % baseOtherDeals.length];
-    const randomizedPrice = base.price + (Math.floor(Math.random() * 50) * 100);
-    return {
-      id: 11 + index,
-      platform: base.platform,
-      condition: base.condition,
-      priceValue: randomizedPrice,
-      price: `${randomizedPrice.toLocaleString('pl-PL')} JPY`,
-      seller: `${base.seller}_${Math.floor(Math.random() * 9999)}`
-    };
-  }).sort((a, b) => a.priceValue - b.priceValue); // Sortowanie od najtańszej (najbardziej interesującej)
-
+  // --- tryb "all": rozwijana reszta ofert ---
   if (type === 'all') {
+    if (others.length === 0) return null;
     return (
       <div className="animate-fade-in" style={{ width: '100%' }}>
-        <div style={{ textAlign: 'center' }}>
-          <button className="btn-secondary" onClick={() => setShowOthers(!showOthers)} style={{ width: '100%', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--color-bg-shelf)' }}>
-            <span style={{ fontWeight: 'bold' }}>Pozostałe oferty (Zgromadzono 40 ofert z rynków wtórnych)</span>
-            <ChevronDown size={20} style={{ transform: showOthers ? 'rotate(180deg)' : 'rotate(0deg)', transition: '0.3s' }}/>
-          </button>
-        </div>
-
+        <button className="btn-secondary" onClick={() => setShowOthers(!showOthers)} style={{ width: '100%', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--color-bg-shelf)' }}>
+          <span style={{ fontWeight: 'bold' }}>Pozostałe oferty ({others.length})</span>
+          <ChevronDown size={20} style={{ transform: showOthers ? 'rotate(180deg)' : 'rotate(0deg)', transition: '0.3s' }} />
+        </button>
         {showOthers && (
-          <div className="other-deals-container" style={{ marginTop: '1rem', background: 'var(--color-bg-shelf)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--color-glass-border)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
-              {otherDeals.map(deal => (
-                <div key={deal.id} className="other-deal-item" style={{ background: 'var(--color-bg-obsidian)', padding: '16px', borderRadius: '12px', border: '1px solid var(--color-glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <strong className="deal-platform-text" style={{ fontSize: '1rem' }}>{deal.platform}</strong>
-                    <div className="seller" style={{ fontSize: '0.85rem', opacity: 0.7, marginTop: '4px' }}>Stan: {deal.condition} • {deal.seller}</div>
+          <div style={{ marginTop: '1rem', background: 'var(--color-bg-shelf)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--color-glass-border)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px' }}>
+              {others.map((deal) => (
+                <a key={deal.id} href={deal.url || '#'} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit', background: 'var(--color-bg-obsidian)', padding: '14px', borderRadius: '12px', border: '1px solid var(--color-glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <strong style={{ fontSize: '0.95rem' }}>{deal.platform}</strong>
+                    <div style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.condition || '—'}{deal.seller ? ` • ${deal.seller}` : ''}</div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <span className="price" style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>{deal.price}</span>
-                  </div>
-                </div>
+                  <span style={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>{fmtPrice(deal.price_value, deal.currency)}</span>
+                </a>
               ))}
             </div>
           </div>
@@ -78,45 +74,50 @@ export default function AuctionDeals({ type = 'top' }) {
     );
   }
 
+  // --- tryb "top" ---
   return (
     <div className="auction-deals animate-fade-in">
       <div className="auction-header">
-        <h3><ShoppingBag size={24} style={{ verticalAlign: 'middle', marginRight: '10px' }}/>Aktywne Oferty (Top 10)</h3>
-        <div style={{display: 'flex', gap: '16px', alignItems: 'center'}}>
+        <h3><ShoppingBag size={24} style={{ verticalAlign: 'middle', marginRight: '10px' }} />Aktualne oferty</h3>
+        {lastCheck && (
           <span style={{ fontSize: '0.8rem', opacity: 0.6, display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <RefreshCw size={12}/> Ostatnia weryfikacja: 10 min temu
+            <RefreshCw size={12} /> Sprawdzono: {new Date(lastCheck).toLocaleDateString('pl-PL')}
           </span>
-          <span className="live-status"><div className="dot pulse"></div> Na żywo</span>
+        )}
+      </div>
+
+      {loading ? (
+        <p style={{ opacity: 0.7, padding: '1rem 0' }}>Ładowanie ofert...</p>
+      ) : top.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '2rem 1rem', background: 'var(--color-glass-bg)', borderRadius: '12px', border: '1px dashed var(--color-glass-border)' }}>
+          <Clock size={32} style={{ opacity: 0.5, marginBottom: '0.75rem' }} />
+          <p style={{ margin: 0, fontWeight: 'bold' }}>Zbieramy oferty dla tej figurki</p>
+          <p style={{ margin: '0.25rem 0 0', opacity: 0.65, fontSize: '0.9rem' }}>Price Watch (realne ceny z rynku) jest w przygotowaniu.</p>
         </div>
-      </div>
-      
-      <p style={{ opacity: 0.8, marginBottom: '2rem' }}>Przeskanowaliśmy 50 sklepów. Oto 10 najbardziej trafnych ofert pod względem jakości i ceny.</p>
-      
-      <div className="deals-list">
-        {topDeals.map(deal => (
-          <div key={deal.id} className="deal-row">
-            <div className="deal-platform">
-              <strong>{deal.platform}</strong>
-              <span className="seller">Sprzedawca: {deal.seller}</span>
-            </div>
-            
-            <div className="deal-condition">
-              <span className="badge">{deal.condition}</span>
-            </div>
-            
-            <div className="deal-time">
-              <Clock size={14} /> {deal.time}
-            </div>
-            
-            <div className="deal-action">
-              <div className="price">{deal.price}</div>
-              <button className="btn-buy" onClick={() => alert(`Ping do API -> Przejście do ${deal.platform} (Link Afiliacyjny)`)}>
-                Sprawdź <ExternalLink size={14} style={{marginLeft: '4px'}}/>
-              </button>
-            </div>
+      ) : (
+        <>
+          <p style={{ opacity: 0.8, marginBottom: '1.5rem' }}>Najlepsze {top.length} ofert(y) posortowane od najtańszej.</p>
+          <div className="deals-list">
+            {top.map((deal) => (
+              <div key={deal.id} className="deal-row">
+                <div className="deal-platform">
+                  <strong>{deal.platform}</strong>
+                  {deal.seller && <span className="seller">Sprzedawca: {deal.seller}</span>}
+                </div>
+                <div className="deal-condition">
+                  {deal.condition && <span className="badge">{deal.condition}</span>}
+                </div>
+                <div className="deal-action">
+                  <div className="price">{fmtPrice(deal.price_value, deal.currency)}</div>
+                  <a className="btn-buy" href={deal.url || '#'} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                    Sprawdź <ExternalLink size={14} style={{ marginLeft: '4px' }} />
+                  </a>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
     </div>
   );
 }

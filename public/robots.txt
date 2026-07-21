@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Panel i strony prywatne — bez indeksowania
+Disallow: /admin
+Disallow: /profile
+
+Sitemap: https://figure-fame.vercel.app/api/sitemap

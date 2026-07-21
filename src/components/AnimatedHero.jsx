@@ -6,7 +6,6 @@ const ParticleHero = ({
   subtitle = "Twoja Baza Danych i Agregator",
   description = "Największy zbiór zaufanych danych, cen rynkowych i historii japońskich figurek kolekcjonerskich anime.",
   particleCount = 15,
-  primaryButton = { text: "Eksploruj Kolekcję", onClick: () => {} },
   onTitleClick
 }) => {
   const containerRef = useRef(null);

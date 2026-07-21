@@ -1,9 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
+import { getSupabaseAdmin } from "./lib/supabaseAdmin.js";
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024; // 15 MB — ochrona przed nadużyciem
 
 const PROXY_URL = process.env.PROXY_URL; // e.g. "https://api.scraperapi.com?api_key=KEY&url="
 
@@ -23,6 +21,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    const supabase = getSupabaseAdmin();
     let body = req.body;
     // Vite middleware dostarcza body w różny sposób, czasem jako Buffer, czasem parsuje.
     // Upewniamy się, że mamy obiekt JSON.
@@ -55,6 +54,10 @@ export default async function handler(req, res) {
     const arrayBuffer = await imageResponse.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
+    if (buffer.length > MAX_IMAGE_BYTES) {
+      return res.status(413).json({ error: `Obraz za duży (${Math.round(buffer.length / 1024 / 1024)} MB, limit 15 MB)` });
+    }
+
     // Konwersja na webp za pomocą sharp
     console.log("Konwersja obrazu do WEBP...");
     const webpBuffer = await sharp(buffer)
@@ -72,7 +75,7 @@ export default async function handler(req, res) {
     console.log(`Wgrywanie pliku do Supabase Storage: ${fileName}`);
 
     // Upload do Supabase Storage
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('figure-images')
       .upload(fileName, webpBuffer, {
         contentType: 'image/webp',

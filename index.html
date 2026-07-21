@@ -1,10 +1,38 @@
 <!doctype html>
-<html lang="en">
+<html lang="pl">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FigureFame</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f59e0b" />
+
+    <!-- PWA / instalacja na telefon -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="FigureFame" />
+
+    <title>FigureFame — baza i agregator japońskich figurek kolekcjonerskich</title>
+    <meta name="description" content="FigureFame to baza danych i agregator o japońskich figurkach kolekcjonerskich: dane producentów, wartość rynkowa, ryzyko podróbek (bootleg), gdzie kupić oraz asystent AI dla kolekcjonerów." />
+    <meta name="keywords" content="figurki anime, figurki kolekcjonerskie, Good Smile Company, bootleg, wartość figurek, MyFigureCollection, kolekcjoner" />
+    <link rel="canonical" href="https://figure-fame.vercel.app/" />
+
+    <!-- Open Graph / social -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="FigureFame" />
+    <meta property="og:title" content="FigureFame — baza i agregator japońskich figurek kolekcjonerskich" />
+    <meta property="og:description" content="Dane, wartość rynkowa, ryzyko podróbek i asystent AI dla kolekcjonerów japońskich figurek." />
+    <meta property="og:url" content="https://figure-fame.vercel.app/" />
+    <meta property="og:image" content="https://figure-fame.vercel.app/og-image.png" />
+    <meta property="og:locale" content="pl_PL" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="FigureFame — baza japońskich figurek kolekcjonerskich" />
+    <meta name="twitter:description" content="Dane, wartość rynkowa, ryzyko podróbek i asystent AI dla kolekcjonerów." />
+    <meta name="twitter:image" content="https://figure-fame.vercel.app/og-image.png" />
   </head>
   <body>
     <div id="root"></div>

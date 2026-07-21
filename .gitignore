@@ -31,3 +31,6 @@ dist-ssr
 *.csv
 *.sql
 *.txt
+
+# ...ale statyczne assety publiczne muszą trafiać na deploy
+!public/robots.txt

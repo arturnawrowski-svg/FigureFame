@@ -7,10 +7,20 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "test": "vitest run",
+    "preview": "vite preview",
+    "worker": "node worker/renderQueue.mjs",
+    "worker:watch": "node worker/renderQueue.mjs --watch",
+    "render-queue": "node worker/renderQueue.mjs",
+    "render-queue:watch": "node worker/renderQueue.mjs --watch",
+    "gen-music": "node scripts/gen-music.mjs",
+    "gdrive-auth": "node scripts/gdrive-auth.mjs"
   },
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2",
     "@google/generative-ai": "^0.24.1",
+    "@imgly/background-removal": "^1.7.0",
     "@supabase/auth-ui-react": "^0.4.7",
     "@supabase/auth-ui-shared": "^0.1.8",
     "@supabase/supabase-js": "^2.110.7",
@@ -30,6 +40,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "oxlint": "^1.69.0",
-    "vite": "^8.1.0"
+    "vite": "^8.1.0",
+    "vitest": "^4.1.10"
   }
 }
