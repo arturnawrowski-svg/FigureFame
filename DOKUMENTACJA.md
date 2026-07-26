@@ -76,7 +76,7 @@ Przeglądarka (React SPA)
                  └── sitemap           — dynamiczny sitemap.xml
                           │
                           └── Warstwa multi-AI (lib/aiClient.js)
-                              Groq → OpenRouter → Cerebras → Gemini (fallback)
+                              Groq → OpenRouter → Gemini (fallback)
 ```
 
 ### 5.1. Stack
@@ -160,7 +160,7 @@ npm run dev      # środowisko developerskie (Vite + endpointy /api/*)
 npm run build    # build produkcyjny
 ```
 
-**Zmienne środowiskowe (`.env.local`):** klucze Supabase (URL, anon, service_role), klucze AI (Groq / OpenRouter / Cerebras / Gemini), opcjonalnie proxy do scrapingu. Na produkcji te same zmienne w konfiguracji Vercela.
+**Zmienne środowiskowe (`.env.local`):** klucze Supabase (URL, anon, service_role), klucze AI (Groq / OpenRouter / Gemini), opcjonalnie proxy do scrapingu. Na produkcji te same zmienne w konfiguracji Vercela.
 
 ---
 

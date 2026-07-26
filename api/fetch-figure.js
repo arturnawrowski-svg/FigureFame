@@ -130,7 +130,7 @@ export default async function handler(req, res) {
     // Sprawdzenie czy NADAL mamy braki
     const stillHasMissingFields = Object.values(figureData).some(val => !val);
 
-    // OPCJA 3: AI (multi-provider fallback: Gemini-grounded → Groq → Cerebras → OpenRouter)
+    // OPCJA 3: AI (multi-provider fallback: Groq → OpenRouter → Gemini-grounded)
     if (stillHasMissingFields) {
       console.log("-> Opcja 3: AI (wypełnianie braków przez warstwę multi-AI)...");
       try {

@@ -8,8 +8,14 @@
 // Kolejność prób (konfigurowalna przez env AI_PROVIDER_ORDER):
 //   1. gemini    — natywny REST + grounding Google Search (najlepsza faktyczność)
 //   2. groq      — najszybszy (LPU), Llama 3.1 8B
-//   3. cerebras  — bardzo szybki, Llama 3.3 70B
-//   4. openrouter— agregator, jeden klucz → wiele darmowych modeli
+//   3. openrouter— agregator, jeden klucz → wiele darmowych modeli
+//   4. github    — GitHub Models (Llama 4 Scout / DeepSeek / GPT), darmowe z tokenem GH
+//   5. github2   — drugi token GH → inny model (Mistral Small)
+//   6. sambanova — bardzo szybki, Llama 3.3 70B, darmowy tier
+//   7. hf        — Hugging Face router, fallback awaryjny (bywa zimny start)
+//
+// Grounding dla modeli BEZ własnego wyszukiwania (Groq/OpenRouter/GitHub):
+// opcjonalnie Tavily (TAVILY_API_KEY) — patrz callAI(prompt, { groundQuery }).
 //
 // Provider jest AKTYWNY tylko, gdy ma ustawiony klucz w env.
 // ============================================================================
@@ -21,25 +27,35 @@ function env() {
     GEMINI_KEY: process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY,
     GEMINI_KEY_2: process.env.VITE_GEMINI_API_KEY_2,
     GROQ_KEY: process.env.GROQ_API_KEY,
-    CEREBRAS_KEY: process.env.CEREBRAS_API_KEY,
     OPENROUTER_KEY: process.env.OPENROUTER_API_KEY,
+    GITHUB_KEY: process.env.GITHUB_MODELS_TOKEN,
+    GITHUB_KEY_2: process.env.GITHUB_MODELS_TOKEN_2,
+    GITHUB_KEY_3: process.env.GITHUB_MODELS_TOKEN_3,
+    GITHUB_KEY_4: process.env.GITHUB_MODELS_TOKEN_4,
+    SAMBANOVA_KEY: process.env.SAMBANOVA_API_KEY,
+    HF_KEY: process.env.HF_API_KEY,
     GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-flash-latest",
     GROQ_MODEL: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
-    CEREBRAS_MODEL: process.env.CEREBRAS_MODEL || "gpt-oss-120b",
     OPENROUTER_MODEL: process.env.OPENROUTER_MODEL || "openai/gpt-oss-20b:free",
+    GITHUB_MODEL: process.env.GITHUB_MODEL || "meta/Llama-4-Scout-17B-16E-Instruct",
+    GITHUB_MODEL_2: process.env.GITHUB_MODEL_2 || "mistral-ai/mistral-small-2503",
+    GITHUB_MODEL_3: process.env.GITHUB_MODEL_3 || "openai/gpt-4.1-mini",
+    GITHUB_MODEL_4: process.env.GITHUB_MODEL_4 || "openai/gpt-4o-mini",
+    SAMBANOVA_MODEL: process.env.SAMBANOVA_MODEL || "Meta-Llama-3.3-70B-Instruct",
+    HF_MODEL: process.env.HF_MODEL || "meta-llama/Llama-3.1-8B-Instruct",
   };
 }
 
 // Domyślna kolejność: najpierw zweryfikowane działające (Groq, OpenRouter),
-// potem Cerebras (dziś 402 — konto bez kredytów) i Gemini (stary klucz wyciekł).
-// Aby przywrócić grounding jako pierwszy (po nowym kluczu Gemini):
-//   AI_PROVIDER_ORDER=gemini,groq,openrouter,cerebras
-const DEFAULT_ORDER = ["groq", "openrouter", "cerebras", "gemini"];
+// potem Gemini z groundingiem (nowy klucz).
+// Aby przywrócić grounding jako pierwszy:
+//   AI_PROVIDER_ORDER=gemini,groq,openrouter,github,github2,github3,github4,sambanova,hf
+const DEFAULT_ORDER = ["groq", "openrouter", "sambanova", "github", "github2", "github3", "github4", "gemini", "hf"];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---------------------------------------------------------------------------
-// Wywołanie OpenAI-compatible /chat/completions (Groq, Cerebras, OpenRouter)
+// Wywołanie OpenAI-compatible /chat/completions (Groq, OpenRouter)
 // ---------------------------------------------------------------------------
 async function callOpenAICompatible({ baseURL, apiKey, model, prompt, extraHeaders = {} }) {
   const res = await fetch(`${baseURL}/chat/completions`, {
@@ -128,18 +144,6 @@ function buildProviders() {
             }),
         }
       : null,
-    cerebras: e.CEREBRAS_KEY
-      ? {
-          name: "cerebras",
-          call: (prompt) =>
-            callOpenAICompatible({
-              baseURL: "https://api.cerebras.ai/v1",
-              apiKey: e.CEREBRAS_KEY,
-              model: e.CEREBRAS_MODEL,
-              prompt,
-            }),
-        }
-      : null,
     openrouter: e.OPENROUTER_KEY
       ? {
           name: "openrouter",
@@ -156,6 +160,78 @@ function buildProviders() {
             }),
         }
       : null,
+    github: e.GITHUB_KEY
+      ? {
+          name: "github",
+          call: (prompt) =>
+            callOpenAICompatible({
+              baseURL: "https://models.github.ai/inference",
+              apiKey: e.GITHUB_KEY,
+              model: e.GITHUB_MODEL,
+              prompt,
+            }),
+        }
+      : null,
+    github2: e.GITHUB_KEY_2
+      ? {
+          name: "github2",
+          call: (prompt) =>
+            callOpenAICompatible({
+              baseURL: "https://models.github.ai/inference",
+              apiKey: e.GITHUB_KEY_2,
+              model: e.GITHUB_MODEL_2,
+              prompt,
+            }),
+        }
+      : null,
+    github3: e.GITHUB_KEY_3
+      ? {
+          name: "github3",
+          call: (prompt) =>
+            callOpenAICompatible({
+              baseURL: "https://models.github.ai/inference",
+              apiKey: e.GITHUB_KEY_3,
+              model: e.GITHUB_MODEL_3,
+              prompt,
+            }),
+        }
+      : null,
+    github4: e.GITHUB_KEY_4
+      ? {
+          name: "github4",
+          call: (prompt) =>
+            callOpenAICompatible({
+              baseURL: "https://models.github.ai/inference",
+              apiKey: e.GITHUB_KEY_4,
+              model: e.GITHUB_MODEL_4,
+              prompt,
+            }),
+        }
+      : null,
+    sambanova: e.SAMBANOVA_KEY
+      ? {
+          name: "sambanova",
+          call: (prompt) =>
+            callOpenAICompatible({
+              baseURL: "https://api.sambanova.ai/v1",
+              apiKey: e.SAMBANOVA_KEY,
+              model: e.SAMBANOVA_MODEL,
+              prompt,
+            }),
+        }
+      : null,
+    hf: e.HF_KEY
+      ? {
+          name: "hf",
+          call: (prompt) =>
+            callOpenAICompatible({
+              baseURL: "https://router.huggingface.co/v1",
+              apiKey: e.HF_KEY,
+              model: e.HF_MODEL,
+              prompt,
+            }),
+        }
+      : null,
   };
 }
 
@@ -166,24 +242,59 @@ function getOrder() {
 }
 
 // ---------------------------------------------------------------------------
+// Tavily — wyszukiwarka zbudowana pod LLM. Zwraca zwięzły kontekst z sieci,
+// który doklejamy do promptu modeli BEZ własnego groundingu (Groq/OpenRouter/
+// GitHub). Gemini ma grounding natywnie, więc jego nie dotyczy. Aktywna tylko
+// z TAVILY_API_KEY. Przy braku klucza lub błędzie zwraca "" (grounding pomijany).
+// ---------------------------------------------------------------------------
+export async function tavilySearch(query, { maxResults = 5 } = {}) {
+  const key = process.env.TAVILY_API_KEY;
+  if (!key || !query) return "";
+  try {
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ query, max_results: maxResults, search_depth: "basic", include_answer: true }),
+    });
+    if (!res.ok) return "";
+    const data = await res.json();
+    const answer = data?.answer ? `Podsumowanie: ${data.answer}\n` : "";
+    const results = (data?.results || [])
+      .map((r) => `- ${r.title}: ${(r.content || "").slice(0, 300)} (${r.url})`)
+      .join("\n");
+    return (answer + results).trim();
+  } catch {
+    return "";
+  }
+}
+
+// ---------------------------------------------------------------------------
 // PUBLICZNE: callAI — próbuje providerów po kolei, zwraca pierwszą udaną odpowiedź.
 // Zwraca { text, provider }. Rzuca, gdy wszyscy zawiodą.
+// opts.groundQuery — jeśli podane i jest TAVILY_API_KEY, dokleja realny kontekst
+// z sieci do promptu (dla modeli bez własnego wyszukiwania). Domyślnie brak = bez zmian.
 // ---------------------------------------------------------------------------
-export async function callAI(prompt) {
+export async function callAI(prompt, opts = {}) {
   const providers = buildProviders();
   const order = getOrder();
   const active = order.map((k) => providers[k]).filter(Boolean);
 
   if (active.length === 0) {
     throw new Error(
-      "Brak skonfigurowanych providerów AI — ustaw GROQ_API_KEY / GEMINI_API_KEY / CEREBRAS_API_KEY / OPENROUTER_API_KEY"
+      "Brak skonfigurowanych providerów AI — ustaw GROQ_API_KEY / GEMINI_API_KEY / OPENROUTER_API_KEY"
     );
+  }
+
+  let finalPrompt = prompt;
+  if (opts.groundQuery) {
+    const ctx = await tavilySearch(opts.groundQuery);
+    if (ctx) finalPrompt = `Aktualny kontekst z internetu (oprzyj się na nim, nie zmyślaj):\n${ctx}\n\n---\n${prompt}`;
   }
 
   const errors = [];
   for (const provider of active) {
     try {
-      const text = await provider.call(prompt);
+      const text = await provider.call(finalPrompt);
       return { text, provider: provider.name };
     } catch (e) {
       console.error(`[aiClient] provider "${provider.name}" nieudany:`, e.message);
@@ -199,8 +310,8 @@ export async function callAI(prompt) {
 // ---------------------------------------------------------------------------
 // PUBLICZNE: callAIJson — jak callAI, ale czyści markdown i parsuje JSON.
 // ---------------------------------------------------------------------------
-export async function callAIJson(prompt) {
-  const { text, provider } = await callAI(prompt);
+export async function callAIJson(prompt, opts = {}) {
+  const { text, provider } = await callAI(prompt, opts);
   const clean = text
     .replace(/```json/gi, "")
     .replace(/```/g, "")
