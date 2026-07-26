@@ -1,5 +1,6 @@
 import sharp from "sharp";
 import { getSupabaseAdmin } from "./lib/supabaseAdmin.js";
+import { BROWSER_UA } from "./lib/lookupShared.js";
 
 // ============================================================================
 // finalize-image (Etap 2) — finalizacja zdjęcia figurki:
@@ -20,7 +21,7 @@ async function fetchImage(url) {
   const target = PROXY_URL && !isSupabase ? `${PROXY_URL}${encodeURIComponent(url)}` : url;
   return fetch(target, {
     headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      "User-Agent": BROWSER_UA,
       Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
     },
   });

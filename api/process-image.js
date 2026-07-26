@@ -1,5 +1,6 @@
 import sharp from "sharp";
 import { getSupabaseAdmin } from "./lib/supabaseAdmin.js";
+import { BROWSER_UA } from "./lib/lookupShared.js";
 
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024; // 15 MB — ochrona przed nadużyciem
 
@@ -42,7 +43,7 @@ export default async function handler(req, res) {
     // Pobierz obraz z zewnętrznego adresu
     const imageResponse = await fetchWithProxy(imageUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': BROWSER_UA,
         'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
       }
     });

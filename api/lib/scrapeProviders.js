@@ -13,8 +13,7 @@
 // Kolejność można zmienić przez SCRAPE_PROVIDER_ORDER (lista po przecinku).
 // ============================================================================
 
-const UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+import { BROWSER_UA as UA, isServerless } from "./lookupShared.js";
 
 // ---------------------------------------------------------------------------
 // Dostawca „playwright" — prawdziwa przeglądarka na TWOIM komputerze.
@@ -24,10 +23,6 @@ const UA =
 // dlatego na Vercelu jest automatycznie pomijany.
 // ---------------------------------------------------------------------------
 let browserPromise = null;
-
-function isServerless() {
-  return !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-}
 
 async function getBrowser() {
   if (!browserPromise) {

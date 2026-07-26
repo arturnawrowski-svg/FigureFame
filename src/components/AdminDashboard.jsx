@@ -7,6 +7,7 @@ import ImageUploader from './ImageUploader';
 import ImageStudio from './ImageStudio';
 import { PRESETS, ACCENTS, MUSIC_TRACKS, RESOLUTIONS, LANGS, defaultShortOptions, QUEUE_MAX, BUFFER_WARN } from '../lib/shortOptions';
 import { generateGlowColor } from '../lib/glowColor';
+import { streamLookup, mergeLookupIntoForm } from '../lib/figureLookup';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -68,37 +69,7 @@ export default function AdminDashboard() {
       );
 
       if (data) {
-        setEditForm(prev => {
-          const newForm = { ...prev };
-          const safeAssign = (targetKey, val, isArrayField) => {
-            if (val === null || val === undefined || val === '') return;
-            if (isArrayField) {
-              if (typeof val === 'string' && val.trim() !== '') {
-                newForm[targetKey] = val.split('\n').filter(line => line.trim() !== '');
-              } else if (Array.isArray(val) && val.length > 0) {
-                newForm[targetKey] = val;
-              }
-            } else if (typeof val === 'string') {
-              if (val.trim() !== '') newForm[targetKey] = val;
-            } else {
-              newForm[targetKey] = val;
-            }
-          };
-
-          for (const key in data) {
-            // Klucze techniczne (_aiError, _imageError, _fromCache) to komunikaty,
-            // nie dane figurki — nie mogą wejść do formularza/zapisu.
-            if (key.startsWith('_')) continue;
-            if (key === 'additionalInfo' || key === 'additional_info') safeAssign('additional_info', data[key], true);
-            else if (key === 'whereToSearch' || key === 'where_to_search') safeAssign('where_to_search', data[key], true);
-            else if (key === 'strategy') safeAssign('strategy', data[key], true);
-            else if (key === 'marketValueAverage' || key === 'market_value_average') {
-              if (data[key]) newForm['market_value'] = { average: data[key] };
-            }
-            else safeAssign(key, data[key], false);
-          }
-          return newForm;
-        });
+        setEditForm(prev => mergeLookupIntoForm(prev, data));
 
         setLastLookup({
           sources: data._sources || null,
@@ -125,44 +96,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Czyta strumień SSE z /api/fetch-figure i woła onProgress przy każdym etapie.
-  // Zwraca finalne dane figurki (zdarzenie „result") albo null.
-  const streamLookup = async (name, series, onProgress, opts = {}) => {
-    const url =
-      `/api/fetch-figure?stream=1&name=${encodeURIComponent(name)}` +
-      (series ? `&series=${encodeURIComponent(series)}` : '') +
-      (opts.deep ? '&deep=1' : '') +
-      (opts.refresh ? '&refresh=1' : '');
-    const res = await fetch(url);
-    if (!res.ok || !res.body) throw new Error(`Serwer odpowiedział ${res.status}`);
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let result = null;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-
-      // Zdarzenia SSE rozdziela pusta linia.
-      const chunks = buffer.split('\n\n');
-      buffer = chunks.pop() || '';
-      for (const chunk of chunks) {
-        const event = (chunk.match(/^event:\s*(.+)$/m) || [])[1];
-        const raw = (chunk.match(/^data:\s*([\s\S]+)$/m) || [])[1];
-        if (!event || !raw) continue;
-        let payload;
-        try { payload = JSON.parse(raw); } catch { continue; }
-
-        if (event === 'progress') onProgress?.(payload);
-        else if (event === 'result') result = payload;
-        else if (event === 'error') throw new Error(payload.error || 'Błąd serwera');
-      }
-    }
-    return result;
-  };
 
   // Weryfikacja zdjęcia przy każdej zmianie adresu (także po wyszukiwaniu AI).
   useEffect(() => {

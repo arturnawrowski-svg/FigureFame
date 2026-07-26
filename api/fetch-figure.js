@@ -3,6 +3,7 @@ import * as cheerio from "cheerio";
 import { callAIJson } from "./lib/aiClient.js";
 import { getSupabaseAdmin } from "./lib/supabaseAdmin.js";
 import { gatherFromSources } from "./lib/figureSources.js";
+import { cacheKey, hasLocalBrowser } from "./lib/lookupShared.js";
 
 const PROXY_URL = process.env.PROXY_URL; // np. "https://api.scraperapi.com?api_key=TWÓJ_KLUCZ&url="
 
@@ -53,16 +54,6 @@ async function downloadImage(url, depth = 0) {
 
 // Pamięć podręczna wyszukiwań — chroni mały limit pośrednika (patrz migracje-cache.sql).
 const CACHE_DAYS = 30;
-
-// Czy proces ma do dyspozycji prawdziwą przeglądarkę (tylko lokalnie).
-function hasLocalBrowser() {
-  return !(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-}
-
-function cacheKey(name, series, mode) {
-  const norm = (s) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
-  return `${mode}|${norm(name)}|${norm(series)}`;
-}
 
 async function readCache(key) {
   try {

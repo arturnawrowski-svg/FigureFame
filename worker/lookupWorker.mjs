@@ -21,18 +21,13 @@ import dotenv from "dotenv";
 import { getSupabaseAdmin } from "../api/lib/supabaseAdmin.js";
 import { gatherFromSources } from "../api/lib/figureSources.js";
 import { closeBrowser } from "../api/lib/scrapeProviders.js";
+import { cacheKey } from "../api/lib/lookupShared.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, "..", ".env.local") });
 
 const POLL_MS = 20000;
 const BATCH = 5;
-
-// Ten sam klucz co w api/fetch-figure.js — inaczej panel nie znajdzie wyniku.
-function cacheKey(name, series, mode) {
-  const norm = (s) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
-  return `${mode}|${norm(name)}|${norm(series)}`;
-}
 
 async function claimJobs(supabase) {
   const { data, error } = await supabase
