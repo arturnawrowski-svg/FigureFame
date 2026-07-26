@@ -4,6 +4,7 @@
 // FREE-FIRST + uczciwie: gdy brak kluczy, zwracamy [] (bez wywalania), a UI
 // pokazuje pusty stan zamiast zmyślonych ofert.
 // ============================================================================
+import { decorateOfferUrl, isAffiliate } from "./affiliateLinks.js";
 
 // --- eBay OAuth (client credentials) z prostym cache tokenu ---
 let ebayToken = { value: null, exp: 0 };
@@ -33,20 +34,8 @@ async function getEbayToken() {
   return ebayToken.value;
 }
 
-// Opcjonalne opakowanie afiliacyjne (EPN) — dodajemy parametr kampanii, jeśli ustawiony.
-function withAffiliate(url) {
-  const campid = process.env.EBAY_AFFILIATE_CAMPAIGN_ID;
-  if (!url || !campid) return url;
-  try {
-    const u = new URL(url);
-    u.searchParams.set("mkcid", "1");
-    u.searchParams.set("campid", campid);
-    u.searchParams.set("toolid", "10001");
-    return u.toString();
-  } catch {
-    return url;
-  }
-}
+// Znakowanie partnerskie obsługuje wspólny moduł (obsługuje wszystkie platformy
+// z affiliation.md i nie dokłada tagów przed akceptacją programu).
 
 // Zwraca znormalizowane oferty [{ platform, title, condition, price_value, currency, seller, url, is_official }]
 export async function fetchEbayOffers(query, limit = 30) {
@@ -83,7 +72,8 @@ export async function fetchEbayOffers(query, limit = 30) {
         price_value: val,
         currency: price.currency || "USD",
         seller: it.seller?.username || "",
-        url: withAffiliate(it.itemWebUrl || it.itemAffiliateWebUrl || ""),
+        url: decorateOfferUrl(it.itemAffiliateWebUrl || it.itemWebUrl || ""),
+        is_affiliate: isAffiliate(it.itemAffiliateWebUrl || it.itemWebUrl || ""),
         is_official: false,
       };
     })
@@ -123,7 +113,9 @@ export async function fetchRakutenOffers(query, limit = 30) {
         price_value: val,
         currency: "JPY",
         seller: it.shopName || "",
-        url: it.affiliateUrl || it.itemUrl || "",
+        // Rakuten oddaje gotowy adres partnerski, gdy podaliśmy affiliateId.
+        url: it.affiliateUrl || decorateOfferUrl(it.itemUrl || ""),
+        is_affiliate: !!it.affiliateUrl || isAffiliate(it.itemUrl || ""),
         is_official: false,
       };
     })

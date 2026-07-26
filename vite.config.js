@@ -50,25 +50,23 @@ export default defineConfig({
         server.middlewares.use('/api/fetch-figure', async (req, res) => {
           try {
             const url = new URL(req.originalUrl || req.url, `http://${req.headers.host || 'localhost'}`);
-            const name = url.searchParams.get('name');
-            
+            // WSZYSTKIE parametry (name, series, stream…) — tak jak robi to Vercel.
+            // Wcześniej przechodziło tylko `name`, więc dev zachowywał się inaczej niż produkcja.
             const mockReq = {
               method: req.method,
-              query: { name }
+              query: Object.fromEntries(url.searchParams),
             };
-            
-            const mockRes = {
-              status: (code) => {
-                res.statusCode = code;
-                return mockRes;
-              },
-              json: (data) => {
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify(data));
-              }
+
+            // Podajemy PRAWDZIWY res (ma writeHead/write — potrzebne dla SSE),
+            // dokładając tylko brakujące skróty w stylu Vercela.
+            res.status = (code) => { res.statusCode = code; return res; };
+            res.json = (data) => {
+              if (!res.getHeader('Content-Type')) res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(data));
+              return res;
             };
-            
-            await fetchFigureHandler(mockReq, mockRes);
+
+            await fetchFigureHandler(mockReq, res);
           } catch (err) {
             console.error('API Error:', err);
             res.statusCode = 500;

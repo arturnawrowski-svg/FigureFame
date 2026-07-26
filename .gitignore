@@ -33,5 +33,9 @@ dist-ssr
 *.txt
 *.docx
 
+# ...ale migracje to kod źródłowy schematu, nie zrzut danych — muszą być w repo,
+# inaczej struktura bazy istnieje wyłącznie na jednym dysku. Sekretów nie zawierają.
+!migracje*.sql
+
 # ...ale statyczne assety publiczne muszą trafiać na deploy
 !public/robots.txt

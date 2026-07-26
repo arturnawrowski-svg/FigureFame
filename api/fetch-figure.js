@@ -1,7 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 import * as cheerio from "cheerio";
 import { callAIJson } from "./lib/aiClient.js";
+import { getSupabaseAdmin } from "./lib/supabaseAdmin.js";
+import { gatherFromSources } from "./lib/figureSources.js";
 
 const PROXY_URL = process.env.PROXY_URL; // np. "https://api.scraperapi.com?api_key=TWÓJ_KLUCZ&url="
 
@@ -15,67 +16,99 @@ async function fetchWithProxy(url, options = {}) {
   return fetch(url, options);
 }
 
-async function scrapeMFC(name) {
+// ---------------------------------------------------------------------------
+// Pobranie zdjęcia ze znalezionego adresu. Zwraca Buffer albo null.
+// AI bywa niedokładne: potrafi podać link do STRONY produktu zamiast pliku,
+// albo adres, który w ogóle nie istnieje (404). Dlatego:
+//   1) sprawdzamy content-type — tylko image/* uznajemy za zdjęcie,
+//   2) gdy dostaliśmy HTML, wyciągamy og:image / itemprop=image i pobieramy je,
+//   3) przy niepowodzeniu zwracamy null — dzięki temu martwy URL NIE trafi
+//      do formularza i nie udaje wypełnionego pola.
+// ---------------------------------------------------------------------------
+async function downloadImage(url, depth = 0) {
+  if (!url || depth > 1) return null;
+
+  const res = await fetchWithProxy(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+  if (!res.ok) return null;
+
+  const type = (res.headers.get('content-type') || '').toLowerCase();
+  if (type.startsWith('image/')) {
+    return Buffer.from(await res.arrayBuffer());
+  }
+
+  // To strona, nie plik — poszukaj na niej zdjęcia produktu i pobierz je.
+  if (type.includes('html')) {
+    const $ = cheerio.load(await res.text());
+    const found =
+      $('meta[property="og:image"]').attr('content') ||
+      $('meta[name="twitter:image"]').attr('content') ||
+      $('img[itemprop="image"]').attr('src');
+    if (!found) return null;
+    const abs = found.startsWith('http') ? found : new URL(found, url).href;
+    return await downloadImage(abs, depth + 1);
+  }
+
+  return null;
+}
+
+// Pamięć podręczna wyszukiwań — chroni mały limit pośrednika (patrz migracje-cache.sql).
+const CACHE_DAYS = 30;
+
+// Czy proces ma do dyspozycji prawdziwą przeglądarkę (tylko lokalnie).
+function hasLocalBrowser() {
+  return !(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+}
+
+function cacheKey(name, series, mode) {
+  const norm = (s) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
+  return `${mode}|${norm(name)}|${norm(series)}`;
+}
+
+async function readCache(key) {
   try {
-    const searchUrl = `https://myfigurecollection.net/browse.v4.php?keywords=${encodeURIComponent(name)}`;
-    const res = await fetchWithProxy(searchUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
-    if (!res.ok) return null;
-    const html = await res.text();
-    const $ = cheerio.load(html);
-    const firstLink = $('.item-icon a').attr('href');
-    if (!firstLink) return null;
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from("lookup_cache")
+      .select("data, created_at")
+      .eq("key", key)
+      .maybeSingle();
+    if (error || !data) return null;
 
-    const itemUrl = `https://myfigurecollection.net${firstLink}`;
-    const itemRes = await fetchWithProxy(itemUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
-    if (!itemRes.ok) return null;
-    const itemHtml = await itemRes.text();
-    const $item = cheerio.load(itemHtml);
-
-    const data = {
-      japanese_name: $item('.form-field:contains("Japanese") .value').text().trim() || "",
-      manufacturer: $item('.form-field:contains("Manufacturer") .value').text().trim() || "",
-      series: $item('.form-field:contains("Origin") .value').text().trim() || "",
-      scale: $item('.form-field:contains("Scale") .value').text().trim() || "",
-      original_price: $item('.form-field:contains("Price") .value').text().trim() || "",
-      official_image_url: $item('.item-picture img').attr('src') || ""
-    };
-    return data;
+    const ageDays = (Date.now() - new Date(data.created_at).getTime()) / 86_400_000;
+    if (ageDays > CACHE_DAYS) return null; // przeterminowane — poszukamy od nowa
+    return data.data;
   } catch {
-    return null;
+    return null; // brak tabeli/uprawnień nie może blokować wyszukiwania
   }
 }
 
-async function scrapeGoodSmile(name) {
+// Zlecenie dla lokalnego workera: gdy serwer nie ma jak pobrać danych
+// (Cloudflare przepuszcza tylko prawdziwą przeglądarkę), zostawiamy zadanie
+// w bazie — komputer admina je odbierze. Ten sam układ co kolejka filmów.
+async function enqueueLookup(name, series, mode) {
   try {
-    const searchUrl = `https://www.goodsmile.info/en/products/search?utf8=%E2%9C%93&search%5Bquery%5D=${encodeURIComponent(name)}`;
-    const res = await fetchWithProxy(searchUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!res.ok) return null;
-    const html = await res.text();
-    const $ = cheerio.load(html);
-    const firstLink = $('.hitItem a').attr('href');
-    if (!firstLink) return null;
-
-    const itemUrl = firstLink.startsWith('http') ? firstLink : `https://www.goodsmile.info${firstLink}`;
-    const itemRes = await fetchWithProxy(itemUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!itemRes.ok) return null;
-    const itemHtml = await itemRes.text();
-    const $item = cheerio.load(itemHtml);
-
-    const priceMatch = $item('.detailBox dt:contains("Price")').next('dd').text().trim();
-    const specMatch = $item('.detailBox dt:contains("Specifications")').next('dd').text();
-    const scale = specMatch ? (specMatch.match(/(1\/\d+)/)?.[1] || "") : "";
-    const imgUrl = $item('img[itemprop="image"]').attr('src');
-
-    return {
-      japanese_name: "", // Czasem brak na wersji EN
-      manufacturer: "Good Smile Company",
-      series: $item('.detailBox dt:contains("Series")').next('dd').text().trim() || "",
-      scale: scale,
-      original_price: priceMatch,
-      official_image_url: imgUrl ? (imgUrl.startsWith('http') ? imgUrl : `https:${imgUrl}`) : ""
-    };
+    const supabase = getSupabaseAdmin();
+    // Powtórne kliknięcie nie tworzy duplikatu (unikalny indeks na pending/working).
+    const { error } = await supabase
+      .from("lookup_queue")
+      .upsert(
+        { name, series, mode, status: "pending", updated_at: new Date().toISOString() },
+        { onConflict: "name,series,mode", ignoreDuplicates: true }
+      );
+    return !error;
   } catch {
-    return null;
+    return false;
+  }
+}
+
+async function writeCache(key, mode, payload) {
+  try {
+    const supabase = getSupabaseAdmin();
+    await supabase
+      .from("lookup_cache")
+      .upsert({ key, mode, data: payload, created_at: new Date().toISOString() });
+  } catch {
+    /* zapis do cache jest opcjonalny */
   }
 }
 
@@ -84,57 +117,132 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { name } = req.query;
+  const { name, series = '', stream, deep, refresh } = req.query;
   if (!name) {
     return res.status(400).json({ error: 'Missing figure name' });
   }
 
+  const mode = deep === '1' ? 'deep' : 'quick';
+
   console.log(`Rozpoczęto kaskadowe pobieranie danych dla: ${name}`);
 
+  // Tryb strumieniowy (SSE): panel pokazuje NA ŻYWO, co właśnie sprawdzamy.
+  // Postęp jest prawdziwy — każde zdarzenie to faktycznie zakończony krok.
+  const streaming = stream === '1';
+  if (streaming) {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+    });
+  }
+  const send = (event, payload) => {
+    if (!streaming) return;
+    try {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`);
+    } catch { /* klient się rozłączył */ }
+  };
+
   try {
+    // Najpierw własna baza — zero zapytań na zewnątrz, odpowiedź natychmiastowa.
+    const key = cacheKey(name, series, mode);
+    if (refresh !== '1') {
+      const cached = await readCache(key);
+      if (cached) {
+        console.log(`Cache HIT (${key}) — bez odpytywania źródeł.`);
+        send('progress', { step: 'cache', label: 'Mam to już w naszej bazie', percent: 100 });
+        if (streaming) {
+          send('result', { ...cached, _fromCache: true });
+          return res.end();
+        }
+        return res.status(200).json({ ...cached, _fromCache: true });
+      }
+    }
+
     let figureData = {
       name: name,
       japanese_name: "",
       series: "",
+      japanese_series: "",
       manufacturer: "",
       scale: "",
       original_price: "",
       official_image_url: ""
     };
 
-    // OPCJA 1: MyFigureCollection
-    console.log("-> Opcja 1: MyFigureCollection...");
-    const mfcData = await scrapeMFC(name);
-    if (mfcData) {
-      console.log("Znaleziono w MFC!");
-      Object.keys(mfcData).forEach(k => {
-        if (mfcData[k]) figureData[k] = mfcData[k];
-      });
-    }
+    // KROK 1: twarde źródła (MFC, AmiAmi, HobbySearch, GSC) — równolegle.
+    // To dane z katalogów producentów i encyklopedii, nie domysły modelu.
+    console.log("-> Krok 1: twarde źródła (drabina)...");
+    send('progress', { step: 'start', label: 'Przeszukuję katalogi figurek…', percent: 5 });
 
-    // Sprawdzenie czy mamy braki
-    const hasMissingFields = Object.values(figureData).some(val => !val);
+    const { data: sourced, sources, bootlegWarning } = await gatherFromSources(
+      name,
+      series,
+      { deep: mode === 'deep' },
+      (ev) => {
+        // label  → ogólny opis (dla odwiedzających; nie zdradza doboru źródeł)
+        // adminLabel → dokładna nazwa, tylko do panelu moderatora
+        if (ev.type === 'source-check') {
+          send('progress', {
+            step: 'source',
+            label: `Sprawdzam: ${ev.publicLabel}…`,
+            adminLabel: `Sprawdzam: ${ev.label}…`,
+            percent: 10,
+          });
+        } else if (ev.type === 'source-done') {
+          // Katalogi zajmują 10–70% paska; reszta to zdjęcie i AI.
+          const percent = 10 + Math.round((ev.done / ev.total) * 60);
+          send('progress', {
+            step: 'source',
+            label: ev.found ? `✓ Potwierdzono: ${ev.publicLabel}` : `— Brak w: ${ev.publicLabel}`,
+            adminLabel: ev.found ? `✓ Znaleziono w: ${ev.label}` : `— Brak w: ${ev.label}`,
+            percent,
+          });
+        }
+      }
+    );
+    console.log("Źródła:", JSON.stringify(sources));
 
-    // OPCJA 2: GoodSmile Company
-    if (hasMissingFields) {
-      console.log("-> Opcja 2: GoodSmile...");
-      const gscData = await scrapeGoodSmile(name);
-      if (gscData) {
-        console.log("Znaleziono w GSC!");
-        Object.keys(gscData).forEach(k => {
-          if (!figureData[k] && gscData[k]) figureData[k] = gscData[k];
-        });
+    Object.keys(figureData).forEach(k => {
+      if (!figureData[k] && sourced[k]) figureData[k] = sourced[k];
+    });
+    // Nazwa z katalogu bywa pełniejsza niż to, co wpisał zgłaszający.
+    if (sourced.name) figureData.name = sourced.name;
+
+    figureData._sources = sources;
+
+    // Żadne twarde źródło nie odpowiedziało, a jesteśmy w chmurze (bez własnej
+    // przeglądarki) → zlecamy pobranie komputerowi admina zamiast zdawać się
+    // wyłącznie na AI, która przy braku danych zaczyna zmyślać.
+    const nothingFound = !Object.values(sources).some((s) => s === 'ok');
+    if (nothingFound && !hasLocalBrowser()) {
+      const queued = await enqueueLookup(name, series, mode);
+      if (queued) {
+        figureData._queued = 'Zlecono pobranie danych — FigureFame Studio na Twoim komputerze pobierze je z katalogów. Kliknij ponownie za chwilę.';
+        send('progress', { step: 'queue', label: 'Zlecono pobranie lokalne…', percent: 72 });
       }
     }
 
-    // Sprawdzenie czy NADAL mamy braki
-    const stillHasMissingFields = Object.values(figureData).some(val => !val);
+    if (bootlegWarning) {
+      figureData._bootlegWarning = "MyFigureCollection ostrzega: istnieje podrobiona wersja tej figurki.";
+    }
 
-    // OPCJA 3: AI (multi-provider fallback: Groq → OpenRouter → Gemini-grounded)
+    // Czy po twardych źródłach nadal są braki?
+    const stillHasMissingFields = Object.entries(figureData)
+      .filter(([k]) => !k.startsWith('_'))
+      .some(([, val]) => !val);
+
+    // KROK 2: AI — TYLKO na braki po twardych źródłach. Dane z katalogów mają
+    // pierwszeństwo; model nie ma prawa ich nadpisać (patrz scalanie niżej).
     if (stillHasMissingFields) {
-      console.log("-> Opcja 3: AI (wypełnianie braków przez warstwę multi-AI)...");
+      console.log("-> Krok 2: AI (uzupełnianie braków)...");
+      send('progress', { step: 'ai', label: 'Uzupełniam braki przez AI (z wyszukiwarką)…', percent: 75 });
       try {
-        const prompt = `Jesteś ekspertem ds. figurek anime. Uzupełnij brakujące dane (jeśli możliwe, korzystając z wyszukiwarki Google) dla figurki anime z poniższych danych: ${JSON.stringify(figureData)}.
+        // Do promptu idą wyłącznie dane figurki — bez kluczy technicznych (_sources itp.).
+        const known = Object.fromEntries(
+          Object.entries(figureData).filter(([k]) => !k.startsWith('_'))
+        );
+        const prompt = `Jesteś ekspertem ds. figurek anime. Uzupełnij brakujące dane (jeśli możliwe, korzystając z wyszukiwarki Google) dla figurki anime z poniższych danych: ${JSON.stringify(known)}.
         Wyszukaj również po japońskiej nazwie aby mieć pewność.
         Zwróć wynik TYLKO jako czysty obiekt JSON (bez znaczników markdown typu \`\`\`json i bez dodatkowego tekstu), z ewentualnie poprawionymi lub uzupełnionymi kluczami:
         - name (angielska nazwa postaci i wersji)
@@ -150,7 +258,11 @@ export default async function handler(req, res) {
         - strategy (czy radzisz kupić teraz bo drożeje, czy poczekać na re-release itp.)
         Klucze muszą być dokładnie w języku angielskim jak wyżej. Nie pomijaj żadnego klucza. Jeśli nie znalazłeś info - zostaw wartość jako pusty string.`;
 
-        const { data: aiData, provider } = await callAIJson(prompt);
+        // groundQuery → realne wyniki z sieci (Tavily) doklejone do promptu.
+        // Bez tego modele bez własnego wyszukiwania zmyślają adresy zdjęć.
+        const { data: aiData, provider } = await callAIJson(prompt, {
+          groundQuery: `${name} anime figure official product photo manufacturer price`,
+        });
         console.log(`Dane AI uzupełnione przez providera: ${provider}`);
         // Uwaga: nie dopinamy providera do figureData — trafiłby do formularza
         // edycji i przy zapisie próbował wejść jako nieistniejąca kolumna.
@@ -174,52 +286,66 @@ export default async function handler(req, res) {
       }
     }
 
-    // Przetwarzanie i konwersja obrazka WebP
-    let supabaseImageUrl = '';
+    // Przetwarzanie i konwersja obrazka WebP.
+    // Zasada: do formularza trafia albo GOTOWE zdjęcie w naszym Storage, albo
+    // pusto + _imageError. Nigdy „surowy" adres od AI — bo pole wyglądałoby na
+    // wypełnione, a podgląd i Studio zdjęcia dostawałyby martwy link.
+    const rawImageUrl = figureData.official_image_url;
 
-    if (figureData.official_image_url && figureData.official_image_url.startsWith('http') && !figureData.official_image_url.includes('supabase.co')) {
-      console.log(`Pobieranie obrazka z URL: ${figureData.official_image_url}`);
+    if (rawImageUrl && rawImageUrl.startsWith('http') && !rawImageUrl.includes('supabase.co')) {
+      console.log(`Pobieranie obrazka z URL: ${rawImageUrl}`);
+      send('progress', { step: 'image', label: 'Pobieram i konwertuję zdjęcie…', percent: 88 });
 
       try {
-        const imgResponse = await fetchWithProxy(figureData.official_image_url);
+        const buffer = await downloadImage(rawImageUrl);
+        if (!buffer) throw new Error('adres nie prowadzi do zdjęcia');
 
-        if (imgResponse.ok) {
-          const arrayBuffer = await imgResponse.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
+        console.log('Konwersja na WebP...');
+        const webpBuffer = await sharp(buffer).webp({ quality: 80 }).toBuffer();
 
-          console.log('Konwersja na WebP...');
-          const webpBuffer = await sharp(buffer)
-            .webp({ quality: 80 })
-            .toBuffer();
+        const filename = `${name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.webp`;
+        const supabase = getSupabaseAdmin();
 
-          const filename = `${name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.webp`;
-          const supabaseUrl = process.env.VITE_SUPABASE_URL;
-          const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+        const { error: uploadError } = await supabase
+          .storage
+          .from('figure-images')
+          .upload(filename, webpBuffer, {
+            contentType: 'image/webp',
+            upsert: true
+          });
+        if (uploadError) throw uploadError;
 
-          const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-          const { error: uploadError } = await supabase
-            .storage
-            .from('figure-images')
-            .upload(filename, webpBuffer, {
-              contentType: 'image/webp',
-              upsert: true
-            });
-
-          if (!uploadError) {
-            const { data: publicUrlData } = supabase.storage.from('figure-images').getPublicUrl(filename);
-            supabaseImageUrl = publicUrlData.publicUrl;
-            figureData.official_image_url = supabaseImageUrl;
-          }
-        }
+        const { data: publicUrlData } = supabase.storage.from('figure-images').getPublicUrl(filename);
+        figureData.official_image_url = publicUrlData.publicUrl;
+        console.log(`Zdjęcie zapisane: ${figureData.official_image_url}`);
       } catch (imgError) {
-        console.error('Błąd konwersji obrazka:', imgError.message);
+        console.error('Nie udało się pobrać zdjęcia:', imgError.message);
+      }
+
+      // Nic nie podmieniło adresu → pobranie/zapis padły. Czyścimy pole.
+      if (figureData.official_image_url === rawImageUrl) {
+        figureData.official_image_url = '';
+        figureData._imageError = 'Nie udało się pobrać zdjęcia ze znalezionego adresu — dodaj je ręcznie.';
       }
     }
 
+    // Zapisujemy tylko sensowne wyniki — inaczej utrwalilibyśmy pustą porażkę.
+    if (figureData.official_image_url || figureData.japanese_name || figureData.manufacturer) {
+      await writeCache(key, mode, figureData);
+    }
+
+    if (streaming) {
+      send('progress', { step: 'done', label: 'Gotowe', percent: 100 });
+      send('result', figureData);
+      return res.end();
+    }
     res.status(200).json(figureData);
   } catch (error) {
     console.error("Błąd głównej funkcji API:", error);
+    if (streaming) {
+      send('error', { error: error.message });
+      return res.end();
+    }
     res.status(500).json({ error: error.message });
   }
 }

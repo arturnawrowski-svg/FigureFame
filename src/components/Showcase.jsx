@@ -179,9 +179,13 @@ export default function Showcase() {
     fetchFigures();
   }, []);
 
-  const filteredFigures = figures.filter(fig => 
-    fig.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    fig.series?.toLowerCase().includes(searchTerm.toLowerCase())
+  // Wyszukiwanie działa WYŁĄCZNIE po naszej zweryfikowanej bazie — natychmiast,
+  // bez odpytywania serwisów zewnętrznych (żadnych limitów i kosztów na gościa).
+  // Obejmuje też nazwy japońskie, bo kolekcjonerzy szukają po 初音ミク.
+  const q = searchTerm.trim().toLowerCase();
+  const filteredFigures = !q ? figures : figures.filter(fig =>
+    [fig.name, fig.series, fig.japaneseName, fig.japaneseSeries, fig.manufacturer]
+      .some(field => String(field || '').toLowerCase().includes(q))
   );
 
   return (

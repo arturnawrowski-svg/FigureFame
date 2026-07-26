@@ -25,11 +25,157 @@ export default function AdminDashboard() {
   const [shortOpts, setShortOpts] = useState(defaultShortOptions());
   const [bufferCount, setBufferCount] = useState(0); // ile MP4 zajmuje bufor Supabase (ready + approved)
   const [shortsFilter, setShortsFilter] = useState('all'); // filtr statusu w zakładce Shorty
+  // Czy zdjęcie z pola URL faktycznie się wczytuje: null = sprawdzam, true/false = wynik.
+  // Sam niepusty tekst nie wystarczy — Studio i podgląd potrzebują ŻYWEGO obrazka.
+  const [imageStatus, setImageStatus] = useState(false);
+  // Skąd przyszły dane z ostatniego wyszukiwania (przejrzystość dla moderatora).
+  const [lastLookup, setLastLookup] = useState(null);
+  // Postęp wyszukiwania: { percent, label, log[] } albo null gdy nic nie trwa.
+  const [progress, setProgress] = useState(null);
 
   const showToast = (message) => {
     setToastMessage(message);
     setTimeout(() => setToastMessage(null), 3000);
   };
+
+  // Wyszukiwanie danych figurki. opts.deep = tryb TOP (więcej wariantów nazwy,
+  // dłużej i drożej), opts.refresh = pomiń pamięć podręczną i pobierz na nowo.
+  const runLookup = async (fig, opts = {}) => {
+    const originalName = editForm.name || fig.name;
+    // Seria mocno poprawia trafność w katalogach (indeksują postać + serię,
+    // a nie nazwy wersji typu „Fortitude Ver.").
+    const knownSeries = editForm.series || fig.series || '';
+
+    setIsSearching(true);
+    setProgress({ percent: 0, label: 'Zaczynam…', log: [] });
+    try {
+      // Strumień SSE — pasek postępu pokazuje PRAWDZIWE kroki
+      // (każde zdarzenie = faktycznie zakończony etap).
+      const data = await streamLookup(
+        originalName,
+        knownSeries,
+        (p) => {
+          // W panelu pokazujemy dokładne nazwy źródeł; wersja ogólna (p.label)
+          // jest dla odwiedzających stronę.
+          const text = p.adminLabel || p.label;
+          setProgress(prev => ({
+            percent: p.percent,
+            label: text,
+            log: text.startsWith('✓') ? [...(prev?.log || []), text] : (prev?.log || []),
+          }));
+        },
+        opts
+      );
+
+      if (data) {
+        setEditForm(prev => {
+          const newForm = { ...prev };
+          const safeAssign = (targetKey, val, isArrayField) => {
+            if (val === null || val === undefined || val === '') return;
+            if (isArrayField) {
+              if (typeof val === 'string' && val.trim() !== '') {
+                newForm[targetKey] = val.split('\n').filter(line => line.trim() !== '');
+              } else if (Array.isArray(val) && val.length > 0) {
+                newForm[targetKey] = val;
+              }
+            } else if (typeof val === 'string') {
+              if (val.trim() !== '') newForm[targetKey] = val;
+            } else {
+              newForm[targetKey] = val;
+            }
+          };
+
+          for (const key in data) {
+            // Klucze techniczne (_aiError, _imageError, _fromCache) to komunikaty,
+            // nie dane figurki — nie mogą wejść do formularza/zapisu.
+            if (key.startsWith('_')) continue;
+            if (key === 'additionalInfo' || key === 'additional_info') safeAssign('additional_info', data[key], true);
+            else if (key === 'whereToSearch' || key === 'where_to_search') safeAssign('where_to_search', data[key], true);
+            else if (key === 'strategy') safeAssign('strategy', data[key], true);
+            else if (key === 'marketValueAverage' || key === 'market_value_average') {
+              if (data[key]) newForm['market_value'] = { average: data[key] };
+            }
+            else safeAssign(key, data[key], false);
+          }
+          return newForm;
+        });
+
+        setLastLookup({
+          sources: data._sources || null,
+          bootleg: data._bootlegWarning || null,
+          fromCache: !!data._fromCache,
+        });
+
+        if (data._queued) {
+          showToast(`⏳ ${data._queued}`);
+        } else if (data._aiError) {
+          showToast(`Uwaga: Wyszukiwarka AI napotkała problem. Szczegóły: ${data._aiError}`);
+        } else if (data._imageError) {
+          showToast(`🖼️ ${data._imageError}`);
+        }
+      } else {
+        showToast('Nie udało się pobrać danych figurki.');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Wystąpił nieoczekiwany błąd podczas szukania danych. Sprawdź konsolę.');
+    } finally {
+      setIsSearching(false);
+      setProgress(null);
+    }
+  };
+
+  // Czyta strumień SSE z /api/fetch-figure i woła onProgress przy każdym etapie.
+  // Zwraca finalne dane figurki (zdarzenie „result") albo null.
+  const streamLookup = async (name, series, onProgress, opts = {}) => {
+    const url =
+      `/api/fetch-figure?stream=1&name=${encodeURIComponent(name)}` +
+      (series ? `&series=${encodeURIComponent(series)}` : '') +
+      (opts.deep ? '&deep=1' : '') +
+      (opts.refresh ? '&refresh=1' : '');
+    const res = await fetch(url);
+    if (!res.ok || !res.body) throw new Error(`Serwer odpowiedział ${res.status}`);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let result = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // Zdarzenia SSE rozdziela pusta linia.
+      const chunks = buffer.split('\n\n');
+      buffer = chunks.pop() || '';
+      for (const chunk of chunks) {
+        const event = (chunk.match(/^event:\s*(.+)$/m) || [])[1];
+        const raw = (chunk.match(/^data:\s*([\s\S]+)$/m) || [])[1];
+        if (!event || !raw) continue;
+        let payload;
+        try { payload = JSON.parse(raw); } catch { continue; }
+
+        if (event === 'progress') onProgress?.(payload);
+        else if (event === 'result') result = payload;
+        else if (event === 'error') throw new Error(payload.error || 'Błąd serwera');
+      }
+    }
+    return result;
+  };
+
+  // Weryfikacja zdjęcia przy każdej zmianie adresu (także po wyszukiwaniu AI).
+  useEffect(() => {
+    const url = editForm.official_image_url;
+    if (!url) { setImageStatus(false); return; }
+    setImageStatus(null);
+    let alive = true;
+    const probe = new Image();
+    probe.onload = () => { if (alive) setImageStatus(true); };
+    probe.onerror = () => { if (alive) setImageStatus(false); };
+    probe.src = getImageUrl(url);
+    return () => { alive = false; };
+  }, [editForm.official_image_url]);
 
   // Licznik bufora: shorty trzymane w Supabase Storage (jeszcze nieopublikowane na Drive)
   const fetchBufferCount = async () => {
@@ -639,68 +785,85 @@ export default function AdminDashboard() {
                 <div style={{ padding: '1.5rem', background: 'var(--color-bg-shelf)', border: '1px solid var(--color-text-main)', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                     <h4 style={{ margin: 0, opacity: 0.8 }}>Weryfikacja i uzupełnianie danych</h4>
-                    <button 
-                      className="btn-secondary" 
-                      disabled={isSearching}
-                      style={{ border: '1px solid #3b82f6', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '8px' }}
-                      onClick={async () => {
-                        const originalName = editForm.name || fig.name;
-                        setIsSearching(true);
-                        try {
-                          const response = await fetch(`/api/fetch-figure?name=${encodeURIComponent(originalName)}`);
-                          const data = await response.json();
-                          if (response.ok) {
-                            // Merge all truthy values (and map them properly)
-                            setEditForm(prev => {
-                              const newForm = { ...prev };
-                              const safeAssign = (targetKey, val, isArrayField) => {
-                                if (val === null || val === undefined || val === '') return;
-                                if (isArrayField) {
-                                  if (typeof val === 'string' && val.trim() !== '') {
-                                    newForm[targetKey] = val.split('\n').filter(line => line.trim() !== '');
-                                  } else if (Array.isArray(val) && val.length > 0) {
-                                    newForm[targetKey] = val;
-                                  }
-                                } else {
-                                  if (typeof val === 'string' && val.trim() !== '') {
-                                    newForm[targetKey] = val;
-                                  } else if (typeof val !== 'string') {
-                                    newForm[targetKey] = val;
-                                  }
-                                }
-                              };
-
-                              for (const key in data) {
-                                if (key === '_aiError') continue;
-                                // Zabezpieczenie przed dziwnymi kluczami od AI
-                                if (key === 'additionalInfo' || key === 'additional_info') safeAssign('additional_info', data[key], true);
-                                else if (key === 'whereToSearch' || key === 'where_to_search') safeAssign('where_to_search', data[key], true);
-                                else if (key === 'strategy') safeAssign('strategy', data[key], true);
-                                else if (key === 'marketValueAverage' || key === 'market_value_average') {
-                                  if (data[key]) newForm['market_value'] = { average: data[key] };
-                                }
-                                else safeAssign(key, data[key], false);
-                              }
-                              return newForm;
-                            });
-
-                            if (data._aiError) {
-                              showToast(`Uwaga: Wyszukiwarka AI napotkała problem. Szczegóły: ${data._aiError}`);
-                            }
-                          } else {
-                            console.error(data.error || 'Błąd API');
-                          }
-                        } catch(err) {
-                          console.error(err);
-                          showToast("Wystąpił nieoczekiwany błąd podczas szukania danych. Sprawdź konsolę.");
-                        } finally {
-                          setIsSearching(false);
-                        }
-                      }}
-                    >
-                      {isSearching ? <span className="animate-pulse">FigureFame szuka danych...</span> : '🤖 Szukaj Danych (AI/Scraping)'}
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button
+                        className="btn-secondary"
+                        disabled={isSearching}
+                        style={{ border: '1px solid #3b82f6', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '8px' }}
+                        onClick={() => runLookup(fig, {})}
+                      >
+                        {isSearching ? <span className="animate-pulse">FigureFame szuka danych...</span> : '🤖 Szukaj Danych'}
+                      </button>
+                      {/* Tryb dokładny: więcej wariantów nazwy i świeże pobranie
+                          (pomija pamięć podręczną). Wolniejszy i zużywa więcej
+                          zapytań u pośrednika — dlatego to świadomy wybór. */}
+                      <button
+                        className="btn-secondary"
+                        disabled={isSearching}
+                        title="Dokładne szukanie: więcej wariantów nazwy, pomija zapisany wynik. Wolniejsze i zużywa więcej zapytań."
+                        style={{ border: '1px solid #a55eea', color: '#a55eea', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        onClick={() => runLookup(fig, { deep: true, refresh: true })}
+                      >
+                        ⭐ TOP
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Pasek postępu — pokazuje, CO właśnie sprawdzamy. Czekanie jest
+                      znośne, gdy widać, że dane są zbierane z konkretnych katalogów. */}
+                  {progress && (
+                    <div style={{ marginBottom: '1rem', padding: '0.9rem 1rem', borderRadius: '10px', background: 'var(--color-bg-shelf)', border: '1px solid var(--color-glass-border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                        <span>{progress.label}</span>
+                        <strong style={{ fontVariantNumeric: 'tabular-nums', opacity: 0.8 }}>{progress.percent}%</strong>
+                      </div>
+                      <div style={{ height: '8px', borderRadius: '999px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${progress.percent}%`, height: '100%', borderRadius: '999px',
+                          background: 'linear-gradient(90deg,#3b82f6,#2ed573)',
+                          transition: 'width 0.4s ease',
+                        }} />
+                      </div>
+                      {progress.log?.length > 0 && (
+                        <div style={{ marginTop: '0.6rem', fontSize: '0.78rem', color: '#2ed573' }}>
+                          {progress.log.map((l, i) => <div key={i}>{l}</div>)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Pochodzenie danych — moderator ma wiedzieć, co jest z katalogu,
+                      a co dopisała AI. Katalogi są pewne, AI bywa omylna. */}
+                  {lastLookup && !progress && (
+                    <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'var(--color-bg-shelf)', border: '1px solid var(--color-glass-border)', fontSize: '0.82rem' }}>
+                      {lastLookup.sources && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                          <span style={{ opacity: 0.7 }}>Źródła danych:</span>
+                          {Object.entries(lastLookup.sources).map(([src, state]) => (
+                            <span key={src} style={{
+                              padding: '2px 8px', borderRadius: '999px', fontSize: '0.76rem',
+                              background: state === 'ok' ? 'rgba(46,213,115,0.15)' : 'rgba(255,255,255,0.06)',
+                              color: state === 'ok' ? '#2ed573' : 'inherit',
+                              opacity: state === 'ok' ? 1 : 0.55,
+                            }}>
+                              {state === 'ok' ? '✓' : '—'} {src}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {lastLookup.bootleg && (
+                        <div style={{ marginTop: '0.6rem', color: '#ffa502' }}>⚠️ {lastLookup.bootleg}</div>
+                      )}
+                      {lastLookup.fromCache && (
+                        <div style={{ marginTop: '0.6rem', color: '#3b82f6' }}>
+                          💾 Z naszej bazy (bez odpytywania źródeł). „⭐ TOP" wymusza świeże pobranie.
+                        </div>
+                      )}
+                      <div style={{ marginTop: '0.6rem', opacity: 0.6 }}>
+                        Dane z katalogów są pewne; braki uzupełnia AI — zweryfikuj je przed dodaniem do Gabloty.
+                      </div>
+                    </div>
+                  )}
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                     <div className="form-group">
@@ -769,7 +932,8 @@ export default function AdminDashboard() {
                     onUploaded={(url) => { setEditForm(prev => ({ ...prev, official_image_url: url })); showToast('Dodano kandydata do folderu roboczego.'); }}
                     onError={(msg) => showToast(msg)}
                   />
-                  {editForm.official_image_url && (
+                  {/* Studio ma sens tylko dla zdjęcia, które da się pobrać i obrobić. */}
+                  {imageStatus === true && (
                     <ImageStudio
                       figureId={fig.id}
                       imageUrl={getImageUrl(editForm.official_image_url)}
@@ -777,6 +941,14 @@ export default function AdminDashboard() {
                       onProcessed={(url) => { setEditForm(prev => ({ ...prev, official_image_url: url })); showToast('Zapisano obrobione zdjęcie jako kandydata.'); }}
                       onError={(msg) => showToast(msg)}
                     />
+                  )}
+                  {imageStatus === false && (
+                    <div style={{ background: 'var(--color-bg-shelf)', border: '1px dashed #ffa502', borderRadius: '12px', padding: '0.9rem 1rem', margin: '0.5rem 0 1rem', fontSize: '0.88rem', opacity: 0.9 }}>
+                      🖼️ <strong>Brak zdjęcia do obróbki.</strong>{' '}
+                      {editForm.official_image_url
+                        ? 'Adres w polu „URL Obrazka" nie prowadzi do wczytywalnego zdjęcia — wgraj plik z dysku lub popraw adres.'
+                        : 'Dodaj zdjęcie z dysku powyżej — wtedy odblokują się Studio zdjęcia i podgląd w Gablocie.'}
+                    </div>
                   )}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', margin: '1rem 0' }}>
                     <div className="form-group">
@@ -804,7 +976,7 @@ export default function AdminDashboard() {
                       <input className="form-input" type="text" value={editForm.official_image_url} onChange={e => setEditForm({...editForm, official_image_url: e.target.value})} style={{ width: '100%', borderColor: !editForm.official_image_url ? '#ff4757' : undefined }} />
                       {!editForm.official_image_url && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                     </div>
-                    {editForm.official_image_url && (
+                    {imageStatus === true && (
                       <div style={{ marginTop: '1.5rem', width: '320px' }}>
                         <label style={{ display: 'block', marginBottom: '0.5rem', opacity: 0.8 }}>Podgląd karty w Gablocie (Live):</label>
                         <div style={{ transform: 'scale(0.8)', transformOrigin: 'top left', width: '368px', height: '500px' }}>
