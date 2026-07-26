@@ -276,8 +276,43 @@ Automatyczne 20-sekundowe filmiki (YouTube Shorts / TikTok / Reels) jako lejek �
 | **3** | Realne ceny: eBay API + `price_snapshots` + cron + Bootleg Risk | `api/refresh-prices.js`, `AuctionDeals.jsx`, `OfficialShops.jsx`, SQL |
 | **4** | Generator shortów (Remotion/FFmpeg + kolejka VPS) | worker VPS, webhook, `AdminDashboard.jsx` |
 | **5-pipe** | Pipeline publikacji: render poza Vercelem (GitHub Actions) → moderacja → Drive (sekcja 12) | GitHub Actions workflow, `api/enqueue-short.js`, panel moderacji, Drive API |
+| **6** | **Drabina źródeł + lokalna przeglądarka** (dopisany 27.07.2026, patrz 7.1) | `api/lib/figureSources.js`, `scrapeProviders.js`, `lookupShared.js`, `worker/lookupWorker.mjs` |
 
 Migracje bazy (sekcja 2) + RLS (sekcja 3.1) wykonać jako pierwsze — reszta na nich bazuje.
+
+---
+
+### 7.1. Stan realizacji — 27.07.2026
+
+| Etap | Stan | Uwagi |
+|------|------|-------|
+| **1** Bezpieczeństwo + Multi-AI | ✅ gotowe | 9 modeli z fallbackiem zamiast planowanych 4; Cerebras usunięty (brak darmowego modelu), dołożone GitHub Models ×4 i SambaNova |
+| **2** Workflow zdjęcia | ✅ gotowe | + Studio i podgląd włączają się dopiero dla zdjęcia, które faktycznie się wczytuje |
+| **3** Realne ceny | ⏳ kod gotowy, **brak kluczy** | eBay + Rakuten czekają na `EBAY_CLIENT_ID` / `RAKUTEN_APP_ID`; doszła warstwa afiliacyjna dla 12 platform |
+| **4** Generator shortów | ✅ gotowe | render lokalny (nie VPS — taniej i prościej) |
+| **5-pipe** Publikacja | ✅ gotowe | render lokalny zamiast GitHub Actions; Drive działa |
+| **6** Drabina źródeł | ✅ gotowe | patrz niżej |
+
+**Etap 6 — czego nie było w pierwotnym planie, a okazało się kluczowe:**
+
+Plan zakładał „kaskadę źródeł, AI ostatnia" (sekcja 8, wiersz o halucynacjach), ale w praktyce
+kaskada **nie działała**: scraper MyFigureCollection używał selektorów `.form-field`, które
+w serwisie od dawna nie istnieją — zawsze zwracał zero trafień, więc **wszystko spadało na AI**,
+a ta zmyślała (np. japońskie nazwy będące bełkotem, nieistniejące adresy zdjęć).
+
+Co z tego wyniknęło:
+
+1. **Cloudflare odrzuca serwery, przepuszcza przeglądarki** — rozpoznaje odcisk TLS.
+   Rozwiązanie: Playwright na komputerze admina (~1,2 s, bez limitów, za darmo).
+   Płatni pośrednicy zeszli do roli awaryjnej (łańcuch 6 dostawców z fallbackiem).
+2. **Kolejka wyszukiwań** — ten sam układ co przy filmach: Vercel = mózg, komputer = ręce.
+3. **Pamięć podręczna** — bez niej darmowe limity znikały po ~25 figurkach.
+4. **Pochodzenie danych widoczne w panelu** — moderator wie, co potwierdził katalog,
+   a co dopisała AI. Publicznie tylko ogólne kategorie (dobór źródeł to nasza przewaga).
+
+**Wniosek do zapamiętania:** scrapery cicho gniją razem ze zmianami w cudzych serwisach.
+Kaskada źródeł wymaga sygnału „to źródło przestało odpowiadać" — dziś daje go panel
+(plakietki źródeł przy każdym wyszukaniu).
 
 ---
 
