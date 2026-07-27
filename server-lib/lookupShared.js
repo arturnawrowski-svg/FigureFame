@@ -19,11 +19,34 @@ export const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 /**
- * Klucz wpisu w lookup_cache. Normalizuje wielkość liter i odstępy, żeby
- * „Hatsune  Miku" i „hatsune miku" trafiały w ten sam wpis.
+ * Klucz wpisu w lookup_cache.
+ *
+ * Normalizacja musi być AGRESYWNA, i to nie z wygody. Wynik wyszukiwania
+ * wraca do formularza, więc katalogowa pisownia („Lucky☆Star") zastępuje tę
+ * wpisaną przez zgłaszającego („Lucky Star”). Przy słabej normalizacji drugie
+ * kliknięcie liczyło INNY klucz, chybiało w pamięć podręczną i uruchamiało
+ * pełne wyszukiwanie od zera — a to bez przeglądarki potrafi zwrócić gorsze
+ * dane i nadpisać nimi te dobre. Zdarzyło się naprawdę: poprawne „Clayz, 1/8"
+ * zamieniło się w „Good Smile Company, 1/4".
+ *
+ * Dlatego zostawiamy WYŁĄCZNIE litery i cyfry — bez odstępów, interpunkcji,
+ * myślników i znaków ozdobnych (☆ ★ ・ ♪), z pełnej szerokości na zwykłą.
+ * Odstępy też lecą, bo katalogi zapisują to samo raz z separatorem, raz bez:
+ * „らき☆すた" i „らきすた" muszą dawać ten sam klucz, tak jak „Lucky Star"
+ * i „Lucky☆Star".
+ *
+ * Kolejności słów NIE ruszamy — „Izumi Konata" i „Konata Izumi" zostają
+ * osobnymi kluczami. Sklejanie ich groziłoby podaniem danych innej figurki,
+ * a to błąd znacznie gorszy niż jedno zapytanie więcej.
  */
 export function cacheKey(name, series = "", mode = "quick") {
-  const norm = (s) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
+  const norm = (s) =>
+    String(s || "")
+      .normalize("NFKC") // ｌｕｃｋｙ → lucky, ﾊ → ハ
+      .toLowerCase()
+      // Zostawiamy litery i cyfry DOWOLNEGO alfabetu (japoński musi przetrwać),
+      // wycinamy resztę: odstępy, interpunkcję, myślniki, gwiazdki, symbole.
+      .replace(/[^\p{L}\p{N}]+/gu, "");
   return `${mode}|${norm(name)}|${norm(series)}`;
 }
 

@@ -35,6 +35,9 @@ export default function AdminDashboard() {
   const [progress, setProgress] = useState(null);
   // Pochodzenie pól z ostatniego wyszukiwania: { pole: 'catalog' | 'ai' }.
   const [provenance, setProvenance] = useState({});
+  // Rozbieżności zgłoszenie ↔ katalog. Nic nie podmieniamy sami — pokazujemy
+  // obie wersje i to moderator decyduje, która jest prawdziwa.
+  const [conflicts, setConflicts] = useState([]);
   // Czy któryś domowy komputer (Studio) właśnie pracuje.
   const [studio, setStudio] = useState({ online: false, stations: [] });
 
@@ -70,12 +73,26 @@ export default function AdminDashboard() {
   // Wyszukiwanie danych figurki. opts.deep = tryb TOP (więcej wariantów nazwy,
   // dłużej i drożej), opts.refresh = pomiń pamięć podręczną i pobierz na nowo.
   const runLookup = async (fig, opts = {}) => {
-    const originalName = editForm.name || fig.name;
+    // Pytamy o ORYGINALNY rekord ze zgłoszenia, nigdy o zawartość formularza.
+    // Powód: wynik wyszukiwania wraca do formularza, więc przy pytaniu „po
+    // formularzu" każde kolejne kliknięcie leciało na innych danych niż
+    // poprzednie — chybiało w pamięć podręczną i nadpisywało dobre dane
+    // gorszymi. Zgłoszenie się nie zmienia, więc i zapytanie jest powtarzalne.
+    const originalName = fig.name || editForm.name;
     // Seria mocno poprawia trafność w katalogach (indeksują postać + serię,
     // a nie nazwy wersji typu „Fortitude Ver.").
-    const knownSeries = editForm.series || fig.series || '';
+    const knownSeries = fig.series || editForm.series || '';
+    // Producent rozstrzyga między wersjami tej samej postaci — bez niego
+    // katalog trafia w pierwszą lepszą (stąd „Clayz" → „Good Smile Company").
+    const knownManufacturer = fig.manufacturer || editForm.manufacturer || '';
+
+    // Pola potwierdzone katalogiem w POPRZEDNICH przebiegach są nietykalne.
+    const confirmed = new Set(
+      Object.entries(provenance).filter(([, src]) => src === 'catalog').map(([k]) => k)
+    );
 
     setIsSearching(true);
+    setConflicts([]);
     setProgress({ percent: 0, label: 'Zaczynam…', log: [] });
     try {
       // Strumień SSE — pasek postępu pokazuje PRAWDZIWE kroki
@@ -93,12 +110,18 @@ export default function AdminDashboard() {
             log: text.startsWith('✓') ? [...(prev?.log || []), text] : (prev?.log || []),
           }));
         },
-        opts
+        { ...opts, manufacturer: knownManufacturer }
       );
 
       if (data) {
-        setEditForm(prev => mergeLookupIntoForm(prev, data));
+        // Scalamy poza funkcją aktualizującą stan: React może ją wywołać
+        // później albo dwukrotnie, więc wyciąganie z niej wyniku bywa zawodne.
+        const merged = mergeLookupIntoForm(editForm, data, { confirmed });
+        const found = merged._conflicts || [];
+        delete merged._conflicts; // to komunikat, nie kolumna w bazie
 
+        setEditForm(merged);
+        setConflicts(found);
         setProvenance(data._provenance || {});
         setLastLookup({
           sources: data._sources || null,
@@ -106,7 +129,9 @@ export default function AdminDashboard() {
           fromCache: !!data._fromCache,
         });
 
-        if (data._queued) {
+        if (found.length > 0) {
+          showToast(`⚠️ ${found.length} rozbieżność(i) między zgłoszeniem a katalogiem — sprawdź na dole formularza.`);
+        } else if (data._queued) {
           showToast(`⏳ ${data._queued}`);
         } else if (data._japaneseMissing) {
           showToast(`🇯🇵 ${data._japaneseMissing}`);
@@ -222,6 +247,11 @@ export default function AdminDashboard() {
 
   const handleEditClick = (fig) => {
     setEditingId(fig.id);
+    // Ślady po poprzedniej figurce nie mogą przejść na następną — inaczej
+    // moderator widziałby ptaszki i rozbieżności z cudzego zgłoszenia.
+    setProvenance({});
+    setConflicts([]);
+    setLastLookup(null);
     setEditForm({
       name: fig.name || '',
       japanese_name: fig.japanese_name || '',
@@ -881,6 +911,38 @@ export default function AdminDashboard() {
                         <span><span style={{ color: '#ffa502' }}>⚠️</span> domysł AI — sprawdź</span>
                         <span><span style={{ color: '#ff4757' }}>🔒</span> brak danych</span>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Rozbieżności zgłoszenie ↔ katalog. Nic nie podmieniamy sami:
+                      katalog bywa trafiony w INNĄ wersję tej samej postaci, więc
+                      to moderator decyduje, co jest prawdą. */}
+                  {conflicts.length > 0 && (
+                    <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(255,165,2,0.08)', border: '1px solid rgba(255,165,2,0.35)', fontSize: '0.82rem' }}>
+                      <div style={{ color: '#ffa502', fontWeight: 600, marginBottom: '0.6rem' }}>
+                        ⚠️ Katalog podaje co innego niż zgłoszenie — zostawiłem Twoje dane
+                      </div>
+                      {conflicts.map((c) => (
+                        <div key={c.field} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                          <strong style={{ minWidth: '110px' }}>{c.field}</strong>
+                          <span style={{ color: '#2ed573' }}>w zgłoszeniu: {c.current}</span>
+                          <span style={{ opacity: 0.5 }}>·</span>
+                          <span style={{ color: '#ffa502' }}>
+                            {c.source === 'catalog' ? 'katalog' : 'AI'}: {c.found}
+                          </span>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            style={{ padding: '2px 10px', fontSize: '0.76rem' }}
+                            onClick={() => {
+                              setEditForm(prev => ({ ...prev, [c.field]: c.found }));
+                              setConflicts(prev => prev.filter(x => x.field !== c.field));
+                            }}
+                          >
+                            Użyj tej wersji
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
 

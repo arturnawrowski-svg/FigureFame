@@ -121,6 +121,51 @@ header p {
   transform: translateY(-2px);
 }
 
+/* ---- Poświata tła w nagłówku ----
+   Rozmycie dużych powierzchni to najdroższa operacja w tym widoku, dlatego
+   promienie i siła rozmycia zjeżdżają na wąskich ekranach (patrz media 768px). */
+.hero-ambient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.hero-ambient-1,
+.hero-ambient-2,
+.hero-ambient-3 {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.hero-ambient-1 {
+  top: 5rem;
+  left: 5rem;
+  width: 20rem;
+  height: 20rem;
+  background-color: var(--color-ambient-1, rgba(250, 204, 21, 0.05));
+  filter: blur(60px);
+}
+
+.hero-ambient-2 {
+  bottom: 5rem;
+  right: 5rem;
+  width: 24rem;
+  height: 24rem;
+  background-color: var(--color-ambient-2, rgba(249, 115, 22, 0.05));
+  filter: blur(60px);
+}
+
+.hero-ambient-3 {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120vh;
+  height: 120vh;
+  background: var(--color-ambient-radial, radial-gradient(circle, rgba(250, 204, 21, 0.03) 0%, transparent 70%));
+}
+
 .showcase-viewport {
   overflow: hidden;
   max-width: 1056px;
@@ -167,13 +212,61 @@ header p {
   display: none; /* Chrome/Safari */
 }
 
+/* Lista bez karuzeli (wyszukiwanie, dotyk) — przesuwana palcem lub strzałkami. */
+.showcase-track-static {
+  display: flex;
+  gap: 3rem;
+}
+
 .showcase-wrapper {
   position: relative;
   width: 100%;
 }
 
+/* ---- Strzałki przewijania ----
+   Wcześniej siedziały w atrybucie style z left/right: -20px, czyli na wąskim
+   ekranie wypadały poza kadr. Teraz są w środku i zawsze da się w nie trafić. */
+.showcase-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--color-glass-border);
+  border-radius: 50%;
+  color: #fff;
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.showcase-arrow:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.showcase-arrow:focus-visible {
+  outline: 2px solid var(--color-text-highlight);
+  outline-offset: 2px;
+}
+
+.showcase-arrow-left { left: 4px; }
+.showcase-arrow-right { right: 4px; }
+
+/* Na komputerze strzałki nie zasłaniają Gabloty — pokazują się przy najechaniu. */
+@media (hover: hover) and (pointer: fine) {
+  .showcase-arrow { opacity: 0; }
+  .showcase-wrapper:hover .showcase-arrow,
+  .showcase-arrow:focus-visible { opacity: 1; }
+}
+
 .figure-card {
   position: relative;
+  cursor: pointer;
   flex: 0 0 320px;
   scroll-snap-align: center;
   height: 500px;
@@ -925,6 +1018,76 @@ body.light-mode .official-shops {
   .search-input {
     font-size: 1rem;
     padding: 12px 16px 12px 40px;
+  }
+
+  /* ---- Gablota na telefonie ----
+     Karta na stałe 320px wychodziła poza ekran, a odstęp 3rem marnował miejsce.
+     Karta zajmuje teraz prawie całą szerokość i sama ustawia się na środku. */
+  .showcase-track-static {
+    gap: 1rem;
+  }
+
+  .figure-card {
+    flex: 0 0 min(85vw, 320px);
+    height: min(70vh, 460px);
+  }
+
+  /* Rozmycie tła (backdrop-filter) w Safari na iOS potrafi zjeść całą płynność
+     przewijania — na dotyku wystarczy zwykłe, nieprzezroczyste tło. */
+  .figure-name-badge,
+  .hover-panel {
+    -webkit-backdrop-filter: none; /* Safari na iOS czyta wyłącznie wersję z prefiksem */
+    backdrop-filter: none;
+  }
+
+  .figure-name-badge {
+    background: rgba(0, 0, 0, 0.75);
+    font-size: 1rem;
+    top: 12px;
+    left: 12px;
+  }
+
+  .hover-panel {
+    background: rgba(15, 17, 21, 0.95);
+    padding: 1rem;
+  }
+
+  .ambient-light {
+    filter: blur(40px);
+    width: 160px;
+    height: 160px;
+  }
+
+  /* Nagłówek: bez cząstek (wyłącza je komponent) i z tańszą poświatą. */
+  .hero-ambient-1,
+  .hero-ambient-2 {
+    width: 14rem;
+    height: 14rem;
+    filter: blur(40px);
+  }
+
+  .hero-ambient-3 {
+    width: 100vw;
+    height: 100vw;
+  }
+}
+
+/* ---- Urządzenia dotykowe (niezależnie od szerokości — także iPad) ----
+   Nie ma :hover, więc panel z ceną i przyciskiem musi być widoczny od razu.
+   Bez tego karta jest tylko obrazkiem, a wejścia w figurkę nie ma. */
+@media (hover: none) {
+  .hover-panel {
+    transform: translateY(0);
+    background: rgba(15, 17, 21, 0.92);
+  }
+
+  .figure-card:hover {
+    transform: none; /* podnoszenie karty na dotyku tylko miga przy przewijaniu */
+  }
+
+  .showcase-grid {
+    scroll-snap-type: x mandatory;
+    padding-inline: 1rem;
   }
 }
 

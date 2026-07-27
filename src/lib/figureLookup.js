@@ -16,6 +16,9 @@ export async function streamLookup(name, series, onProgress, opts = {}) {
   const url =
     `/api/fetch-figure?stream=1&name=${encodeURIComponent(name)}` +
     (series ? `&series=${encodeURIComponent(series)}` : '') +
+    // Producent nie wchodzi do klucza pamięci podręcznej — jest wskazówką dla
+    // katalogów, która z kilkunastu wersji tej samej postaci jest właściwa.
+    (opts.manufacturer ? `&manufacturer=${encodeURIComponent(opts.manufacturer)}` : '') +
     (opts.deep ? '&deep=1' : '') +
     (opts.refresh ? '&refresh=1' : '');
 
@@ -56,18 +59,52 @@ export async function streamLookup(name, series, onProgress, opts = {}) {
   return result;
 }
 
+// Pola, przy których cicha podmiana boli najbardziej — bo wyglądają na
+// zweryfikowane, a decydują o tożsamości figurki.
+const IDENTITY_FIELDS = ['name', 'series', 'manufacturer', 'scale', 'original_price'];
+
+// Producent jest naszą WSKAZÓWKĄ dla katalogów — to po nim rozróżniamy
+// kilkanaście figurek tej samej postaci. Jeśli katalog mimo to odpowiada innym
+// producentem, znaczy że trafił w inny produkt. To rozbieżność do rozstrzygnięcia,
+// nigdy „ulepszenie" do cichego zapisania.
+const NEVER_SILENTLY_REPLACED = ['manufacturer'];
+
 /**
  * Scala dane z wyszukiwania z formularzem edycji.
+ *
  * Zasady: puste wartości nic nie nadpisują, klucze techniczne (_sources,
  * _aiError…) to komunikaty i nie mogą trafić do zapisu w bazie, a pola
  * tekstowo-listowe rozbijamy na linie.
+ *
+ * NAJWAŻNIEJSZA ZASADA — wypełnione pole jest chronione.
+ * Wcześniej wynik wyszukiwania nadpisywał wszystko. Wystarczyło, że katalog
+ * trafił w inną wersję figurki, i „Clayz / 1/8" zamieniało się w „Good Smile
+ * Company / 1/4" bez śladu i bez pytania. Teraz pole z wartością zmieniamy
+ * tylko wtedy, gdy nowa dana pochodzi z KATALOGU (_provenance = 'catalog'),
+ * a dotychczasowa nie była potwierdzona. Każdą inną rozbieżność zgłaszamy
+ * w `_conflicts` — moderator rozstrzyga sam, zamiast dowiadywać się po fakcie.
+ *
+ * @param {object} form   aktualny formularz
+ * @param {object} data   odpowiedź z /api/fetch-figure
+ * @param {object} [opts] { confirmed: Set<string> } — pola już potwierdzone przez katalog
+ * @returns {object} nowy formularz; ewentualne rozbieżności w `_conflicts`
  */
-export function mergeLookupIntoForm(form, data) {
+export function mergeLookupIntoForm(form, data, opts = {}) {
   const out = { ...form };
+  const confirmed = opts.confirmed || new Set();
+  const provenance = data?._provenance || {};
+  const conflicts = [];
 
   const assign = (key, val, isList) => {
     if (val === null || val === undefined || val === '') return;
+
     if (isList) {
+      // Listy (opis, gdzie szukać, strategia) uzupełniamy tylko gdy są puste —
+      // to teksty redakcyjne, moderator mógł je świadomie napisać po swojemu.
+      const current = out[key];
+      const hasCurrent = Array.isArray(current) ? current.length > 0 : Boolean(current);
+      if (hasCurrent) return;
+
       if (typeof val === 'string' && val.trim() !== '') {
         out[key] = val.split('\n').filter((line) => line.trim() !== '');
       } else if (Array.isArray(val) && val.length > 0) {
@@ -75,10 +112,28 @@ export function mergeLookupIntoForm(form, data) {
       }
       return;
     }
-    if (typeof val === 'string') {
-      if (val.trim() !== '') out[key] = val;
-    } else {
-      out[key] = val;
+
+    const next = typeof val === 'string' ? val.trim() : val;
+    if (next === '') return;
+
+    const current = typeof out[key] === 'string' ? out[key].trim() : out[key];
+    if (!current) {
+      out[key] = next; // puste pole — wypełniamy bez pytania
+      return;
+    }
+    if (String(current) === String(next)) return; // ta sama wartość, nie ma tematu
+
+    const fromCatalog = provenance[key] === 'catalog';
+    const alreadyConfirmed = confirmed.has(key) || NEVER_SILENTLY_REPLACED.includes(key);
+
+    if (fromCatalog && !alreadyConfirmed) {
+      out[key] = next; // katalog bije niepotwierdzone zgłoszenie
+      return;
+    }
+
+    // Pozostałe przypadki: zostawiamy to, co jest, i meldujemy różnicę.
+    if (IDENTITY_FIELDS.includes(key)) {
+      conflicts.push({ field: key, current: String(current), found: String(next), source: provenance[key] || 'ai' });
     }
   };
 
@@ -89,11 +144,12 @@ export function mergeLookupIntoForm(form, data) {
     else if (key === 'whereToSearch' || key === 'where_to_search') assign('where_to_search', data[key], true);
     else if (key === 'strategy') assign('strategy', data[key], true);
     else if (key === 'marketValueAverage' || key === 'market_value_average') {
-      if (data[key]) out.market_value = { average: data[key] };
+      if (data[key] && !out.market_value) out.market_value = { average: data[key] };
     } else {
       assign(key, data[key], false);
     }
   }
 
+  if (conflicts.length > 0) out._conflicts = conflicts;
   return out;
 }

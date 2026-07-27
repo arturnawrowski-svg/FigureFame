@@ -20,6 +20,7 @@ import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 import { gatherFromSources } from "../server-lib/figureSources.js";
+import { rehostImage, crossCheckImage } from "../server-lib/figureImage.js";
 import { closeBrowser } from "../server-lib/scrapeProviders.js";
 import { cacheKey } from "../server-lib/lookupShared.js";
 import { startHeartbeat, stationName } from "./lib/heartbeat.mjs";
@@ -52,14 +53,32 @@ async function processJob(supabase, job) {
     .eq("id", job.id);
 
   try {
-    const { data, sources, bootlegWarning } = await gatherFromSources(
+    const { data, sources, bootlegWarning, records } = await gatherFromSources(
       job.name,
       job.series,
-      { deep: job.mode === "deep" }
+      { deep: job.mode === "deep", manufacturer: job.manufacturer || "", scale: job.scale || "" }
     );
 
     const found = Object.values(sources).some((s) => s === "ok");
     if (!found) throw new Error("żadne źródło nie znalazło tej figurki");
+
+    // ZDJĘCIE: nie wolno odłożyć do bazy surowego adresu z cudzego serwera —
+    // taki link trafiał potem wprost do formularza i do Gabloty, a właściciel
+    // serwera może go odciąć w dowolnej chwili. Wymagamy zgodności dwóch
+    // źródeł, a plik lądowuje w naszym Storage.
+    let imageError = null;
+    if (data.official_image_url) {
+      const check = crossCheckImage(records || [], { manufacturer: job.manufacturer || "", scale: job.scale || "" });
+      if (!check.agreed) {
+        data.official_image_url = "";
+        imageError = "Zdjęcie podało tylko jedno źródło — za mało, żeby mieć pewność co do wersji figurki.";
+      } else {
+        const hosted = await rehostImage(check.imageUrl, job.name);
+        data.official_image_url = hosted || "";
+        if (hosted) console.log(`    zdjęcie (${check.reason}): ${check.by.join(" + ")} → nasz Storage`);
+        else imageError = "Nie udało się pobrać zdjęcia ze znalezionego adresu.";
+      }
+    }
 
     // Wszystko tutaj pochodzi z katalogów (worker nie woła AI), więc każde
     // wypełnione pole dostaje ptaszek „potwierdzone".
@@ -69,6 +88,7 @@ async function processJob(supabase, job) {
     });
 
     const payload = { ...data, _sources: sources, _provenance: provenance };
+    if (imageError) payload._imageError = imageError;
     if (bootlegWarning) {
       payload._bootlegWarning = "MyFigureCollection ostrzega: istnieje podrobiona wersja tej figurki.";
     }

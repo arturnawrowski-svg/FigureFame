@@ -1,142 +1,59 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { getImageUrl } from '../lib/getImageUrl';
 import { generateGlowColor } from '../lib/glowColor';
 
-const fallbackFiguresData = [
-  {
-    id: 1,
-    name: 'Hatsune Miku',
-    japaneseName: '初音ミク',
-    series: 'Vocaloid',
-    japaneseSeries: 'ボーカロイド',
-    manufacturer: 'Good Smile Company',
-    scale: '1/7',
-    type: 'gotowa figurka kolekcjonerska (PVC)',
-    status: 'wydanie archiwalne, obecnie zwykle dostępna tylko na rynku wtórnym',
-    originalPrice: '15 000 JPY',
-    image: '/images/official/miku_figure', // base name without extension
-    lightClass: 'light-miku',
-    additionalInfo: [
-      'Figurka w wersji klasycznej, wyrzeźbiona z niezwykłą dbałością o detale.',
-      'Jej słynne, turkusowe kucyki (twintails) zostały odtworzone z wykorzystaniem przezroczystych elementów PVC.'
-    ],
-    marketValue: {
-      average: 'około 15 000 JPY (ok. 400 zł) za egzemplarz w bardzo dobrym stanie.',
-      community: [
-        'okazje zdarzają się od 300 USD',
-        'typowe oferty mieszczą się w okolicach 400 USD'
-      ]
-    },
-    whereToSearch: [
-      'Solaris Japan',
-      'Mandarake',
-      'Yahoo! Auctions Japan'
-    ],
-    strategy: [
-      'ustawić alerty na Yahoo Auctions Japan',
-      'korzystać z pośrednika typu Neokyo lub Buyee'
-    ]
-  },
-  {
-    id: 2,
-    name: 'Super Sonico',
-    japaneseName: 'すーぱーそに子',
-    series: 'Nitroplus',
-    japaneseSeries: 'ニトロプラス',
-    manufacturer: 'Alter',
-    scale: '1/7',
-    type: 'gotowa figurka kolekcjonerska (PVC)',
-    status: 'wydanie archiwalne, obecnie zwykle dostępna tylko na rynku wtórnym',
-    originalPrice: '18 500 JPY',
-    image: '/images/official/sonico_figure',
-    lightClass: 'light-sonico',
-    additionalInfo: [
-      'Zjawiskowa figurka wirtualnej idolki w letnim stroju z zarzuconą kurtką.',
-      'Gra cieni na skórze postaci jest po prostu zdumiewająca. Skala 1/7 pozwala na imponującą prezencję na półce.'
-    ],
-    marketValue: {
-      average: 'około 20 000 JPY (ok. 530 zł) za egzemplarz w bardzo dobrym stanie.',
-      community: [
-        'okazje zdarzają się od 150 USD',
-        'typowe oferty mieszczą się w okolicach 200-250 USD'
-      ]
-    },
-    whereToSearch: [
-      'Solaris Japan',
-      'AmiAmi Pre-owned',
-      'Mandarake'
-    ],
-    strategy: [
-      'obserwować AmiAmi Pre-owned',
-      'ustawić alert na Mandarake'
-    ]
-  },
-  {
-    id: 3,
-    name: 'Miyuki Sone',
-    japaneseName: '曾根 美雪',
-    series: 'Kimi to Kanojo to Kanojo no Koi',
-    japaneseSeries: '君と彼女と彼女の恋。',
-    manufacturer: 'Griffon Enterprises',
-    scale: '1/8',
-    type: 'gotowa figurka kolekcjonerska (PVC)',
-    status: 'wydanie archiwalne ("Released"), obecnie zwykle dostępna tylko na rynku wtórnym.',
-    originalPrice: '7 250 JPY',
-    image: '/images/official/miyuki_figure',
-    lightClass: 'light-sonico',
-    additionalInfo: [
-      'Jest to figurka pochodząca z japońskiej gry visual novel dla dorosłych (18+), choć sama figurka nie przedstawia żadnych treści erotycznych.',
-      'Griffon Enterprises zakończyło działalność wiele lat temu, dlatego oryginały są obecnie kolekcjonerskie.',
-      'Cena na zrzucie (7250 JPY) była ceną archiwalną sklepu AmiAmi z okresu sprzedaży. Dzisiaj ceny zależą od stanu i mogą być zarówno niższe, jak i znacznie wyższe.'
-    ],
-    marketValue: {
-      average: 'około 170 000 JPY (ok. 4300–4500 zł) za egzemplarz w bardzo dobrym stanie, choć ceny mocno się wahają.',
-      community: [
-        'okazje zdarzają się od 400–600 USD,',
-        'typowe oferty mieszczą się w okolicach 700–1500 USD,',
-        'najładniejsze egzemplarze bywają jeszcze droższe.'
-      ]
-    },
-    whereToSearch: [
-      'Solaris Japan – obecnie wyprzedana, ale warto obserwować.',
-      'HobbySearch (1999.co.jp) – archiwalna karta produktu.',
-      'HLJ – produkt wycofany.',
-      'Yahoo! Auctions Japan',
-      'Mercari Japan',
-      'Suruga-ya',
-      'Mandarake',
-      'MyFigureCollection (ogłoszenia kolekcjonerów)',
-      'eBay (trzeba bardzo uważać na podróbki)'
-    ],
-    strategy: [
-      'Z uwagi na to że figurka jest rzadka, warto ustawić powiadomienia na Yahoo Auctions oraz Mercari.',
-      'Nie przepłacaj na eBay, ceny bywają tam znacznie zawyżone (nawet o 100%).',
-      'Szukaj ofert od zaufanych użytkowników na MyFigureCollection.'
-    ]
-  }
-];
+// Samo przewijanie ma sens tylko tam, gdzie jest myszka i kursor może je
+// zatrzymać najechaniem. Na telefonie i tablecie to zbędna praca dla procesora:
+// palec i tak przesuwa listę sam, a animacja w tle zabiera klatki i baterię.
+// Szanujemy też systemowe „ogranicz animacje".
+function useMarqueeAllowed() {
+  const [allowed, setAllowed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const fine = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    const update = () => setAllowed(fine.matches && !calm.matches);
+    update();
+
+    calm.addEventListener?.('change', update);
+    fine.addEventListener?.('change', update);
+    return () => {
+      calm.removeEventListener?.('change', update);
+      fine.removeEventListener?.('change', update);
+    };
+  }, []);
+
+  return allowed;
+}
+// Awaryjnej listy "na sztywno" tu nie ma i być nie może.
+// Stała wcześniej w kodzie zawierała RENDERY AI zamiast zdjęć produktów oraz
+// zmyślone wartości rynkowe (np. ~170 000 JPY dla figurki wartej ~98 000).
+// Gdy baza nie odpowiada, uczciwiej powiedzieć "nie mam danych" niż pokazać
+// wymyślone — cała obietnica tej strony to dane, którym można wierzyć.
 
 export default function Showcase() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [figures, setFigures] = useState(fallbackFiguresData);
+  const [figures, setFigures] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const sliderRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
+  const marqueeAllowed = useMarqueeAllowed();
 
-  const scrollLeftBtn = () => {
-    if (sliderRef.current) {
-      sliderRef.current.scrollBy({ left: -368, behavior: 'smooth' });
-    }
-  };
-
-  const scrollRightBtn = () => {
-    if (sliderRef.current) {
-      sliderRef.current.scrollBy({ left: 368, behavior: 'smooth' });
-    }
+  // O jedną kartę (szerokość + odstęp). Na wąskim ekranie karta jest węższa,
+  // więc mierzymy realny element zamiast wpisywać stałą.
+  const scrollByCard = (direction) => {
+    const track = sliderRef.current;
+    if (!track) return;
+    const card = track.querySelector('.figure-card');
+    const step = card ? card.getBoundingClientRect().width + 48 : 368;
+    track.scrollBy({ left: direction * step, behavior: 'smooth' });
   };
 
   // Usunięto ciężką pętlę requestAnimationFrame, animacja odbywa się przez CSS
@@ -170,7 +87,10 @@ export default function Showcase() {
           setFigures(mappedData);
         }
       } catch (err) {
-        console.warn('Nie udało się pobrać z Supabase, używam danych lokalnych.', err);
+        // Świadomie NIE podstawiamy tu danych zastępczych — patrz komentarz
+        // nad komponentem. Puste miejsce jest uczciwe, wymyślone dane nie.
+        console.warn('Nie udało się pobrać Gabloty z bazy.', err);
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
@@ -186,6 +106,15 @@ export default function Showcase() {
   const filteredFigures = !q ? figures : figures.filter(fig =>
     [fig.name, fig.series, fig.japaneseName, fig.japaneseSeries, fig.manufacturer]
       .some(field => String(field || '').toLowerCase().includes(q))
+  );
+
+  // Karuzela w pętli wymaga dwóch kopii listy — ale tylko wtedy, gdy naprawdę
+  // się kręci. Na telefonie druga kopia oznaczałaby dwa razy więcej kart
+  // i zdjęć w pamięci bez żadnego pożytku.
+  const marqueeMode = q === '' && marqueeAllowed;
+  const visibleFigures = useMemo(
+    () => (marqueeMode ? [...filteredFigures, ...filteredFigures] : filteredFigures),
+    [marqueeMode, filteredFigures]
   );
 
   return (
@@ -205,27 +134,38 @@ export default function Showcase() {
         <div className="skeleton-row" aria-busy="true" aria-label="Ładowanie bazy figurek">
           {Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton-card" />)}
         </div>
+      ) : loadError ? (
+        <div className="no-results">
+          <p>Nie udało się teraz połączyć z naszą bazą. Odśwież stronę za chwilę.</p>
+        </div>
       ) : (
         <div 
           className="showcase-wrapper" 
           onMouseEnter={() => setIsHovered(true)} 
           onMouseLeave={() => setIsHovered(false)}
         >
-          {searchTerm !== '' && (
-            <button 
-              onClick={scrollLeftBtn} 
-              style={{ position: 'absolute', left: '-20px', top: '50%', transform: 'translateY(-50%)', zIndex: 100, background: 'rgba(0,0,0,0.5)', borderRadius: '50%', padding: '10px', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}
-            >
+          {/* Strzałki są zawsze — na dotyku to jedyny pewny sposób przewijania
+              obok gestu, a przy karuzeli pozwalają cofnąć się do przegapionej karty. */}
+          {filteredFigures.length > 0 && !marqueeMode && (
+            <button className="showcase-arrow showcase-arrow-left" onClick={() => scrollByCard(-1)} aria-label="Poprzednie figurki">
               <ChevronLeft size={30} />
             </button>
           )}
 
-          <div className={searchTerm === '' ? 'showcase-viewport' : 'showcase-grid'} ref={sliderRef} style={{ perspective: '1000px' }}>
-            <div className={searchTerm === '' ? `showcase-track ${isHovered ? 'paused' : ''}` : 'showcase-track-static'} style={{ display: 'flex', gap: '3rem' }}>
-              {(searchTerm === '' ? [...filteredFigures, ...filteredFigures] : filteredFigures).map((fig, index) => (
-                <div 
-                  key={`${fig.id}-${index}`} 
+          <div className={marqueeMode ? 'showcase-viewport' : 'showcase-grid'} ref={sliderRef}>
+            <div className={marqueeMode ? `showcase-track ${isHovered ? 'paused' : ''}` : 'showcase-track-static'}>
+              {visibleFigures.map((fig, index) => (
+                // Cała karta jest odnośnikiem. Wcześniej jedyne wejście w figurkę
+                // prowadziło przez panel wysuwany na :hover — czyli na telefonie
+                // nie dało się otworzyć żadnej figurki.
+                <div
+                  key={`${fig.id}-${index}`}
                   className="figure-card"
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => navigate(`/dossier/${fig.id}`)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/dossier/${fig.id}`); } }}
+                  aria-label={`Szczegóły i oferty: ${fig.name}`}
                 >
                   <div className="figure-name-badge">{fig.name}</div>
                   <div className={`ambient-light ${fig.lightClass || ''}`} style={!fig.lightClass ? { background: generateGlowColor(fig.name) } : {}}></div>
@@ -234,18 +174,21 @@ export default function Showcase() {
                       src={fig.image?.startsWith('http') || /\.(png|jpe?g|webp|avif)$/i.test(fig.image || '') ? fig.image : `${fig.image}.png`}
                       alt={fig.name}
                       loading="lazy"
+                      decoding="async"
+                      width="320"
+                      height="500"
                       style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
                     />
                   </div>
                   <div className="hover-panel">
-                  <div className="market-value">
-                    <span>Najlepsza oferta:</span>
-                    <strong>~ {fig.originalPrice ? (fig.originalPrice.replace('¥', '').trim() + (fig.originalPrice.includes('JPY') ? '' : ' JPY')) : 'Brak danych'}</strong>
+                    <div className="market-value">
+                      <span>Najlepsza oferta:</span>
+                      <strong>~ {fig.originalPrice ? (fig.originalPrice.replace('¥', '').trim() + (fig.originalPrice.includes('JPY') ? '' : ' JPY')) : 'Brak danych'}</strong>
+                    </div>
+                    <span className="btn-primary" style={{ width: '100%', marginTop: '1rem', justifyContent: 'center' }}>
+                      Szczegóły i Oferty <ArrowRight size={16} />
+                    </span>
                   </div>
-                  <button className="btn-primary" onClick={() => navigate(`/dossier/${fig.id}`)} style={{ width: '100%', marginTop: '1rem' }}>
-                    Szczegóły i Oferty <ArrowRight size={16} />
-                  </button>
-                </div>
                 </div>
               ))}
             </div>
@@ -256,11 +199,8 @@ export default function Showcase() {
             )}
           </div>
 
-          {searchTerm !== '' && (
-            <button 
-              onClick={scrollRightBtn} 
-              style={{ position: 'absolute', right: '-20px', top: '50%', transform: 'translateY(-50%)', zIndex: 100, background: 'rgba(0,0,0,0.5)', borderRadius: '50%', padding: '10px', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}
-            >
+          {filteredFigures.length > 0 && !marqueeMode && (
+            <button className="showcase-arrow showcase-arrow-right" onClick={() => scrollByCard(1)} aria-label="Następne figurki">
               <ChevronRight size={30} />
             </button>
           )}

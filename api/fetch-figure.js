@@ -1,56 +1,8 @@
-import sharp from "sharp";
-import * as cheerio from "cheerio";
 import { callAIJson } from "../server-lib/aiClient.js";
 import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 import { gatherFromSources } from "../server-lib/figureSources.js";
+import { rehostImage, crossCheckImage } from "../server-lib/figureImage.js";
 import { cacheKey, hasLocalBrowser } from "../server-lib/lookupShared.js";
-
-const PROXY_URL = process.env.PROXY_URL; // np. "https://api.scraperapi.com?api_key=TWÓJ_KLUCZ&url="
-
-// Helper do odpytywania stron z ominięciem Cloudflare jeśli ustalone jest PROXY
-async function fetchWithProxy(url, options = {}) {
-  if (PROXY_URL) {
-    const fullUrl = `${PROXY_URL}${encodeURIComponent(url)}`;
-    console.log("Fetching via proxy:", fullUrl);
-    return fetch(fullUrl, options);
-  }
-  return fetch(url, options);
-}
-
-// ---------------------------------------------------------------------------
-// Pobranie zdjęcia ze znalezionego adresu. Zwraca Buffer albo null.
-// AI bywa niedokładne: potrafi podać link do STRONY produktu zamiast pliku,
-// albo adres, który w ogóle nie istnieje (404). Dlatego:
-//   1) sprawdzamy content-type — tylko image/* uznajemy za zdjęcie,
-//   2) gdy dostaliśmy HTML, wyciągamy og:image / itemprop=image i pobieramy je,
-//   3) przy niepowodzeniu zwracamy null — dzięki temu martwy URL NIE trafi
-//      do formularza i nie udaje wypełnionego pola.
-// ---------------------------------------------------------------------------
-async function downloadImage(url, depth = 0) {
-  if (!url || depth > 1) return null;
-
-  const res = await fetchWithProxy(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-  if (!res.ok) return null;
-
-  const type = (res.headers.get('content-type') || '').toLowerCase();
-  if (type.startsWith('image/')) {
-    return Buffer.from(await res.arrayBuffer());
-  }
-
-  // To strona, nie plik — poszukaj na niej zdjęcia produktu i pobierz je.
-  if (type.includes('html')) {
-    const $ = cheerio.load(await res.text());
-    const found =
-      $('meta[property="og:image"]').attr('content') ||
-      $('meta[name="twitter:image"]').attr('content') ||
-      $('img[itemprop="image"]').attr('src');
-    if (!found) return null;
-    const abs = found.startsWith('http') ? found : new URL(found, url).href;
-    return await downloadImage(abs, depth + 1);
-  }
-
-  return null;
-}
 
 // Pamięć podręczna wyszukiwań — chroni mały limit pośrednika (patrz migracje-cache.sql).
 const CACHE_DAYS = 30;
@@ -124,7 +76,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { name, series = '', stream, deep, refresh } = req.query;
+  const { name, series = '', manufacturer = '', scale = '', stream, deep, refresh } = req.query;
   if (!name) {
     return res.status(400).json({ error: 'Missing figure name' });
   }
@@ -182,10 +134,10 @@ export default async function handler(req, res) {
     console.log("-> Krok 1: twarde źródła (drabina)...");
     send('progress', { step: 'start', label: 'Przeszukuję katalogi figurek…', percent: 5 });
 
-    const { data: sourced, sources, bootlegWarning } = await gatherFromSources(
+    const { data: sourced, sources, bootlegWarning, records } = await gatherFromSources(
       name,
       series,
-      { deep: mode === 'deep' },
+      { deep: mode === 'deep', manufacturer, scale },
       (ev) => {
         // label  → ogólny opis (dla odwiedzających; nie zdradza doboru źródeł)
         // adminLabel → dokładna nazwa, tylko do panelu moderatora
@@ -225,6 +177,14 @@ export default async function handler(req, res) {
     if (sourced.name) {
       figureData.name = sourced.name;
       provenance.name = 'catalog';
+    }
+
+    // Cena rynku wtórnego prosto z agregatora ofert. Do tej pory to pole
+    // zmyślał model („~22 500 JPY" dla figurki wartej 52 980) — a wartość
+    // rynkowa to jedna z rzeczy, po które kolekcjoner tu przychodzi.
+    if (sourced.market_value_average) {
+      figureData.marketValueAverage = sourced.market_value_average;
+      provenance.market_value = 'catalog';
     }
 
     figureData._sources = sources;
@@ -297,8 +257,11 @@ export default async function handler(req, res) {
 
         Object.keys(aiData).forEach(k => {
           if (k === 'market_value_average') {
-            figureData.marketValueAverage = aiData[k];
-            if (aiData[k]) provenance.market_value = 'ai';
+            // Cena z katalogu jest twarda — model jej nie rusza.
+            if (!figureData.marketValueAverage && aiData[k]) {
+              figureData.marketValueAverage = aiData[k];
+              provenance.market_value = 'ai';
+            }
           } else if (k === 'additional_info') {
             figureData.additionalInfo = aiData[k];
             if (aiData[k]) provenance.additional_info = 'ai';
@@ -331,47 +294,39 @@ export default async function handler(req, res) {
         'Japońskiej nazwy nie potwierdził żaden katalog — pole zostawiono puste zamiast wpisywać domysł AI.';
     }
 
-    // Przetwarzanie i konwersja obrazka WebP.
-    // Zasada: do formularza trafia albo GOTOWE zdjęcie w naszym Storage, albo
-    // pusto + _imageError. Nigdy „surowy" adres od AI — bo pole wyglądałoby na
-    // wypełnione, a podgląd i Studio zdjęcia dostawałyby martwy link.
+    // Zdjęcie. Zasada: do formularza trafia albo GOTOWE zdjęcie w naszym
+    // Storage, albo pusto + _imageError. Nigdy „surowy" adres z zewnątrz — bo
+    // pole wyglądałoby na wypełnione, a podgląd i Studio dostawałyby link,
+    // który cudzy serwer może odciąć.
     const rawImageUrl = figureData.official_image_url;
 
     if (rawImageUrl && rawImageUrl.startsWith('http') && !rawImageUrl.includes('supabase.co')) {
-      console.log(`Pobieranie obrazka z URL: ${rawImageUrl}`);
-      send('progress', { step: 'image', label: 'Pobieram i konwertuję zdjęcie…', percent: 88 });
+      // Zanim cokolwiek pobierzemy: czy ten sam produkt potwierdza DRUGIE
+      // źródło? Pojedynczy katalog potrafi trafić w inną wersję tej samej
+      // postaci — i wtedy do Gabloty weszłoby ładne zdjęcie nie tej figurki.
+      const check = crossCheckImage(records || [], { manufacturer, scale });
+      const fromCatalog = provenance.official_image_url === 'catalog';
 
-      try {
-        const buffer = await downloadImage(rawImageUrl);
-        if (!buffer) throw new Error('adres nie prowadzi do zdjęcia');
-
-        console.log('Konwersja na WebP...');
-        const webpBuffer = await sharp(buffer).webp({ quality: 80 }).toBuffer();
-
-        const filename = `${name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.webp`;
-        const supabase = getSupabaseAdmin();
-
-        const { error: uploadError } = await supabase
-          .storage
-          .from('figure-images')
-          .upload(filename, webpBuffer, {
-            contentType: 'image/webp',
-            upsert: true
-          });
-        if (uploadError) throw uploadError;
-
-        const { data: publicUrlData } = supabase.storage.from('figure-images').getPublicUrl(filename);
-        figureData.official_image_url = publicUrlData.publicUrl;
-        console.log(`Zdjęcie zapisane: ${figureData.official_image_url}`);
-      } catch (imgError) {
-        console.error('Nie udało się pobrać zdjęcia:', imgError.message);
-      }
-
-      // Nic nie podmieniło adresu → pobranie/zapis padły. Czyścimy pole.
-      if (figureData.official_image_url === rawImageUrl) {
+      if (!check.agreed) {
         figureData.official_image_url = '';
-        figureData._imageError = 'Nie udało się pobrać zdjęcia ze znalezionego adresu — dodaj je ręcznie.';
         delete provenance.official_image_url;
+        figureData._imageError = fromCatalog
+          ? 'Zdjęcie podało tylko jedno źródło — za mało, żeby mieć pewność, że to ta wersja figurki. Dodaj je ręcznie albo użyj „⭐ TOP".'
+          : 'Adres zdjęcia pochodzi wyłącznie od AI i nie potwierdza go żaden katalog — dodaj zdjęcie ręcznie.';
+      } else {
+        console.log(`Zdjęcie potwierdzone (${check.reason}) przez: ${check.by.join(' + ')}`);
+        send('progress', { step: 'image', label: 'Pobieram i zapisuję zdjęcie…', percent: 88 });
+
+        const hosted = await rehostImage(check.imageUrl, name);
+        if (hosted) {
+          figureData.official_image_url = hosted;
+          provenance.official_image_url = 'catalog';
+          console.log(`Zdjęcie zapisane: ${hosted}`);
+        } else {
+          figureData.official_image_url = '';
+          delete provenance.official_image_url;
+          figureData._imageError = 'Nie udało się pobrać zdjęcia ze znalezionego adresu — dodaj je ręcznie.';
+        }
       }
     }
 
