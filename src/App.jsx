@@ -37,7 +37,13 @@ function App() {
             <Route path="/" element={<Showcase />} />
             <Route path="/about" element={<About />} />
             <Route path="/faq" element={<Faq />} />
-            <Route path="/dossier/:id" element={<Dossier />} />
+            {/* Stały adres figurki — to on trafia pod filmy na TikToka i YouTube'a.
+                Przyjmuje czytelny adres (izumi-konata-clayz-1-8) oraz krótki kod
+                wypalany w obrazie shorta (7K2M). */}
+            <Route path="/f/:key" element={<Dossier />} />
+            {/* Stara postać adresu. Filmy i linki wypuszczone wcześniej muszą
+                działać dalej, więc nie kasujemy jej — przekierowujemy. */}
+            <Route path="/dossier/:key" element={<Dossier />} />
             <Route path="/add" element={<ProtectedRoute><AddFigure /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />

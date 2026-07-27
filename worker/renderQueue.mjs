@@ -24,6 +24,7 @@ import { computeBootlegRisk } from "../src/lib/bootlegRisk.js";
 import { scaleOf, defaultShortOptions, QUEUE_MAX } from "../src/lib/shortOptions.js";
 import { driveConfigured, getAccessToken, ensureFolder, uploadMp4 } from "./lib/gdrive.mjs";
 import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
+import { figureUrl } from "../src/lib/figureIdentity.js";
 import { startHeartbeat } from "./lib/heartbeat.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -49,6 +50,29 @@ async function fetchQueued(supabase) {
   return data || [];
 }
 
+// Gotowiec do wklejenia w opis filmu na TikToku / YouTubie / Instagramie.
+// W obrazie mieści się tylko krótki kod, a platformy i tak wolą klikalny link
+// w opisie — tu jest pełny adres tej konkretnej figurki, nie strony głównej.
+function opisDoPublikacji(figure, adres) {
+  const tagi = [figure.series, figure.manufacturer]
+    .filter(Boolean)
+    .map((t) => "#" + String(t).replace(/[^\p{L}\p{N}]/gu, ""))
+    .join(" ");
+
+  return [
+    "",
+    "  ┌── OPIS DO WKLEJENIA POD FILMEM ──────────────────────",
+    `  │ ${figure.name}${figure.series ? ` — ${figure.series}` : ""}`,
+    "  │",
+    `  │ Pełne dane, wartość rynkowa i gdzie kupić:`,
+    `  │ ${adres}`,
+    "  │",
+    `  │ ${tagi} #figurkianime #kolekcja`,
+    "  └──────────────────────────────────────────────────────",
+    "",
+  ].join("\n");
+}
+
 async function processFigure(supabase, figure) {
   const opts = { ...defaultShortOptions(), ...(figure.video_options || {}) };
   const outPath = join(tmpdir(), `short_${figure.id}_${Date.now()}.mp4`);
@@ -63,9 +87,16 @@ async function processFigure(supabase, figure) {
     const risk = computeBootlegRisk(figure);
     const price = figure.original_price || figure.market_value?.average || "";
 
-    console.log(`  → render ${figure.name} [${opts.preset}/${opts.accent}/${opts.music}/${opts.resolution}]...`);
+    // Adres, pod który ma trafić widz. Ten sam kod jest wypalany w obrazie,
+    // a pełny adres wędruje do opisu przy publikacji (patrz niżej).
+    const adres = figureUrl(figure, process.env.SITE_URL || "https://figure-fame.vercel.app");
+    if (!figure.short_code) {
+      console.warn(`  ! ${figure.name}: brak kodu figurki — outro pokaże samą domenę. Uruchom: npm run adresy`);
+    }
+
+    console.log(`  → render ${figure.name} [${opts.preset}/${opts.accent}/${opts.music}/${opts.resolution}] → ${adres}`);
     await renderShort(
-      { name: figure.name, series: figure.series, manufacturer: figure.manufacturer, price, riskLevel: risk.level },
+      { name: figure.name, series: figure.series, manufacturer: figure.manufacturer, price, riskLevel: risk.level, shortCode: figure.short_code || '' },
       { imageSrc, out: outPath, scale: scaleOf(opts.resolution), preset: opts.preset, accent: opts.accent, music: opts.music, cta: opts.cta, lang: opts.lang }
     );
 
@@ -78,6 +109,7 @@ async function processFigure(supabase, figure) {
 
     await supabase.from("figures").update({ video_status: "ready", video_url: pub.publicUrl }).eq("id", figure.id);
     console.log(`  ✓ gotowe: ${pub.publicUrl}`);
+    console.log(opisDoPublikacji(figure, adres));
   } catch (err) {
     console.error(`  ✗ błąd (${figure.id}): ${err.message}`);
     await supabase.from("figures").update({ video_status: "failed" }).eq("id", figure.id).then(() => {}, () => {});

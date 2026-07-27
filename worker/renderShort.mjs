@@ -251,7 +251,7 @@ function overlaySvg(st, data, OW, OH, A) {
     const cy = st.brandBig.cy;
     P.push(`<g opacity="${st.brandBig.opacity.toFixed(3)}" transform="translate(${W / 2},${cy}) scale(${st.brandBig.scale.toFixed(3)})">
       <text x="0" y="0" text-anchor="middle" font-family="Arial, sans-serif" font-size="104" font-weight="bold" letter-spacing="-2"><tspan fill="#ece8e0">FIGURE</tspan><tspan fill="url(#acc)">FAME</tspan></text>
-      <text x="0" y="70" text-anchor="middle" font-family="Arial, sans-serif" font-size="40" fill="#b9b3a8" letter-spacing="4">figurefame.com</text>
+      <text x="0" y="70" text-anchor="middle" font-family="Arial, sans-serif" font-size="40" fill="#b9b3a8" letter-spacing="4">figurefame.com${data.shortCode ? `/f/${xml(data.shortCode)}` : ''}</text>
       ${st.brandBig.cta ? `<rect x="-260" y="120" width="520" height="76" rx="18" fill="url(#acc)"/><text x="0" y="171" text-anchor="middle" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="#0b0c10">${xml(st.brandBig.cta)}</text>` : ''}
     </g>`);
   }
@@ -337,6 +337,11 @@ export async function renderShort(figure, opts = {}) {
       where: S.where,
       priceLabel: S.priceLabel,
       affiliate: S.affiliate,
+      // Kod figurki dopisany do domeny w outro: „figurefame.com/f/7K2M".
+      // Bez niego widz lądował na stronie głównej i musiał sam szukać figurki,
+      // o której właśnie obejrzał film. Czytelny adres by się tu nie zmieścił —
+      // ten sam kod prowadzi jednak dokładnie tam, gdzie pełny.
+      shortCode: figure.shortCode || '',
     };
 
     const total = Math.round(T.end * FPS);

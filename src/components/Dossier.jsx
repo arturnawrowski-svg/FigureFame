@@ -1,74 +1,88 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Tag, Building2, Ruler, HelpCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { getImageUrl } from '../lib/getImageUrl';
+import { looksLikeShortCode } from '../lib/figureIdentity';
 import AuctionDeals from './AuctionDeals';
 import OfficialShops from './OfficialShops';
 import AskAI from './AskAI';
 import BootlegRisk from './BootlegRisk';
 
-// Fallback data for when DB is unavailable
-const fallbackFigures = {
-  1: {
-    id: 1, name: 'Hatsune Miku', japaneseName: '初音ミク', series: 'Vocaloid',
-    japaneseSeries: 'ボーカロイド', manufacturer: 'Good Smile Company', scale: '1/7',
-    type: 'gotowa figurka kolekcjonerska (PVC)',
-    status: 'wydanie archiwalne, obecnie zwykle dostępna tylko na rynku wtórnym',
-    originalPrice: '15 000 JPY', image: '/images/official/miku_figure',
-    lightClass: 'light-miku',
-    additionalInfo: ['Figurka w wersji klasycznej, wyrzeźbiona z niezwykłą dbałością o detale.', 'Jej słynne, turkusowe kucyki (twintails) zostały odtworzone z wykorzystaniem przezroczystych elementów PVC.'],
-    marketValue: { average: 'około 15 000 JPY (ok. 400 zł) za egzemplarz w bardzo dobrym stanie.', community: ['okazje zdarzają się od 300 USD', 'typowe oferty mieszczą się w okolicach 400 USD'] },
-    whereToSearch: ['Solaris Japan', 'Mandarake', 'Yahoo! Auctions Japan'],
-    strategy: ['ustawić alerty na Yahoo Auctions Japan', 'korzystać z pośrednika typu Neokyo lub Buyee']
-  }
-};
+// Danych zastępczych „na sztywno" tu nie ma świadomie — stała, która tu stała,
+// zawierała render AI i zmyśloną wartość rynkową. Gdy baza milczy, mówimy to
+// wprost, zamiast pokazywać wymyśloną figurkę.
+
+// Czy tekst z adresu to identyfikator techniczny (stary link /dossier/<uuid>).
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default function Dossier() {
-  const { id } = useParams();
+  const { key } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [figure, setFigure] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchFigure() {
       try {
-        const { data, error } = await supabase
-          .from('figures')
-          .select('*')
-          .eq('id', id)
-          .single();
+        // Jeden adres, trzy sposoby trafienia w figurkę:
+        //   • czytelny adres      /f/izumi-konata-clayz-1-8   (opisy pod filmami, Google)
+        //   • krótki kod          /f/7K2M                     (wypalony w obrazie shorta)
+        //   • identyfikator       /dossier/39acbb1a-...       (linki sprzed zmiany)
+        let query = supabase.from('figures').select('*');
+        if (UUID.test(key)) query = query.eq('id', key);
+        else if (looksLikeShortCode(key)) query = query.eq('short_code', key.toUpperCase());
+        else query = query.eq('slug', key);
 
+        const { data, error } = await query.maybeSingle();
         if (error) throw error;
+        if (!data) { setFigure(null); return; }
 
-        if (data) {
-          setFigure({
-            ...data,
-            japaneseName: data.japanese_name,
-            japaneseSeries: data.japanese_series,
-            originalPrice: data.original_price,
-            image: getImageUrl(data.official_image_url),
-            lightClass: data.light_class,
-            additionalInfo: Array.isArray(data.additional_info) ? data.additional_info : (data.additional_info ? String(data.additional_info).split('\n') : []),
-            marketValue: typeof data.market_value === 'string' ? { average: data.market_value } : data.market_value,
-            whereToSearch: Array.isArray(data.where_to_search) ? data.where_to_search : (data.where_to_search ? String(data.where_to_search).split('\n') : []),
-            strategy: Array.isArray(data.strategy) ? data.strategy : (data.strategy ? String(data.strategy).split('\n') : [])
-          });
+        // Zawsze sprowadzamy odwiedzającego na adres kanoniczny. Dzięki temu
+        // wyszukiwarki widzą jedną stronę zamiast trzech kopii tej samej treści,
+        // a udostępniony link zawsze wygląda tak samo.
+        if (data.slug && key !== data.slug) {
+          navigate(`/f/${data.slug}`, { replace: true });
+          return;
         }
+
+        setFigure({
+          ...data,
+          japaneseName: data.japanese_name,
+          japaneseSeries: data.japanese_series,
+          originalPrice: data.original_price,
+          image: getImageUrl(data.official_image_url),
+          lightClass: data.light_class,
+          additionalInfo: Array.isArray(data.additional_info) ? data.additional_info : (data.additional_info ? String(data.additional_info).split('\n') : []),
+          marketValue: typeof data.market_value === 'string' ? { average: data.market_value } : data.market_value,
+          whereToSearch: Array.isArray(data.where_to_search) ? data.where_to_search : (data.where_to_search ? String(data.where_to_search).split('\n') : []),
+          strategy: Array.isArray(data.strategy) ? data.strategy : (data.strategy ? String(data.strategy).split('\n') : [])
+        });
       } catch (err) {
-        console.warn('Nie udało się pobrać z Supabase, próbuję fallback.', err);
-        const fallback = fallbackFigures[id];
-        if (fallback) setFigure(fallback);
+        console.warn('Nie udało się pobrać figurki z bazy.', err);
+        setFigure(null);
       } finally {
         setLoading(false);
       }
     }
 
     fetchFigure();
-  }, [id]);
+  }, [key, navigate]);
 
   if (loading) return <div style={{ textAlign: 'center', padding: '4rem' }}>Ładowanie dossier...</div>;
-  if (!figure) return <div style={{ textAlign: 'center', padding: '4rem' }}>Nie znaleziono figurki o ID: {id}</div>;
+  if (!figure) {
+    // Ktoś przyszedł tu z linku pod filmem — nie zostawiamy go z samym błędem.
+    return (
+      <div style={{ textAlign: 'center', padding: '4rem' }}>
+        <h2>Nie znaleziono tej figurki</h2>
+        <p style={{ marginBottom: '2rem' }}>
+          Adres <code>{location.pathname}</code> nie prowadzi do żadnej pozycji w naszej bazie.
+        </p>
+        <button className="btn-primary" onClick={() => navigate('/')}>Przejdź do Gabloty</button>
+      </div>
+    );
+  }
 
   return (
     <div className="dossier-view animate-fade-in">

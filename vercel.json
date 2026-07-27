@@ -3,6 +3,31 @@
     "api/**/*.js": { "maxDuration": 60 }
   },
   "rewrites": [
-    { "source": "/((?!api|images|assets|favicon).*)", "destination": "/index.html" }
+    {
+      "source": "/f/:key",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|Twitterbot|Discordbot|TelegramBot|WhatsApp|Slackbot|LinkedInBot|Pinterest|redditbot|Googlebot|bingbot|DuckDuckBot|YandexBot|Applebot|Bytespider|TikTok|SkypeUriPreview|vkShare|Embedly|Iframely|Snapchat|Threads|Mastodon|bot|crawler|spider|preview).*"
+        }
+      ],
+      "destination": "/api/figure-meta?key=:key"
+    },
+    {
+      "source": "/dossier/:key",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|Twitterbot|Discordbot|TelegramBot|WhatsApp|Slackbot|LinkedInBot|Pinterest|redditbot|Googlebot|bingbot|DuckDuckBot|YandexBot|Applebot|Bytespider|TikTok|SkypeUriPreview|vkShare|Embedly|Iframely|Snapchat|Threads|Mastodon|bot|crawler|spider|preview).*"
+        }
+      ],
+      "destination": "/api/figure-meta?key=:key"
+    },
+    {
+      "source": "/((?!api|images|assets|favicon).*)",
+      "destination": "/index.html"
+    }
   ]
 }

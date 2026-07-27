@@ -16,7 +16,8 @@
     "gen-music": "node scripts/gen-music.mjs",
     "gdrive-auth": "node scripts/gdrive-auth.mjs",
     "lookup-worker": "node worker/lookupWorker.mjs",
-    "lookup-worker:watch": "node worker/lookupWorker.mjs --watch"
+    "lookup-worker:watch": "node worker/lookupWorker.mjs --watch",
+    "adresy": "node worker/nadajAdresy.mjs"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",

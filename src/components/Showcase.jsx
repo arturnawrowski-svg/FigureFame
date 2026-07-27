@@ -5,6 +5,11 @@ import { supabase } from '../lib/supabaseClient';
 import { getImageUrl } from '../lib/getImageUrl';
 import { generateGlowColor } from '../lib/glowColor';
 
+// Stały adres figurki — ten sam, który trafia pod filmy na TikToka i YouTube'a.
+// Czytelny, gdy już nadany; inaczej krótki kod, a w ostateczności identyfikator
+// techniczny, żeby świeżo dodana pozycja też dała się otworzyć.
+const figurePath = (fig) => `/f/${fig.slug || fig.short_code || fig.id}`;
+
 // Samo przewijanie ma sens tylko tam, gdzie jest myszka i kursor może je
 // zatrzymać najechaniem. Na telefonie i tablecie to zbędna praca dla procesora:
 // palec i tak przesuwa listę sam, a animacja w tle zabiera klatki i baterię.
@@ -163,8 +168,8 @@ export default function Showcase() {
                   className="figure-card"
                   role="link"
                   tabIndex={0}
-                  onClick={() => navigate(`/dossier/${fig.id}`)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/dossier/${fig.id}`); } }}
+                  onClick={() => navigate(figurePath(fig))}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(figurePath(fig)); } }}
                   aria-label={`Szczegóły i oferty: ${fig.name}`}
                 >
                   <div className="figure-name-badge">{fig.name}</div>

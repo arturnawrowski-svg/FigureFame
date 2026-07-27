@@ -15,6 +15,7 @@ import askFigureHandler from './api/ask-figure.js'
 import sitemapHandler from './api/sitemap.js'
 import refreshPricesHandler from './api/refresh-prices.js'
 import generateShortHandler from './api/generate-short.js'
+import figureMetaHandler from './api/figure-meta.js'
 
 // Pomocnik: składa body ze streamu POST i odpala handler (dev middleware).
 function postJsonMiddleware(handler) {
@@ -109,6 +110,21 @@ export default defineConfig({
 
         // Generowanie shorta (Etap 4)
         server.middlewares.use('/api/generate-short', postJsonMiddleware(generateShortHandler))
+
+        // Wizytówka figurki dla robotów (podgląd linku pod filmem).
+        // Na produkcji kieruje tu vercel.json po nagłówku User-Agent; w dev
+        // wołamy wprost, żeby dało się sprawdzić podgląd bez wdrażania.
+        server.middlewares.use('/api/figure-meta', async (req, res) => {
+          const url = new URL(req.originalUrl || req.url, `http://${req.headers.host || 'localhost'}`)
+          res.status = (code) => { res.statusCode = code; return res }
+          res.send = (html) => { res.end(html); return res }
+          try {
+            await figureMetaHandler({ method: req.method, query: Object.fromEntries(url.searchParams) }, res)
+          } catch (e) {
+            res.statusCode = 500
+            res.end(e.message)
+          }
+        })
       }
     }
   ],

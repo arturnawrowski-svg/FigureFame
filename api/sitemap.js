@@ -14,11 +14,22 @@ function getSupabase() {
 export default async function handler(req, res) {
   const base = (process.env.SITE_URL || "https://figure-fame.vercel.app").replace(/\/+$/, "");
   try {
-    let ids = [];
+    let sciezki = [];
     try {
       const supabase = getSupabase();
-      const { data } = await supabase.from("figures").select("id").eq("status", "APPROVED");
-      ids = (data || []).map((f) => f.id);
+      // Kolumny adresowe dochodzą dopiero z migracją; do tego czasu zgłaszamy
+      // identyfikatory, żeby mapa strony nie zrobiła się nagle pusta.
+      let { data, error } = await supabase
+        .from("figures")
+        .select("id, slug, short_code")
+        .eq("status", "APPROVED");
+      if (error && /does not exist/i.test(error.message || "")) {
+        ({ data } = await supabase.from("figures").select("id").eq("status", "APPROVED"));
+      }
+      // Zgłaszamy WYŁĄCZNIE adresy kanoniczne (/f/...). Wcześniej trafiały tu
+      // identyfikatory techniczne (/dossier/<uuid>) — nieczytelne dla człowieka
+      // i bezwartościowe dla wyszukiwarki.
+      sciezki = (data || []).map((f) => f.slug || f.short_code || f.id);
     } catch (_e) {
       // Gdy baza nieosiągalna — sam URL główny (sitemap nadal poprawny).
     }
@@ -27,7 +38,7 @@ export default async function handler(req, res) {
       { loc: `${base}/`, priority: "1.0", changefreq: "daily" },
       { loc: `${base}/about`, priority: "0.4", changefreq: "monthly" },
       { loc: `${base}/faq`, priority: "0.5", changefreq: "monthly" },
-      ...ids.map((id) => ({ loc: `${base}/dossier/${id}`, priority: "0.8", changefreq: "weekly" })),
+      ...sciezki.map((p) => ({ loc: `${base}/f/${p}`, priority: "0.8", changefreq: "weekly" })),
     ];
 
     const xml =
