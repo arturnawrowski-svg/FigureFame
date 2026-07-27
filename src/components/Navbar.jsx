@@ -1,10 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { User, Info, Plus, Sun, Moon, ShieldAlert } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useTranslation, LOCALES } from '../lib/i18n'
-import Login from './Login'
+
+// Okno logowania ciągnie za sobą sporą bibliotekę formularzy Supabase.
+// Doczytujemy je dopiero po kliknięciu „Zaloguj", a nie przy każdym wejściu
+// na stronę — większość odwiedzających nigdy się nie loguje.
+const Login = lazy(() => import('./Login'))
 
 export default function Navbar() {
   const { user, isAdmin } = useAuth()
@@ -37,7 +41,9 @@ export default function Navbar() {
   return (
     <>
       {showLoginModal && (
-        <Login onClose={() => setShowLoginModal(false)} />
+        <Suspense fallback={null}>
+          <Login onClose={() => setShowLoginModal(false)} />
+        </Suspense>
       )}
 
       <nav className="top-nav animate-fade-in">

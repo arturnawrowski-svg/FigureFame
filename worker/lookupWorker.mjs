@@ -22,6 +22,7 @@ import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 import { gatherFromSources } from "../server-lib/figureSources.js";
 import { closeBrowser } from "../server-lib/scrapeProviders.js";
 import { cacheKey } from "../server-lib/lookupShared.js";
+import { startHeartbeat, stationName } from "./lib/heartbeat.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, "..", ".env.local") });
@@ -114,6 +115,9 @@ const watch = process.argv.includes("--watch");
 
 if (watch) {
   console.log(`Worker wyszukiwań w trybie --watch (co ${POLL_MS / 1000}s). Ctrl+C aby zakończyć.`);
+  // Panel pokazuje dzięki temu 🟢 „Studio aktywne" — moderator nie musi zgadywać.
+  startHeartbeat({ can_browse: true });
+  console.log(`Stacja: ${stationName()} — zgłaszam obecność do panelu.`);
   const loop = async () => {
     try {
       await runOnce();

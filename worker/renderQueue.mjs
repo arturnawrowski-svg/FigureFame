@@ -24,6 +24,7 @@ import { computeBootlegRisk } from "../src/lib/bootlegRisk.js";
 import { scaleOf, defaultShortOptions, QUEUE_MAX } from "../src/lib/shortOptions.js";
 import { driveConfigured, getAccessToken, ensureFolder, uploadMp4 } from "./lib/gdrive.mjs";
 import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
+import { startHeartbeat } from "./lib/heartbeat.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, "..", ".env.local") });
@@ -161,6 +162,7 @@ async function runOnce() {
 const watch = process.argv.includes("--watch");
 if (watch) {
   console.log(`Worker kolejki w trybie --watch (co ${POLL_MS / 1000}s). Ctrl+C aby zakończyć.`);
+  startHeartbeat({ can_render: true }); // panel widzi, że renderowanie jest dostępne
   const loop = async () => { try { await runOnce(); } catch (e) { console.error(e.message); } setTimeout(loop, POLL_MS); };
   loop();
 } else {

@@ -35,6 +35,8 @@ export default function AdminDashboard() {
   const [progress, setProgress] = useState(null);
   // Pochodzenie pól z ostatniego wyszukiwania: { pole: 'catalog' | 'ai' }.
   const [provenance, setProvenance] = useState({});
+  // Czy któryś domowy komputer (Studio) właśnie pracuje.
+  const [studio, setStudio] = useState({ online: false, stations: [] });
 
   const showToast = (message) => {
     setToastMessage(message);
@@ -138,6 +140,23 @@ export default function AdminDashboard() {
     probe.src = getImageUrl(url);
     return () => { alive = false; };
   }, [editForm.official_image_url]);
+
+  // Stan Studia: sygnał świeższy niż 3 minuty = komputer domowy pracuje.
+  // Odpytujemy co minutę, bo samo Studio melduje się w tym rytmie.
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const { data } = await supabase.from('studio_status').select('*');
+        const swieze = (data || []).filter(
+          (s) => Date.now() - new Date(s.last_seen).getTime() < 3 * 60 * 1000
+        );
+        setStudio({ online: swieze.length > 0, stations: swieze });
+      } catch { /* brak tabeli — traktujemy jak wyłączone */ }
+    };
+    check();
+    const t = setInterval(check, 60000);
+    return () => clearInterval(t);
+  }, []);
 
   // Licznik bufora: shorty trzymane w Supabase Storage (jeszcze nieopublikowane na Drive)
   const fetchBufferCount = async () => {
@@ -518,6 +537,42 @@ export default function AdminDashboard() {
         </div>
       </div>
       <h2>🛡️ Panel Moderatora</h2>
+
+      {/* Stan komputera domowego. Bez tego moderator nie wie, czy „nic się nie
+          dzieje" znaczy awarię, czy po prostu wyłączone Studio. */}
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
+        padding: '0.5rem 0.9rem', borderRadius: '999px', marginBottom: '1rem',
+        background: studio.online ? 'rgba(46,213,115,0.12)' : 'rgba(255,71,87,0.10)',
+        border: `1px solid ${studio.online ? 'rgba(46,213,115,0.35)' : 'rgba(255,71,87,0.30)'}`,
+        fontSize: '0.85rem',
+      }}>
+        <span>{studio.online ? '🟢' : '🔴'}</span>
+        {studio.online ? (
+          <>
+            <strong>FigureFame Studio aktywne</strong>
+            <span style={{ opacity: 0.75 }}>
+              ({studio.stations.map((s) => s.station).join(', ')}) — dane pobiera Twój komputer, bez limitów
+            </span>
+          </>
+        ) : (
+          <>
+            <strong>FigureFame Studio wyłączone</strong>
+            <span style={{ opacity: 0.75 }}>
+              Zlecenia poczekają w kolejce. Uruchom Studio na komputerze, żeby je pobrać.
+            </span>
+            <button
+              className="btn-secondary"
+              style={{ padding: '2px 10px', fontSize: '0.8rem', border: '1px solid #ffa502', color: '#ffa502' }}
+              onClick={() => { window.location.href = 'figurefame://start'; }}
+              title="Zadziała, jeśli Studio zostało raz zainstalowane na tym komputerze (skrypty w folderze instalacja/)"
+            >
+              ▶ Uruchom Studio
+            </button>
+          </>
+        )}
+      </div>
+
       <p style={{ opacity: 0.8, marginBottom: '2rem' }}>
         {activeTab === 'PENDING' && 'Przeglądaj, edytuj i zatwierdzaj zgłoszenia od użytkowników.'}
         {activeTab === 'APPROVED' && 'Zarządzaj figurkami widocznymi w głównej Gablocie.'}
