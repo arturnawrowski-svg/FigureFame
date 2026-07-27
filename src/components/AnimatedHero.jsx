@@ -214,23 +214,37 @@ const ParticleHero = ({
 
       {/* Treść */}
       <div className="relative z-10 text-center px-4">
-        <motion.h1
-          className="hero-title"
+        {/* Znak i nazwa stoją obok siebie jako jedna całość — tak samo jak na
+            wizytówkach i w opisach filmów. Na wąskim ekranie układają się
+            jedno pod drugim (index.css), bo w rzędzie nazwa zrobiłaby się
+            nieczytelnie mała. */}
+        <motion.div
+          className="hero-lockup"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          onClick={onTitleClick}
-          style={{
-            fontSize: 'clamp(2.5rem, 6vw, 5rem)',
-            fontWeight: 900,
-            letterSpacing: '-0.05em',
-            margin: '0 0 1rem 0',
-            textShadow: '0 10px 30px rgba(255, 71, 87, 0.3)',
-            cursor: onTitleClick ? 'pointer' : 'default'
-          }}
         >
-          {title}
-        </motion.h1>
+          {/* Znak jest ozdobą przy nazwie, która i tak stoi obok — czytnik
+              ekranu przeczytałby ją dwa razy, stąd aria-hidden.
+              Tło zamiast <img>, bo są dwie wersje (jasna/ciemna): przeglądarka
+              pobiera wtedy tylko tę pasującą do motywu, a nie obie. */}
+          <div className="hero-logo" aria-hidden="true" />
+
+          <h1
+            className="hero-title"
+            onClick={onTitleClick}
+            style={{
+              fontSize: 'clamp(2.5rem, 6vw, 5rem)',
+              fontWeight: 900,
+              letterSpacing: '-0.05em',
+              margin: 0,
+              textShadow: '0 10px 30px rgba(255, 71, 87, 0.3)',
+              cursor: onTitleClick ? 'pointer' : 'default'
+            }}
+          >
+            {title}
+          </h1>
+        </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}

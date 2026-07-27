@@ -53,7 +53,7 @@ function App() {
       </main>
 
       <footer className="app-footer">
-        <div className="footer-left">2026 Copyright by Klara Julia Nawrowska</div>
+        <div className="footer-left">2026 Copyright by FigureFame.com</div>
         <div className="footer-right">Created by <a href="mailto:artur.nawrowski@gmail.com">ArChi</a></div>
       </footer>
     </div>

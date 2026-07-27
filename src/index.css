@@ -92,6 +92,42 @@ header p {
   -webkit-text-fill-color: transparent;
 }
 
+/* ---- Znak + nazwa jako jedna całość ---- */
+.hero-lockup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.75rem, 2.2vw, 2rem);
+  margin-bottom: 1rem;
+}
+
+.hero-logo {
+  /* Znak jest wyższy niż szerszy, więc wiążemy go z WYSOKOŚCIĄ nazwy —
+     inaczej przy szerokim ekranie urósłby ponad nią.
+     Obie wersje mają to samo płótno 238×320, więc przełączenie motywu
+     nie przesuwa napisu obok. */
+  height: clamp(5rem, 9vw, 8.5rem);
+  aspect-ratio: 238 / 320;
+  flex-shrink: 0;
+  background: url('/logo-ff-dark.webp') center / contain no-repeat;
+  filter: drop-shadow(0 10px 26px rgba(249, 115, 22, 0.22));
+}
+
+body.light-mode .hero-logo {
+  background-image: url('/logo-ff-light.webp');
+  filter: drop-shadow(0 12px 24px rgba(15, 15, 15, 0.16));
+}
+
+@media (max-width: 640px) {
+  .hero-lockup {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .hero-logo {
+    height: 6.5rem;
+  }
+}
+
 /* Top Nav */
 .top-nav {
   display: flex;
