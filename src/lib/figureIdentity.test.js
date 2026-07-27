@@ -43,6 +43,18 @@ describe('makeSlug — czytelny adres', () => {
     expect(makeSlug({ name: 'Lucky☆Star Konata', manufacturer: 'Clayz' })).toBe('lucky-star-konata-clayz');
   });
 
+  it('pomija skalę, która nic nie wnosi („Non-scale")', () => {
+    expect(makeSlug({ name: 'Kurisu Makise', manufacturer: 'Good Smile Company', scale: 'Non-scale' }))
+      .toBe('kurisu-makise-good-smile-company');
+    expect(makeSlug({ name: 'Rem', manufacturer: 'Good Smile Company', scale: '' }))
+      .toBe('rem-good-smile-company');
+  });
+
+  it('wyłuskuje skalę także z opisu wymiarów', () => {
+    expect(makeSlug({ name: 'Miku', manufacturer: 'GSC', scale: 'H=100mm (3.9in)' })).toBe('miku-gsc');
+    expect(makeSlug({ name: 'Miku', manufacturer: 'GSC', scale: '1 / 7' })).toBe('miku-gsc-1-7');
+  });
+
   it('nie zwraca adresu, gdy nie ma z czego go zbudować', () => {
     expect(makeSlug({ name: '泉 こなた' })).toBe('');
     expect(makeSlug({})).toBe('');

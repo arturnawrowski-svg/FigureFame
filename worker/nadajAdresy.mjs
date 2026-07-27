@@ -24,7 +24,7 @@ const ZAPISZ = process.argv.includes("--zapisz");
 async function main() {
   const supabase = getSupabaseAdmin();
 
-  const { data: figures, error } = await supabase
+  const { data: pobrane, error } = await supabase
     .from("figures")
     .select("id, name, series, manufacturer, scale, status, slug, short_code, identity_key")
     .order("created_at", { ascending: true });
@@ -38,6 +38,14 @@ async function main() {
     }
     throw error;
   }
+
+  // Przy dwóch zgłoszeniach tej samej figurki adres dostaje TA WIDOCZNA.
+  // Bez tego pierwszeństwo brał wpis starszy — i figurka stojąca w Gablocie
+  // zostawała bez adresu, bo ubiegł ją jej własny roboczy duplikat.
+  const WAGA = { APPROVED: 0, PENDING: 1 };
+  const figures = [...pobrane].sort(
+    (a, b) => (WAGA[a.status] ?? 2) - (WAGA[b.status] ?? 2)
+  );
 
   // Zajęte wartości — żeby nie wydać dwa razy tego samego adresu ani kodu.
   const zajeteSlugi = new Set(figures.filter((f) => f.slug).map((f) => f.slug));

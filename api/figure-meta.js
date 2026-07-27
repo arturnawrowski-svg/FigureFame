@@ -49,7 +49,11 @@ function buildDescription(figure) {
   if (figure.scale && figure.scale !== "Non-scale") parts.push(`skala ${figure.scale}`);
 
   const wartosc = figure.market_value?.average || figure.market_value;
-  const cena = typeof wartosc === "string" ? wartosc : "";
+  const cena = typeof wartosc === "string"
+    // „98200 JPY" → „98 200 JPY". Katalogi podają liczby ciągiem, a to ma
+    // przeczytać człowiek w podglądzie linku pod filmem.
+    ? wartosc.replace(/\b(\d{4,})\b/g, (n) => n.replace(/\B(?=(\d{3})+(?!\d))/g, " ")).replace(/\.+$/, "")
+    : "";
   const ogon = cena
     ? `Wartość rynkowa: ${cena}.`
     : "Dane producenta, wartość rynkowa i ryzyko podróbki.";

@@ -65,8 +65,11 @@ export function makeSlug({ name, manufacturer, scale } = {}) {
       .replace(/[^a-z0-9\s-]/g, " ")
       .trim()
       .replace(/\s+/g, "-");
-  // Ukośnik w skali zamieniamy na myślnik: „1/8" → „1-8".
-  const scalePart = piece(String(scale || "").replace("/", "-"));
+  // Skalę bierzemy WYŁĄCZNIE gdy jest liczbowa: „1/8" → „1-8".
+  // Nendoroidy i figurki bez skali mają wpisane „Non-scale", a to nic nie wnosi
+  // do adresu — dawało ogonek „...-good-smile-company-non".
+  const ulamek = String(scale || "").match(/(\d+)\s*\/\s*(\d+)/);
+  const scalePart = ulamek ? `${ulamek[1]}-${ulamek[2]}` : "";
 
   const slug = [piece(name), piece(manufacturer), scalePart]
     .filter(Boolean)
