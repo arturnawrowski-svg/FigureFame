@@ -18,10 +18,10 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
-import { getSupabaseAdmin } from "../api/lib/supabaseAdmin.js";
-import { gatherFromSources } from "../api/lib/figureSources.js";
-import { closeBrowser } from "../api/lib/scrapeProviders.js";
-import { cacheKey } from "../api/lib/lookupShared.js";
+import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
+import { gatherFromSources } from "../server-lib/figureSources.js";
+import { closeBrowser } from "../server-lib/scrapeProviders.js";
+import { cacheKey } from "../server-lib/lookupShared.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, "..", ".env.local") });

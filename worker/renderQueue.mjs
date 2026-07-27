@@ -23,7 +23,7 @@ import { renderShort } from "./renderShort.mjs";
 import { computeBootlegRisk } from "../src/lib/bootlegRisk.js";
 import { scaleOf, defaultShortOptions, QUEUE_MAX } from "../src/lib/shortOptions.js";
 import { driveConfigured, getAccessToken, ensureFolder, uploadMp4 } from "./lib/gdrive.mjs";
-import { getSupabaseAdmin } from "../api/lib/supabaseAdmin.js";
+import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, "..", ".env.local") });

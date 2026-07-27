@@ -79,6 +79,8 @@ export default function AdminDashboard() {
 
         if (data._queued) {
           showToast(`⏳ ${data._queued}`);
+        } else if (data._japaneseMissing) {
+          showToast(`🇯🇵 ${data._japaneseMissing}`);
         } else if (data._aiError) {
           showToast(`Uwaga: Wyszukiwarka AI napotkała problem. Szczegóły: ${data._aiError}`);
         } else if (data._imageError) {

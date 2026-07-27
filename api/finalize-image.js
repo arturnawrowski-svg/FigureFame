@@ -1,6 +1,6 @@
 import sharp from "sharp";
-import { getSupabaseAdmin } from "./lib/supabaseAdmin.js";
-import { BROWSER_UA } from "./lib/lookupShared.js";
+import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
+import { BROWSER_UA } from "../server-lib/lookupShared.js";
 
 // ============================================================================
 // finalize-image (Etap 2) — finalizacja zdjęcia figurki:

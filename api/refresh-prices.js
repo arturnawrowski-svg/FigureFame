@@ -1,5 +1,5 @@
-import { fetchAllOffers } from "./lib/priceProviders.js";
-import { getSupabaseAdmin } from "./lib/supabaseAdmin.js";
+import { fetchAllOffers } from "../server-lib/priceProviders.js";
+import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 
 // ============================================================================
 // refresh-prices (Etap 3) — pobiera oferty dla figurki i zapisuje snapshot cen.

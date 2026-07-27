@@ -4,7 +4,7 @@ import { readFile, unlink } from "node:fs/promises";
 import { renderShort } from "../worker/renderShort.mjs";
 import { computeBootlegRisk } from "../src/lib/bootlegRisk.js";
 import { scaleOf, defaultShortOptions } from "../src/lib/shortOptions.js";
-import { getSupabaseAdmin } from "./lib/supabaseAdmin.js";
+import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 
 // ============================================================================
 // generate-short (Etap 4) — renderuje 20s short dla figurki i zapisuje MP4.

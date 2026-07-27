@@ -11,6 +11,8 @@
 // bez żadnego błędu, po prostu każde wyszukanie znów kosztowałoby limit.
 // ============================================================================
 
+import { createRequire } from "node:module";
+
 // Nagłówek przeglądarki dla żądań wychodzących. Część serwisów odrzuca ruch
 // bez wiarygodnego User-Agenta (albo podaje uboższą wersję strony).
 export const BROWSER_UA =
@@ -26,15 +28,37 @@ export function cacheKey(name, series = "", mode = "quick") {
 }
 
 /**
- * Czy kod działa w środowisku bezserwerowym (Vercel / Lambda).
- * Tam nie ma przeglądarki, więc pobieranie stron musi iść przez pośrednika
- * albo trafić do kolejki dla komputera admina.
+ * Czy mamy do dyspozycji prawdziwą przeglądarkę (Playwright).
+ *
+ * Sprawdzamy FAKT — czy pakiet da się w ogóle znaleźć — zamiast zgadywać po
+ * zmiennych środowiskowych. Powód: `VERCEL` i spółka to „systemowe zmienne",
+ * które w ustawieniach projektu można wyłączyć; wtedy kod uznawał chmurę za
+ * komputer lokalny i nie zlecał pobrania workerowi (cicha awaria).
+ *
+ * Playwright jest zależnością deweloperską, więc w chmurze nie jest instalowany
+ * i `resolve` tam zawiedzie. Samo sprawdzenie nie uruchamia przeglądarki.
  */
-export function isServerless() {
-  return !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+let browserAvailable = null;
+
+export function hasLocalBrowser() {
+  // Jawna deklaracja wygrywa ze wszystkim. Zgadywanie po środowisku zawodziło
+  // dwa razy: „systemowe zmienne" Vercela można wyłączyć w ustawieniach, a sam
+  // pakiet Playwright bywa pakowany do funkcji mimo że przeglądarki tam nie ma.
+  // FIGUREFAME_CLOUD=1 ustawiamy w konfiguracji Vercela — koniec domysłów.
+  if (process.env.FIGUREFAME_CLOUD === "1") return false;
+
+  if (browserAvailable === null) {
+    try {
+      createRequire(import.meta.url).resolve("playwright");
+      browserAvailable = true;
+    } catch {
+      browserAvailable = false;
+    }
+  }
+  return browserAvailable;
 }
 
-/** Odwrotność powyższego — czytelniejsza tam, gdzie pytamy o własną przeglądarkę. */
-export function hasLocalBrowser() {
-  return !isServerless();
+/** Odwrotność — czytelniejsza tam, gdzie pytamy „czy jesteśmy w chmurze". */
+export function isServerless() {
+  return !hasLocalBrowser();
 }

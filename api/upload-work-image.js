@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { getSupabaseAdmin } from "./lib/supabaseAdmin.js";
+import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 
 // ============================================================================
 // upload-work-image (Etap 2) — zapisuje zdjęcie-KANDYDATA do folderu roboczego:

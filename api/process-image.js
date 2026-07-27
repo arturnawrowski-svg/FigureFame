@@ -1,6 +1,6 @@
 import sharp from "sharp";
-import { getSupabaseAdmin } from "./lib/supabaseAdmin.js";
-import { BROWSER_UA } from "./lib/lookupShared.js";
+import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
+import { BROWSER_UA } from "../server-lib/lookupShared.js";
 
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024; // 15 MB — ochrona przed nadużyciem
 

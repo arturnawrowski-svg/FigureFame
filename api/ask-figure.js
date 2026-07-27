@@ -1,4 +1,4 @@
-import { callAI } from "./lib/aiClient.js";
+import { callAI } from "../server-lib/aiClient.js";
 
 // ============================================================================
 // ask-figure (flagowy wyróżnik z PDF: „Ask AI about this figure")

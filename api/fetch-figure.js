@@ -1,9 +1,9 @@
 import sharp from "sharp";
 import * as cheerio from "cheerio";
-import { callAIJson } from "./lib/aiClient.js";
-import { getSupabaseAdmin } from "./lib/supabaseAdmin.js";
-import { gatherFromSources } from "./lib/figureSources.js";
-import { cacheKey, hasLocalBrowser } from "./lib/lookupShared.js";
+import { callAIJson } from "../server-lib/aiClient.js";
+import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
+import { gatherFromSources } from "../server-lib/figureSources.js";
+import { cacheKey, hasLocalBrowser } from "../server-lib/lookupShared.js";
 
 const PROXY_URL = process.env.PROXY_URL; // np. "https://api.scraperapi.com?api_key=TWÓJ_KLUCZ&url="
 
@@ -79,15 +79,31 @@ async function readCache(key) {
 async function enqueueLookup(name, series, mode) {
   try {
     const supabase = getSupabaseAdmin();
-    // Powtórne kliknięcie nie tworzy duplikatu (unikalny indeks na pending/working).
+
+    // Zwykły insert po sprawdzeniu, a nie upsert: indeks chroniący przed
+    // duplikatami jest CZĘŚCIOWY (obejmuje tylko zlecenia oczekujące),
+    // a do takiego indeksu upsert nie potrafi się odwołać.
+    const { data: existing } = await supabase
+      .from("lookup_queue")
+      .select("id")
+      .eq("name", name)
+      .eq("series", series)
+      .eq("mode", mode)
+      .in("status", ["pending", "working"])
+      .limit(1);
+
+    if (existing && existing.length > 0) return true; // już czeka w kolejce
+
     const { error } = await supabase
       .from("lookup_queue")
-      .upsert(
-        { name, series, mode, status: "pending", updated_at: new Date().toISOString() },
-        { onConflict: "name,series,mode", ignoreDuplicates: true }
-      );
+      .insert({ name, series, mode, status: "pending" });
+
+    // Wyścig dwóch kliknięć naraz: indeks odrzuci drugie — to nie jest błąd.
+    if (error && error.code === "23505") return true;
+    if (error) console.error("[kolejka] zapis nieudany:", error.message);
     return !error;
-  } catch {
+  } catch (e) {
+    console.error("[kolejka] wyjątek:", e.message);
     return false;
   }
 }
@@ -202,11 +218,12 @@ export default async function handler(req, res) {
 
     figureData._sources = sources;
 
-    // Żadne twarde źródło nie odpowiedziało, a jesteśmy w chmurze (bez własnej
-    // przeglądarki) → zlecamy pobranie komputerowi admina zamiast zdawać się
-    // wyłącznie na AI, która przy braku danych zaczyna zmyślać.
-    const nothingFound = !Object.values(sources).some((s) => s === 'ok');
-    if (nothingFound && !hasLocalBrowser()) {
+    // Encyklopedia (MFC) to jedyne źródło japońskich nazw i danych kanonicznych.
+    // Gdy ona zawiedzie, reszta niewiele daje — nawet jeśli katalog producenta
+    // coś zwrócił. Dlatego zlecenie dla komputera admina wysyłamy już wtedy,
+    // a nie dopiero gdy padną wszystkie źródła.
+    const encyclopediaMissing = sources.mfc !== 'ok';
+    if (encyclopediaMissing && !hasLocalBrowser()) {
       const queued = await enqueueLookup(name, series, mode);
       if (queued) {
         figureData._queued = 'Zlecono pobranie danych — FigureFame Studio na Twoim komputerze pobierze je z katalogów. Kliknij ponownie za chwilę.';
@@ -222,6 +239,15 @@ export default async function handler(req, res) {
     const stillHasMissingFields = Object.entries(figureData)
       .filter(([k]) => !k.startsWith('_'))
       .some(([, val]) => !val);
+
+    // Japońskie nazwy zapamiętujemy PRZED krokiem AI. Modele notorycznie je
+    // zmyślają — potrafią zwrócić ciągi znaków, które wyglądają po japońsku,
+    // ale nic nie znaczą (np. „エトヴァインサラバースバース" zamiast 泉こなた).
+    // Takie pole gorzej niż puste: wygląda na zweryfikowane, a jest fałszem.
+    const japaneseFromCatalog = {
+      japanese_name: figureData.japanese_name,
+      japanese_series: figureData.japanese_series,
+    };
 
     // KROK 2: AI — TYLKO na braki po twardych źródłach. Dane z katalogów mają
     // pierwszeństwo; model nie ma prawa ich nadpisać (patrz scalanie niżej).
@@ -275,6 +301,16 @@ export default async function handler(req, res) {
         console.error("Błąd AI podczas dopełniania:", aiError.message);
         figureData._aiError = aiError.message;
       }
+    }
+
+    // Japońskie nazwy przyjmujemy WYŁĄCZNIE z katalogów. Cokolwiek dopisała tu
+    // AI, zostaje skasowane: puste pole uczciwie mówi „nie wiemy", a zmyślone
+    // znaki wyglądają na zweryfikowane i trafiłyby do bazy jako fałsz.
+    figureData.japanese_name = japaneseFromCatalog.japanese_name || '';
+    figureData.japanese_series = japaneseFromCatalog.japanese_series || '';
+    if (!figureData.japanese_name && !figureData._queued) {
+      figureData._japaneseMissing =
+        'Japońskiej nazwy nie potwierdził żaden katalog — pole zostawiono puste zamiast wpisywać domysł AI.';
     }
 
     // Przetwarzanie i konwersja obrazka WebP.
