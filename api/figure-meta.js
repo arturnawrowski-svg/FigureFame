@@ -109,9 +109,12 @@ export default async function handler(req, res) {
     const nazwa = [figure.name, figure.japanese_name].filter(Boolean).join(" / ");
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
-    // Godzina w pamięci podręcznej — roboty potrafią odpytywać ten sam adres
-    // wielokrotnie przy każdym udostępnieniu filmu.
-    res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=3600");
+    // Pięć minut świeżości, godzina „starego, ale podanego od ręki".
+    // Roboty potrafią odpytywać ten sam adres wielokrotnie przy każdym
+    // udostępnieniu filmu, więc bufor jest potrzebny — ale przy godzinie
+    // poprawiona nazwa lub podmienione zdjęcie potrafiły przez ten czas nie
+    // dojść do podglądu linku, a moderator poprawia figurkę TUŻ przed publikacją.
+    res.setHeader("Cache-Control", "public, max-age=300, s-maxage=300, stale-while-revalidate=3600");
     return res.status(200).send(page({
       title: `${nazwa} — FigureFame`,
       description: buildDescription(figure),
