@@ -1,8 +1,106 @@
+# ============================================================================
+# STRONA W BUDOWIE — nic nie indeksujemy.
+#
+# Powód: serwis stoi za hasłem, a dane nie są jeszcze kompletne. Wpis w Google
+# albo w odpowiedzi asystenta AI zostaje na długo i odkręca się tygodniami —
+# dlatego blokujemy ZANIM cokolwiek trafi do indeksu.
+#
+# ODBLOKOWANIE PO PREMIERZE: skasuj wszystko poniżej i przywróć wersję
+# z sekcji „DOCELOWO" na końcu pliku. Mapa strony i wizytówki figurek
+# (api/sitemap, api/figure-meta) zostają nietknięte i zadziałają od razu.
+# ============================================================================
+
+# --- Wyszukiwarki (SEO) -----------------------------------------------------
 User-agent: *
-Allow: /
+Disallow: /
 
-# Panel i strony prywatne — bez indeksowania
-Disallow: /admin
-Disallow: /profile
+# --- Roboty modeli językowych (GEO) -----------------------------------------
+# Wymienione osobno, bo część z nich nie stosuje się do reguły ogólnej „*".
+User-agent: GPTBot
+Disallow: /
 
-Sitemap: https://figure-fame.vercel.app/api/sitemap
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: OAI-SearchBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: Perplexity-User
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: meta-externalagent
+Disallow: /
+
+User-agent: FacebookBot
+Disallow: /
+
+User-agent: Amazonbot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: cohere-ai
+Disallow: /
+
+User-agent: Diffbot
+Disallow: /
+
+User-agent: ImagesiftBot
+Disallow: /
+
+User-agent: Omgilibot
+Disallow: /
+
+User-agent: YouBot
+Disallow: /
+
+User-agent: Ai2Bot
+Disallow: /
+
+User-agent: PanguBot
+Disallow: /
+
+User-agent: Timpibot
+Disallow: /
+
+User-agent: Webzio-Extended
+Disallow: /
+
+# ============================================================================
+# DOCELOWO — wersja do przywrócenia w dniu premiery:
+#
+#   User-agent: *
+#   Allow: /
+#
+#   # Panel i strony prywatne — bez indeksowania
+#   Disallow: /admin
+#   Disallow: /profile
+#
+#   Sitemap: https://figurefame.com/api/sitemap
+#
+# Roboty AI zostaw wtedy zablokowane albo dopuść świadomie — to decyzja
+# biznesowa, nie techniczna. Dopuszczenie ich oznacza, że nasze dane trafią
+# do odpowiedzi asystentów, zwykle bez odsyłacza do nas.
+# ============================================================================
