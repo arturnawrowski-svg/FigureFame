@@ -60,7 +60,14 @@ async function processJob(supabase, job) {
     const found = Object.values(sources).some((s) => s === "ok");
     if (!found) throw new Error("żadne źródło nie znalazło tej figurki");
 
-    const payload = { ...data, _sources: sources };
+    // Wszystko tutaj pochodzi z katalogów (worker nie woła AI), więc każde
+    // wypełnione pole dostaje ptaszek „potwierdzone".
+    const provenance = {};
+    Object.entries(data).forEach(([k, v]) => {
+      if (v && !k.startsWith("_")) provenance[k] = "catalog";
+    });
+
+    const payload = { ...data, _sources: sources, _provenance: provenance };
     if (bootlegWarning) {
       payload._bootlegWarning = "MyFigureCollection ostrzega: istnieje podrobiona wersja tej figurki.";
     }

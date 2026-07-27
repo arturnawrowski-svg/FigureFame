@@ -210,11 +210,22 @@ export default async function handler(req, res) {
     );
     console.log("Źródła:", JSON.stringify(sources));
 
+    // Pochodzenie KAŻDEGO pola z osobna: 'catalog' = potwierdzone przez katalog,
+    // 'ai' = domysł modelu. Moderator musi widzieć różnicę, bo pole wypełnione
+    // przez AI wygląda tak samo jak zweryfikowane, a bywa nieprawdziwe.
+    const provenance = {};
+
     Object.keys(figureData).forEach(k => {
-      if (!figureData[k] && sourced[k]) figureData[k] = sourced[k];
+      if (!figureData[k] && sourced[k]) {
+        figureData[k] = sourced[k];
+        provenance[k] = 'catalog';
+      }
     });
     // Nazwa z katalogu bywa pełniejsza niż to, co wpisał zgłaszający.
-    if (sourced.name) figureData.name = sourced.name;
+    if (sourced.name) {
+      figureData.name = sourced.name;
+      provenance.name = 'catalog';
+    }
 
     figureData._sources = sources;
 
@@ -287,14 +298,19 @@ export default async function handler(req, res) {
         Object.keys(aiData).forEach(k => {
           if (k === 'market_value_average') {
             figureData.marketValueAverage = aiData[k];
+            if (aiData[k]) provenance.market_value = 'ai';
           } else if (k === 'additional_info') {
             figureData.additionalInfo = aiData[k];
+            if (aiData[k]) provenance.additional_info = 'ai';
           } else if (k === 'where_to_search') {
             figureData.whereToSearch = aiData[k];
+            if (aiData[k]) provenance.where_to_search = 'ai';
           } else if (k === 'strategy') {
             figureData.strategy = aiData[k];
+            if (aiData[k]) provenance.strategy = 'ai';
           } else if (!figureData[k] && aiData[k]) {
             figureData[k] = aiData[k];
+            provenance[k] = 'ai'; // domysł modelu — do weryfikacji
           }
         });
       } catch (aiError) {
@@ -308,6 +324,8 @@ export default async function handler(req, res) {
     // znaki wyglądają na zweryfikowane i trafiłyby do bazy jako fałsz.
     figureData.japanese_name = japaneseFromCatalog.japanese_name || '';
     figureData.japanese_series = japaneseFromCatalog.japanese_series || '';
+    if (!figureData.japanese_name) delete provenance.japanese_name;
+    if (!figureData.japanese_series) delete provenance.japanese_series;
     if (!figureData.japanese_name && !figureData._queued) {
       figureData._japaneseMissing =
         'Japońskiej nazwy nie potwierdził żaden katalog — pole zostawiono puste zamiast wpisywać domysł AI.';
@@ -353,8 +371,11 @@ export default async function handler(req, res) {
       if (figureData.official_image_url === rawImageUrl) {
         figureData.official_image_url = '';
         figureData._imageError = 'Nie udało się pobrać zdjęcia ze znalezionego adresu — dodaj je ręcznie.';
+        delete provenance.official_image_url;
       }
     }
+
+    figureData._provenance = provenance;
 
     // Zapisujemy tylko sensowne wyniki — inaczej utrwalilibyśmy pustą porażkę.
     if (figureData.official_image_url || figureData.japanese_name || figureData.manufacturer) {

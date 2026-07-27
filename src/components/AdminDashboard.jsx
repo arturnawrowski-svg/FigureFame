@@ -33,10 +33,36 @@ export default function AdminDashboard() {
   const [lastLookup, setLastLookup] = useState(null);
   // Postęp wyszukiwania: { percent, label, log[] } albo null gdy nic nie trwa.
   const [progress, setProgress] = useState(null);
+  // Pochodzenie pól z ostatniego wyszukiwania: { pole: 'catalog' | 'ai' }.
+  const [provenance, setProvenance] = useState({});
 
   const showToast = (message) => {
     setToastMessage(message);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  // Znacznik przy etykiecie pola. Rozróżnia dane PEWNE od domysłu modelu —
+  // bez tego pole wypełnione przez AI wygląda identycznie jak zweryfikowane,
+  // a właśnie takie potrafi zawierać nieprawdę.
+  const FieldMark = ({ field }) => {
+    const src = provenance[field];
+    if (!src) return null;
+    const catalog = src === 'catalog';
+    return (
+      <span
+        title={catalog
+          ? 'Potwierdzone przez katalog figurek — dane pewne'
+          : 'Uzupełnione przez AI — sprawdź przed dodaniem do Gabloty'}
+        style={{
+          marginLeft: '6px',
+          fontSize: '0.78rem',
+          color: catalog ? '#2ed573' : '#ffa502',
+          cursor: 'help',
+        }}
+      >
+        {catalog ? '✅' : '⚠️'}
+      </span>
+    );
   };
 
   // Wyszukiwanie danych figurki. opts.deep = tryb TOP (więcej wariantów nazwy,
@@ -71,6 +97,7 @@ export default function AdminDashboard() {
       if (data) {
         setEditForm(prev => mergeLookupIntoForm(prev, data));
 
+        setProvenance(data._provenance || {});
         setLastLookup({
           sources: data._sources || null,
           bootleg: data._bootlegWarning || null,
@@ -794,43 +821,45 @@ export default function AdminDashboard() {
                           💾 Z naszej bazy (bez odpytywania źródeł). „⭐ TOP" wymusza świeże pobranie.
                         </div>
                       )}
-                      <div style={{ marginTop: '0.6rem', opacity: 0.6 }}>
-                        Dane z katalogów są pewne; braki uzupełnia AI — zweryfikuj je przed dodaniem do Gabloty.
+                      <div style={{ marginTop: '0.6rem', opacity: 0.7, display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                        <span><span style={{ color: '#2ed573' }}>✅</span> potwierdzone przez katalog</span>
+                        <span><span style={{ color: '#ffa502' }}>⚠️</span> domysł AI — sprawdź</span>
+                        <span><span style={{ color: '#ff4757' }}>🔒</span> brak danych</span>
                       </div>
                     </div>
                   )}
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                     <div className="form-group">
-                      <label>Nazwa postaci</label>
+                      <label>Nazwa postaci <FieldMark field="name" /></label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <input className="form-input" type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} style={{ width: '100%', borderColor: !editForm.name ? '#ff4757' : undefined }} />
                         {!editForm.name && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                       </div>
                     </div>
                     <div className="form-group">
-                      <label>Nazwa Japońska</label>
+                      <label>Nazwa Japońska <FieldMark field="japanese_name" /></label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <input className="form-input" type="text" value={editForm.japanese_name} onChange={e => setEditForm({...editForm, japanese_name: e.target.value})} style={{ width: '100%', borderColor: !editForm.japanese_name ? '#ff4757' : undefined }} />
                         {!editForm.japanese_name && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                       </div>
                     </div>
                     <div className="form-group">
-                      <label>Seria</label>
+                      <label>Seria <FieldMark field="series" /></label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <input className="form-input" type="text" value={editForm.series} onChange={e => setEditForm({...editForm, series: e.target.value})} style={{ width: '100%', borderColor: !editForm.series ? '#ff4757' : undefined }} />
                         {!editForm.series && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                       </div>
                     </div>
                     <div className="form-group">
-                      <label>Producent</label>
+                      <label>Producent <FieldMark field="manufacturer" /></label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <input className="form-input" type="text" value={editForm.manufacturer} onChange={e => setEditForm({...editForm, manufacturer: e.target.value})} style={{ width: '100%', borderColor: !editForm.manufacturer ? '#ff4757' : undefined }} />
                         {!editForm.manufacturer && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                       </div>
                     </div>
                     <div className="form-group">
-                      <label>Skala</label>
+                      <label>Skala <FieldMark field="scale" /></label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <input className="form-input" type="text" value={editForm.scale} onChange={e => setEditForm({...editForm, scale: e.target.value})} style={{ width: '100%', borderColor: !editForm.scale ? '#ff4757' : undefined }} />
                         {!editForm.scale && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
@@ -854,7 +883,7 @@ export default function AdminDashboard() {
                     </div>
                     
                     <div className="form-group">
-                      <label>Cena pierwotna</label>
+                      <label>Cena pierwotna <FieldMark field="original_price" /></label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <input className="form-input" type="text" placeholder="np. 15 000 JPY" value={editForm.original_price} onChange={e => setEditForm({...editForm, original_price: e.target.value})} style={{ width: '100%', borderColor: !editForm.original_price ? '#ff4757' : undefined }} />
                         {!editForm.original_price && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
@@ -906,7 +935,7 @@ export default function AdminDashboard() {
                   </label>
 
                   <div className="form-group" style={{ marginBottom: '1rem' }}>
-                    <label>URL Obrazka (np. miku_figure, albo pełny link http...)</label>
+                    <label>URL Obrazka (np. miku_figure, albo pełny link http...) <FieldMark field="official_image_url" /></label>
                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                       <input className="form-input" type="text" value={editForm.official_image_url} onChange={e => setEditForm({...editForm, official_image_url: e.target.value})} style={{ width: '100%', borderColor: !editForm.official_image_url ? '#ff4757' : undefined }} />
                       {!editForm.official_image_url && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
@@ -939,19 +968,19 @@ export default function AdminDashboard() {
                   <h5 style={{ margin: '1.5rem 0 0.5rem 0', opacity: 0.8 }}>Encyklopedia</h5>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
                     <div className="form-group">
-                      <label>Dodatkowe informacje (Linijka po linijce)</label>
+                      <label>Dodatkowe informacje (Linijka po linijce) <FieldMark field="additional_info" /></label>
                       <textarea className="form-input" rows="3" value={editForm.additional_info ? editForm.additional_info.join('\n') : ''} onChange={e => setEditForm({...editForm, additional_info: e.target.value ? e.target.value.split('\n') : null})} style={{ width: '100%' }}></textarea>
                     </div>
                     <div className="form-group">
-                      <label>Gdzie szukać (Linijka po linijce)</label>
+                      <label>Gdzie szukać (Linijka po linijce) <FieldMark field="where_to_search" /></label>
                       <textarea className="form-input" rows="3" value={editForm.where_to_search ? editForm.where_to_search.join('\n') : ''} onChange={e => setEditForm({...editForm, where_to_search: e.target.value ? e.target.value.split('\n') : null})} style={{ width: '100%' }}></textarea>
                     </div>
                     <div className="form-group">
-                      <label>Strategia zakupowa (Linijka po linijce)</label>
+                      <label>Strategia zakupowa (Linijka po linijce) <FieldMark field="strategy" /></label>
                       <textarea className="form-input" rows="3" value={editForm.strategy ? editForm.strategy.join('\n') : ''} onChange={e => setEditForm({...editForm, strategy: e.target.value ? e.target.value.split('\n') : null})} style={{ width: '100%' }}></textarea>
                     </div>
                     <div className="form-group">
-                      <label>Wartość Rynkowa (Średnia)</label>
+                      <label>Wartość Rynkowa (Średnia) <FieldMark field="market_value" /></label>
                       <textarea className="form-input" rows="3" value={editForm.market_value?.average || ''} onChange={e => setEditForm({...editForm, market_value: { average: e.target.value }})} style={{ width: '100%' }}></textarea>
                     </div>
                   </div>
