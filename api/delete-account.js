@@ -14,8 +14,10 @@ import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 // w Gablocie i skasowało pracę moderatora. RODO wymaga usunięcia POWIĄZANIA
 // z osobą — i to robimy: po przejęciu w bazie nie zostaje ślad, kto zgłosił.
 //
-// Dlaczego moderator, a nie puste pole: figurka bez właściciela to sierota,
-// której nikt nie ma prawa poprawić (reguły RLS pytają o zgłaszającego).
+// Dlaczego moderator, a nie puste pole: panel pokazuje przy każdym zgłoszeniu
+// „ID Zgłaszającego", a puste pole to dziura w rodowodzie figurki — nie wiadomo,
+// czy nikt jej nie dodał, czy dane zginęły. (Uprawnień to NIE dotyczy: zmieniać
+// i kasować figurki może każdy moderator, niezależnie od tego, kto je zgłosił.)
 // Puste pole zostaje wyłącznie awaryjnie — gdyby w bazie nie było moderatora.
 //
 // Użytkownik jest o tym uprzedzony w oknie potwierdzenia (ProfilePage.jsx) —
