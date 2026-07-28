@@ -246,7 +246,8 @@ export default function ProfilePage() {
         <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', opacity: 0.85, lineHeight: 1.6 }}>
           Usuwamy konto, adres e-mail i profil — <strong>trwale i bez możliwości cofnięcia</strong>.
           Dodane przez Ciebie figurki zostają w bazie jako dane katalogowe (opis produktu, nie dane
-          o Tobie), ale tracą powiązanie z Twoim kontem — nikt nie odczyta już, kto je zgłosił.
+          o Tobie) i <strong>przechodzą pod opiekę administratora</strong> — to on od tej pory
+          widnieje jako zgłaszający. Ślad po Twoim koncie znika z nich bezpowrotnie.
         </p>
 
         {!kasowanieOtwarte ? (

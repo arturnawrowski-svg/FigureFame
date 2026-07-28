@@ -8,12 +8,18 @@ import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 // ten może wszystko w całej bazie. Dlatego przeglądarka przysyła tu tylko
 // swój token sesji, a serwer sprawdza, CZYJE to konto, i kasuje wyłącznie je.
 //
-// CO SIĘ DZIEJE Z FIGURKAMI: zostają w bazie, ale tracą powiązanie z osobą
-// (`submitted_by` → NULL). Dane figurki to fakty o produkcie, nie dane
-// osobowe — kasowanie ich razem z kontem wycięłoby dziury w Gablocie i
-// skasowało pracę moderatora. RODO wymaga usunięcia POWIĄZANIA z osobą,
-// i dokładnie to robimy. Użytkownik jest o tym uprzedzony w oknie
-// potwierdzenia (patrz ProfilePage.jsx) — nie może to być niespodzianka.
+// CO SIĘ DZIEJE Z FIGURKAMI: zostają w bazie i PRZECHODZĄ NA KONTO MODERATORA
+// — od tej pory to on widnieje jako zgłaszający. Dane figurki to fakty
+// o produkcie, nie dane osobowe; kasowanie ich razem z kontem wycięłoby dziury
+// w Gablocie i skasowało pracę moderatora. RODO wymaga usunięcia POWIĄZANIA
+// z osobą — i to robimy: po przejęciu w bazie nie zostaje ślad, kto zgłosił.
+//
+// Dlaczego moderator, a nie puste pole: figurka bez właściciela to sierota,
+// której nikt nie ma prawa poprawić (reguły RLS pytają o zgłaszającego).
+// Puste pole zostaje wyłącznie awaryjnie — gdyby w bazie nie było moderatora.
+//
+// Użytkownik jest o tym uprzedzony w oknie potwierdzenia (ProfilePage.jsx) —
+// nie może to być niespodzianka.
 // ============================================================================
 
 // Hasło potwierdzenia wpisywane ręcznie w oknie. Sprawdzamy je także tutaj:
@@ -74,26 +80,37 @@ export default async function handler(req, res) {
       });
     }
 
-    // 1. Odpięcie figurek od osoby. Musi iść PRZED kasowaniem konta: dopóki
-    //    wiersze wskazują na użytkownika, baza nie pozwoli go usunąć.
-    const { data: odpiete, error: bladFigurek } = await supabase
+    // 1. Kto przejmuje figurki. Najstarszy moderator — konto założyciela,
+    //    a nie przypadkowy admin dodany później.
+    const { data: moderatorzy } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("is_admin", true)
+      .order("created_at", { ascending: true })
+      .limit(1);
+    const przejmujacy = moderatorzy?.[0]?.id || null;
+
+    // 2. Przepisanie figurek. Musi iść PRZED kasowaniem konta: dopóki wiersze
+    //    wskazują na użytkownika, baza nie pozwoli go usunąć.
+    const { data: przepisane, error: bladFigurek } = await supabase
       .from("figures")
-      .update({ submitted_by: null })
+      .update({ submitted_by: przejmujacy })
       .eq("submitted_by", user.id)
       .select("id");
     if (bladFigurek) throw bladFigurek;
 
-    // 2. Konto w Auth. Profil i kolekcje znikają razem z nim (ON DELETE CASCADE).
+    // 3. Konto w Auth. Profil i kolekcje znikają razem z nim (ON DELETE CASCADE).
     const { error: bladKasowania } = await supabase.auth.admin.deleteUser(user.id);
     if (bladKasowania) throw bladKasowania;
 
-    // 3. Gdyby kaskada nie zadziałała (starsze bazy potrafią mieć profil bez
+    // 4. Gdyby kaskada nie zadziałała (starsze bazy potrafią mieć profil bez
     //    powiązania z auth.users), profil musi zniknąć tak czy inaczej.
     await supabase.from("profiles").delete().eq("id", user.id);
 
     return res.status(200).json({
       ok: true,
-      odpieteFigurki: odpiete?.length || 0,
+      przepisaneFigurki: przepisane?.length || 0,
+      przejetePrzezModeratora: !!przejmujacy,
     });
   } catch (err) {
     console.error("delete-account error:", err);

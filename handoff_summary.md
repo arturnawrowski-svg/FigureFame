@@ -51,15 +51,18 @@ umie usunąć konto — a ten nigdy nie może trafić do przeglądarki. Przeglą
 wysyła wyłącznie swój token sesji; **tożsamość serwer bierze z tokenu, nigdy
 z treści żądania** — inaczej dałoby się skasować cudze konto, podając jego numer.
 
-**Figurki zostają, znika powiązanie z osobą** (`submitted_by` → NULL). Dane figurki
-to fakty o produkcie, nie dane osobowe; kasowanie ich razem z kontem wycięłoby
-dziury w Gablocie i skasowało pracę moderatora. RODO wymaga usunięcia powiązania —
-i to robimy. Użytkownik czyta o tym w oknie potwierdzenia, zanim kliknie.
+**Figurki zostają i przechodzą na konto moderatora** — od tej pory to on widnieje
+jako zgłaszający. Dane figurki to fakty o produkcie, nie dane osobowe; kasowanie
+ich razem z kontem wycięłoby dziury w Gablocie i skasowało pracę moderatora.
+RODO wymaga usunięcia powiązania z osobą — i to robimy. Przejmuje **najstarszy
+moderator** (konto założyciela, nie przypadkowy admin dodany później); puste pole
+zostaje wyłącznie awaryjnie, gdyby moderatora w bazie nie było. Użytkownik czyta
+o tym w oknie potwierdzenia, zanim kliknie.
 
 **Konto moderatora jest zablokowane przed skasowaniem** (403). Bez tego da się
 zostać bez żadnego admina i stracić panel na własnej stronie.
 
-Sprawdzone od początku do końca na jednorazowym koncie w żywej bazie:
+Sprawdzone od początku do końca na jednorazowych kontach w żywej bazie:
 
 ```
 bez tokenu                 401
@@ -67,11 +70,16 @@ złe potwierdzenie          400
 podrobiony token           401
 GET zamiast POST           405
 konto moderatora           403
-właściwe usunięcie         200   { odpieteFigurki: 1 }
+właściwe usunięcie         200   { przepisaneFigurki: 1, przejetePrzezModeratora: true }
 konto w Auth po usunięciu  404   (nie ma)
 profil                     pusto (kaskada zadziałała)
-figurka                    została, submitted_by = null
+figurka                    została, submitted_by = konto „FigureFame.com admin"
 ```
+
+Druga droga — skasowanie użytkownika **ręcznie w panelu Supabase**, z pominięciem
+strony — też przechodzi (klucz obcy nie blokuje), ale tam figurka zostaje bez
+właściciela: `submitted_by = null`. Jeśli zależy Ci na przejęciu, kasuj kontem
+użytkownika przez stronę, nie ręcznie.
 
 ## 1. Stack i wdrożenie
 
@@ -274,11 +282,10 @@ z paskiem Vercela. Po wdrożeniu warto zerknąć jeszcze raz.
 
 - **Facebook** — działa, brak przycisku. Dodać czy wyłączyć?
 - **4 duplikaty figurek** w Archiwum.
-- **Profil użytkownika** — formularz pyta o kraj, bio, telefon i awatar, ale w bazie
-  tych kolumn **nie ma** (sprawdzone 29.07: `profiles` to `id, is_admin, username,
-  created_at`). Zapis kończy się dziś błędem „Could not find the 'avatar_url' column".
-  Naprawia to [migracje-usuwanie-konta.sql](migracje-usuwanie-konta.sql) — do uruchomienia.
-  Zostaje do decyzji: awatar (webp) i język. Zmiana hasła tylko dla kont z rejestracji
+- **Profil użytkownika** — kraj, bio, telefon i awatar mają już swoje kolumny
+  (do 29.07 formularz pytał o pola, których w bazie nie było, i „Zapisz zmiany"
+  kończyło się błędem `Could not find the 'avatar_url' column`). Zostaje do decyzji:
+  wgrywanie awatara (webp) i język. Zmiana hasła tylko dla kont z rejestracji
   hasłem — kto wszedł Discordem, hasła nie ma.
 - **Tłumaczenia** — szkielet i18n istnieje ([i18n.js](src/lib/i18n.js), `t()`, `cycleLocale`).
   Rekomendacja: **najpierw głębia po polsku** (300–500 figurek), potem niemiecki,
@@ -295,25 +302,17 @@ z paskiem Vercela. Po wdrożeniu warto zerknąć jeszcze raz.
 
 ## 12. Migracje do uruchomienia w SQL Editor
 
-Supabase → SQL Editor → New query → wklej całość → Run. Obie czekające są krótkie
-i bezpieczne do wielokrotnego uruchomienia; kolejność nie ma znaczenia.
+**Nic nie czeka — wszystkie uruchomione.** Stan sprawdzony na żywej bazie 29.07.
 
 | plik | stan |
 |---|---|
 | [migracje-rls-zamkniecie-bazy.sql](migracje-rls-zamkniecie-bazy.sql) | ✅ uruchomiona i zweryfikowana 28.07 |
-| [migracje-prawa-do-zdjec.sql](migracje-prawa-do-zdjec.sql) | ⏳ **czeka** — kolumna `image_credit` (sprawdzone 29.07: nadal jej nie ma) |
-| [migracje-usuwanie-konta.sql](migracje-usuwanie-konta.sql) | ⏳ **czeka** — brakujące pola profilu + `submitted_by ON DELETE SET NULL` |
+| [migracje-prawa-do-zdjec.sql](migracje-prawa-do-zdjec.sql) | ✅ 29.07 — kolumna `image_credit` jest |
+| [migracje-usuwanie-konta.sql](migracje-usuwanie-konta.sql) | ✅ 29.07 — pola profilu są, klucz obcy nie blokuje kasowania konta |
 
-Podpisy praw działają już bez pierwszej z nich (biorą producenta), ale bez
-kolumny nie da się ich nadpisać tam, gdzie producent nie jest autorem zdjęcia.
-Kod schodzi na wersję bez kolumny — **sprawdzone na żywej bazie**, bo bez tego
-zabezpieczenia brakująca kolumna wywaliłaby cały odczyt i Gablota byłaby pusta.
-
-Usuwanie konta działa **już dziś, bez drugiej migracji** — endpoint sam odpina
-figurki, zanim skasuje konto (zweryfikowane na żywej bazie). Migracja jest
-zabezpieczeniem na drugą drogę: kasowanie użytkownika **ręcznie w panelu
-Supabase** bez niej potrafi się odbić o klucz obcy. Przy okazji dokłada pola
-profilu, bez których „Zapisz zmiany" w profilu kończy się błędem.
+Kod schodzi na wersję bez kolumny `image_credit` (podpisuje producentem) —
+zabezpieczenie zostaje, bo bez niego brakująca kolumna wywaliłaby cały odczyt
+i Gablota byłaby pusta.
 
 ---
 *Po przeczytaniu tego pliku masz komplet kontekstu do dalszej pracy z Arturem.*

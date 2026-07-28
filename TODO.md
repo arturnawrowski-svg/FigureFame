@@ -38,8 +38,9 @@ opis aplikacji: [DOKUMENTACJA.md](DOKUMENTACJA.md), lista sklepów: [affiliation
 - [x] GitHub + automatyczne wdrożenia na Vercel.
 - [x] RLS, strażnik `/admin`, klucze wyłącznie po stronie serwera.
 - [x] **Usuwanie konta (RODO)** — profil → strefa nieodwracalna, potwierdzenie przez
-      przepisanie hasła. Figurki zostają, znika powiązanie z osobą. Konto moderatora
-      zablokowane przed skasowaniem. Sprawdzone na jednorazowym koncie w żywej bazie.
+      przepisanie hasła. Figurki zostają i przechodzą na konto moderatora. Konto
+      moderatora zablokowane przed skasowaniem. Sprawdzone na jednorazowych kontach
+      w żywej bazie.
 - [x] Migracje w repo (wcześniej reguła `*.sql` trzymała schemat poza kontrolą wersji).
 
 ---

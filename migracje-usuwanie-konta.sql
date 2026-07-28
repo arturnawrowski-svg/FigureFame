@@ -12,6 +12,10 @@
 --      wskazuje na użytkownika bez reguły „co zrobić przy usunięciu",
 --      baza odmawia skasowania konta (naruszenie klucza obcego).
 --      Ustawiamy ON DELETE SET NULL: figurka zostaje, znika powiązanie z osobą.
+--
+--      To siatka bezpieczeństwa dla kasowania RĘCZNEGO, w panelu Supabase.
+--      Normalną drogą (Profil → „Usuń konto") figurki nie zostają bez
+--      właściciela: api/delete-account.js przepisuje je na konto moderatora.
 -- ============================================================================
 
 -- --- 1. Brakujące pola profilu ---------------------------------------------
@@ -53,7 +57,7 @@ alter table public.figures
   foreign key (submitted_by) references auth.users(id) on delete set null;
 
 comment on column public.figures.submitted_by is
-  'Kto zgłosił figurkę. NULL = konto usunięte (RODO) — dane figurki zostają.';
+  'Kto zgłosił figurkę. Po usunięciu konta (RODO) figurkę przejmuje moderator; NULL wyłącznie awaryjnie.';
 
 -- ============================================================================
 -- SPRAWDZENIE (opcjonalnie, po uruchomieniu):
