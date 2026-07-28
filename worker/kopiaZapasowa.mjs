@@ -1,8 +1,8 @@
 // ============================================================================
 // Kopia zapasowa — archiwum ZIP na dysku twardym.
 //
-//   npm run kopia            → zrób kopię do kopie/
-//   npm run kopia -- --dysk  → dodatkowo wyślij ją na Dysk Google
+//   npm run kopia                 → kopia do kopie/ ORAZ na Dysk Google
+//   npm run kopia -- --bez-dysku  → tylko lokalnie (np. gdy nie ma sieci)
 //
 // Po co, skoro dane są w Supabase:
 // darmowe projekty bywają usypiane po bezczynności, konto można stracić,
@@ -28,7 +28,10 @@ import { driveConfigured, getAccessToken, ensureFolder, uploadFile } from "./lib
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, "..", ".env.local") });
 
-const NA_DYSK = process.argv.includes("--dysk");
+// Wysyłka na Dysk jest DOMYŚLNA. Kopia leżąca wyłącznie na tym samym dysku,
+// co projekt, nie chroni przed niczym poza pomyłkowym skasowaniem rekordu —
+// awaria dysku zabrałaby ją razem z oryginałem.
+const NA_DYSK = !process.argv.includes("--bez-dysku");
 const KATALOG = join(__dirname, "..", "kopie");
 const KUBELEK = "figure-images";
 
@@ -104,16 +107,26 @@ async function main() {
   console.log(`  ${pliki.length} plików · ${(archiwum.length / 1024 / 1024).toFixed(2)} MB (przed spakowaniem ${(przed / 1024 / 1024).toFixed(2)} MB)`);
 
   if (!NA_DYSK) {
-    console.log(`\nDopisz --dysk, żeby wysłać kopię także na Dysk Google.`);
+    console.log(`\nPominięto Dysk (--bez-dysku). Kopia leży wyłącznie lokalnie.`);
     return;
   }
   if (!driveConfigured()) {
-    throw new Error("Brak poświadczeń Dysku Google w .env.local — uruchom `npm run gdrive-auth`.");
+    console.log(`\nUWAGA: brak poświadczeń Dysku Google — kopia została TYLKO lokalnie.`);
+    console.log(`Uruchom \`npm run gdrive-auth\`, żeby wysyłka działała.`);
+    return;
   }
-  const token = await getAccessToken();
-  const folder = await ensureFolder(token, "FigureFame Kopie");
-  const { link } = await uploadFile(token, folder, nazwa, archiwum, "application/zip");
-  console.log(`\nWysłane na Dysk:\n  ${link}`);
+
+  // Nieudana wysyłka nie może przekreślić kopii, która już leży na dysku.
+  try {
+    const token = await getAccessToken();
+    const folder = await ensureFolder(token, "FigureFame Kopie");
+    const { link } = await uploadFile(token, folder, nazwa, archiwum, "application/zip");
+    console.log(`\nWysłane na Dysk:\n  ${link}`);
+  } catch (err) {
+    console.log(`\nUWAGA: wysyłka na Dysk nie powiodła się (${err.message}).`);
+    console.log(`Kopia lokalna jest nienaruszona: ${sciezka}`);
+    process.exitCode = 1;
+  }
 }
 
 main().catch((err) => {
