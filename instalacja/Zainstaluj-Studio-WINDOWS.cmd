@@ -23,6 +23,23 @@ pause
 set "PROJEKT=%CD%"
 set "START_MENU=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
 
+rem Sprawdzenie ZANIM cokolwiek zarejestrujemy. Wczesniej instalator zapisywal
+rem sciezke bez sprawdzania, czy plik pod nia istnieje — skrot i przycisk
+rem "Uruchom Studio" powstawaly poprawnie, tylko wskazywaly w prozne miejsce.
+rem Klikniecie nie robilo NIC i nie dawalo zadnego komunikatu, wiec wygladalo
+rem to jak zepsute Studio, a nie jak zla sciezka.
+if not exist "%PROJEKT%\FigureFame-Studio.cmd" (
+  echo.
+  echo   [BLAD] Nie znaleziono pliku:
+  echo          %PROJEKT%\FigureFame-Studio.cmd
+  echo.
+  echo   Instalator musi lezec w podfolderze "instalacja" wewnatrz projektu.
+  echo   Przenies go tam i uruchom ponownie — nic nie zostalo zmienione.
+  echo.
+  pause
+  exit /b 1
+)
+
 echo.
 echo   [1/2] Ustawiam automatyczne uruchamianie...
 

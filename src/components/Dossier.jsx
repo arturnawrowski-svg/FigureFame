@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Tag, Building2, Ruler, HelpCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { getImageUrl } from '../lib/getImageUrl';
+import { prawaDoZdjecia } from '../lib/prawaDoZdjecia';
 import { looksLikeShortCode } from '../lib/figureIdentity';
 import AuctionDeals from './AuctionDeals';
 import OfficialShops from './OfficialShops';
@@ -99,7 +100,14 @@ export default function Dossier() {
             alt={figure.name}
             className="dossier-main-img"
           />
-          
+          {/* Podpis praw — pod zdjęciem, nie na nim: w dossier zdjęcie jest
+              duże i oglądane uważnie, więc napis na nim tylko by przeszkadzał. */}
+          {prawaDoZdjecia(figure) && (
+            <p style={{ margin: '0.6rem 0 0', fontSize: '0.75rem', opacity: 0.55, textAlign: 'center' }}>
+              {prawaDoZdjecia(figure)}
+            </p>
+          )}
+
           <div style={{ marginTop: '3rem', width: '100%' }}>
             <AuctionDeals figure={figure} />
           </div>

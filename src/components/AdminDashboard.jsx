@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { Check, Trash2, Clock, AlertCircle, Edit3, X, Lock, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getImageUrl } from '../lib/getImageUrl';
+import { prawaDoZdjecia } from '../lib/prawaDoZdjecia';
 import ImageUploader from './ImageUploader';
 import ImageStudio from './ImageStudio';
 import { PRESETS, ACCENTS, MUSIC_TRACKS, RESOLUTIONS, LANGS, defaultShortOptions, QUEUE_MAX, BUFFER_WARN } from '../lib/shortOptions';
@@ -260,6 +261,7 @@ export default function AdminDashboard() {
       scale: fig.scale || '1/7',
       type: fig.type || 'Prepainted',
       official_image_url: fig.official_image_url || '',
+      image_credit: fig.image_credit || '',
       image_source_type: fig.image_source_type || '',
       image_rights_ack: fig.image_rights_ack || false,
       source_url: fig.source_url || '',
@@ -1045,6 +1047,25 @@ export default function AdminDashboard() {
                       <label>Źródłowy URL (skąd zdjęcie)</label>
                       <input className="form-input" type="text" placeholder="https://..." value={editForm.source_url || ''} onChange={e => setEditForm({...editForm, source_url: e.target.value})} style={{ width: '100%' }} />
                     </div>
+                  </div>
+
+                  {/* Podpis widoczny publicznie pod każdym zdjęciem. Pole jest
+                      opcjonalne, ale automat MUSI być jawny — inaczej moderator
+                      nie wie, że zostawiając puste, podpisuje zdjęcie producentem. */}
+                  <div className="form-group" style={{ marginBottom: '1rem' }}>
+                    <label>Właściciel praw do zdjęcia (podpis w Gablocie)</label>
+                    <input
+                      className="form-input"
+                      type="text"
+                      placeholder={editForm.manufacturer ? `puste = ${editForm.manufacturer}` : 'puste = producent figurki'}
+                      value={editForm.image_credit || ''}
+                      onChange={e => setEditForm({ ...editForm, image_credit: e.target.value })}
+                      style={{ width: '100%' }}
+                    />
+                    <small style={{ opacity: 0.7, fontSize: '0.78rem' }}>
+                      Zostaw puste, a podpiszemy producentem figurki. Pod zdjęciem pojawi się:{' '}
+                      <strong>{prawaDoZdjecia(editForm) || '— (brak, uzupełnij producenta)'}</strong>
+                    </small>
                   </div>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', cursor: 'pointer', fontSize: '0.9rem', color: !editForm.image_rights_ack ? '#ff4757' : 'inherit' }}>
                     <input type="checkbox" checked={!!editForm.image_rights_ack} onChange={e => setEditForm({...editForm, image_rights_ack: e.target.checked})} />

@@ -4,6 +4,7 @@ import { Search, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { getImageUrl } from '../lib/getImageUrl';
 import { generateGlowColor } from '../lib/glowColor';
+import { prawaDoZdjecia } from '../lib/prawaDoZdjecia';
 
 // Stały adres figurki — ten sam, który trafia pod filmy na TikToka i YouTube'a.
 // Czytelny, gdy już nadany; inaczej krótki kod, a w ostateczności identyfikator
@@ -73,11 +74,21 @@ export default function Showcase() {
         // pokazuje, a dossier i tak dociąga swoje dane osobno. Przy kilku
         // figurkach to niewidoczne; przy pięciuset to megabajty tekstu na każde
         // wejście na stronę główną — i to z darmowego limitu transferu.
-        const { data, error } = await supabase
+        const KOLUMNY = 'id, slug, short_code, name, japanese_name, series, japanese_series, manufacturer, original_price, official_image_url, light_class';
+        const pobierz = (kolumny) => supabase
           .from('figures')
-          .select('id, slug, short_code, name, japanese_name, series, japanese_series, manufacturer, original_price, official_image_url, light_class')
+          .select(kolumny)
           .eq('status', 'APPROVED')
           .order('created_at', { ascending: true });
+
+        // `image_credit` dochodzi migracją (migracje-prawa-do-zdjec.sql), a
+        // wdrożenie potrafi ją wyprzedzić. Przy braku kolumny cały SELECT
+        // zwróciłby błąd i Gablota byłaby PUSTA — więc schodzimy na wersję bez
+        // niej. Podpis i tak się pojawi, bo domyślnie bierze producenta.
+        let { data, error } = await pobierz(`${KOLUMNY}, image_credit`);
+        if (error && /does not exist|column/i.test(error.message || '')) {
+          ({ data, error } = await pobierz(KOLUMNY));
+        }
 
         if (error) throw error;
 
@@ -187,6 +198,11 @@ export default function Showcase() {
                       height="500"
                       style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
                     />
+                    {/* Podpis praw wprost na zdjęciu — musi jechać razem z nim,
+                        także gdy ktoś zrobi zrzut ekranu karty. */}
+                    {prawaDoZdjecia(fig) && (
+                      <span className="podpis-praw">{prawaDoZdjecia(fig)}</span>
+                    )}
                   </div>
                   <div className="hover-panel">
                     <div className="market-value">

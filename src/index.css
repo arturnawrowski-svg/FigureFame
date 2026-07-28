@@ -92,6 +92,31 @@ header p {
   -webkit-text-fill-color: transparent;
 }
 
+/* ---- Podpis praw do zdjęcia ----
+   Czytelny, ale nie krzyczy: ma być widoczny dla kogoś, kto szuka informacji
+   o źródle, i niezauważalny dla kogoś, kto ogląda figurki. Stoi na zdjęciu,
+   nie pod nim — dzięki temu jedzie razem z nim także na zrzucie ekranu. */
+.podpis-praw {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 2;
+  max-width: calc(100% - 16px);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.82);
+  /* Własne ciemne tło zamiast przezroczystości: zdjęcia figurek bywają jasne,
+     a wtedy biały napis znika. */
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ---- Dymek jak z komiksu (potwierdzenie adresu) ----
    Świadomie JEDEN wygląd w obu motywach: dymek w komiksie jest z papieru,
    więc zostaje jasny także na ciemnej stronie. Siedzi na przyciemnionym tle,
