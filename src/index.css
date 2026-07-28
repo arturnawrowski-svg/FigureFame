@@ -92,6 +92,38 @@ header p {
   -webkit-text-fill-color: transparent;
 }
 
+/* ---- Wejście nagłówka ----
+   Wcześniej robiła to biblioteka animacji (framer-motion) — 5,5 MB zależności
+   wciąganej do paczki startowej po to, żeby dwa bloki tekstu wjechały z góry
+   i z dołu. Te same dwa ruchy w CSS nie kosztują ani bajta JavaScriptu i
+   startują wcześniej, bo nie czekają aż React się uruchomi. */
+@keyframes hero-z-gory {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes hero-z-dolu {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.hero-wejscie-z-gory {
+  animation: hero-z-gory 0.8s cubic-bezier(0, 0, 0.58, 1) both;
+}
+
+.hero-wejscie-z-dolu {
+  animation: hero-z-dolu 0.8s cubic-bezier(0, 0, 0.58, 1) 0.2s both;
+}
+
+/* Systemowe „ogranicz animacje" — treść pojawia się od razu, bez ruchu.
+   Bez tego użytkownik z ustawioną taką preferencją i tak zobaczyłby jazdę. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-wejscie-z-gory,
+  .hero-wejscie-z-dolu {
+    animation: none;
+  }
+}
+
 /* ---- Znak + nazwa jako jedna całość ---- */
 .hero-lockup {
   display: flex;

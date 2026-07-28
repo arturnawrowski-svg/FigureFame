@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
 
 // ============================================================================
 // Nagłówek z siatką świecących cząstek.
@@ -218,12 +217,7 @@ const ParticleHero = ({
             wizytówkach i w opisach filmów. Na wąskim ekranie układają się
             jedno pod drugim (index.css), bo w rzędzie nazwa zrobiłaby się
             nieczytelnie mała. */}
-        <motion.div
-          className="hero-lockup"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-        >
+        <div className="hero-lockup hero-wejscie-z-gory">
           {/* Znak jest ozdobą przy nazwie, która i tak stoi obok — czytnik
               ekranu przeczytałby ją dwa razy, stąd aria-hidden.
               Tło zamiast <img>, bo są dwie wersje (jasna/ciemna): przeglądarka
@@ -244,13 +238,9 @@ const ParticleHero = ({
           >
             {title}
           </h1>
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-        >
+        <div className="hero-wejscie-z-dolu">
           <h2 style={{
             fontSize: '1.2rem',
             fontWeight: 600,
@@ -269,7 +259,7 @@ const ParticleHero = ({
           }}>
             {description}
           </p>
-        </motion.div>
+        </div>
       </div>
 
       {/* Poświata tła. Rozmiary i siła rozmycia schodzą na telefonie (index.css) —

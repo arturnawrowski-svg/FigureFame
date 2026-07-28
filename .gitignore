@@ -39,3 +39,6 @@ dist-ssr
 
 # ...ale statyczne assety publiczne muszą trafiać na deploy
 !public/robots.txt
+
+# Kopie zapasowe — lokalne archiwa, nie do repozytorium
+kopie/

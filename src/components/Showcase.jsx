@@ -66,14 +66,21 @@ export default function Showcase() {
   useEffect(() => {
     async function fetchFigures() {
       try {
+        // Pobieramy WYŁĄCZNIE to, co karta rysuje albo czego szuka wyszukiwarka.
+        // Wcześniej szło tu `select('*')`, czyli razem z całą encyklopedią
+        // (opis, gdzie szukać, strategia zakupowa, wartość rynkowa) — dla każdej
+        // figurki naraz, po czym wszystko to lądowało w koszu, bo karta tego nie
+        // pokazuje, a dossier i tak dociąga swoje dane osobno. Przy kilku
+        // figurkach to niewidoczne; przy pięciuset to megabajty tekstu na każde
+        // wejście na stronę główną — i to z darmowego limitu transferu.
         const { data, error } = await supabase
           .from('figures')
-          .select('*')
+          .select('id, slug, short_code, name, japanese_name, series, japanese_series, manufacturer, original_price, official_image_url, light_class')
           .eq('status', 'APPROVED')
           .order('created_at', { ascending: true });
 
         if (error) throw error;
-        
+
         if (data && data.length > 0) {
           const mappedData = data.map(fig => {
             return {
@@ -82,11 +89,7 @@ export default function Showcase() {
               japaneseSeries: fig.japanese_series,
               originalPrice: fig.original_price,
               image: getImageUrl(fig.official_image_url),
-              lightClass: fig.light_class,
-              additionalInfo: Array.isArray(fig.additional_info) ? fig.additional_info : (fig.additional_info ? String(fig.additional_info).split('\n') : []),
-              marketValue: typeof fig.market_value === 'string' ? { average: fig.market_value } : fig.market_value,
-              whereToSearch: Array.isArray(fig.where_to_search) ? fig.where_to_search : (fig.where_to_search ? String(fig.where_to_search).split('\n') : []),
-              strategy: Array.isArray(fig.strategy) ? fig.strategy : (fig.strategy ? String(fig.strategy).split('\n') : [])
+              lightClass: fig.light_class
             };
           });
           setFigures(mappedData);

@@ -18,7 +18,8 @@
     "lookup-worker": "node worker/lookupWorker.mjs",
     "lookup-worker:watch": "node worker/lookupWorker.mjs --watch",
     "adresy": "node worker/nadajAdresy.mjs",
-    "zdjecia": "node worker/naprawZdjecia.mjs"
+    "zdjecia": "node worker/naprawZdjecia.mjs",
+    "kopia": "node worker/kopiaZapasowa.mjs"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",

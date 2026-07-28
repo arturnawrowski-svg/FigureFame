@@ -33,8 +33,10 @@ export async function getAccessToken() {
 }
 
 // Znajdź folder utworzony przez apkę albo utwórz nowy; zwróć jego id.
-export async function ensureFolder(token) {
-  const q = `name='${FOLDER_NAME}' and mimeType='${FOLDER_MIME}' and trashed=false`;
+// Nazwa jest parametrem, bo poza filmami trzymamy na Dysku także kopie
+// zapasowe — i nie mogą lądować w tym samym worku co gotowe shorty.
+export async function ensureFolder(token, nazwa = FOLDER_NAME) {
+  const q = `name='${nazwa}' and mimeType='${FOLDER_MIME}' and trashed=false`;
   const s = await fetch(`${FILES_URL}?q=${encodeURIComponent(q)}&fields=files(id,name)`, {
     headers: { Authorization: "Bearer " + token },
   });
@@ -44,18 +46,23 @@ export async function ensureFolder(token) {
   const c = await fetch(FILES_URL, {
     method: "POST",
     headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-    body: JSON.stringify({ name: FOLDER_NAME, mimeType: FOLDER_MIME }),
+    body: JSON.stringify({ name: nazwa, mimeType: FOLDER_MIME }),
   });
   const cj = await c.json();
   if (!cj.id) throw new Error("Drive: nie utworzono folderu: " + JSON.stringify(cj));
   return cj.id;
 }
 
-// Upload MP4 (multipart: metadane + dane) do folderu. Zwraca { id, link }.
+// Upload MP4 — zachowany, bo używa go worker publikacji.
 export async function uploadMp4(token, folderId, name, buffer) {
+  return uploadFile(token, folderId, name, buffer, "video/mp4");
+}
+
+// Upload dowolnego pliku (multipart: metadane + dane). Zwraca { id, link }.
+export async function uploadFile(token, folderId, name, buffer, mime = "application/octet-stream") {
   const meta = { name, parents: [folderId] };
   const boundary = "ff_" + Date.now();
-  const pre = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${boundary}\r\nContent-Type: video/mp4\r\n\r\n`;
+  const pre = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${boundary}\r\nContent-Type: ${mime}\r\n\r\n`;
   const post = `\r\n--${boundary}--`;
   const payload = Buffer.concat([Buffer.from(pre, "utf8"), buffer, Buffer.from(post, "utf8")]);
 
