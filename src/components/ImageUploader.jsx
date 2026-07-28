@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, memo } from 'react';
 import { Upload, ImagePlus, Loader2 } from 'lucide-react';
 
 // ============================================================================
@@ -44,7 +44,9 @@ function blobToBase64(blob) {
   });
 }
 
-export default function ImageUploader({ figureId, onUploaded, onError }) {
+// memo: panel moderatora przerysowuje się przy każdym naciśnięciu klawisza
+// w formularzu. Wgrywarka nie ma z tym nic wspólnego — niech się nie budzi.
+export default memo(function ImageUploader({ figureId, onUploaded, onError }) {
   const [busy, setBusy] = useState(false);
   const inputRef = useRef(null);
 
@@ -115,4 +117,4 @@ export default function ImageUploader({ figureId, onUploaded, onError }) {
       </div>
     </div>
   );
-}
+});

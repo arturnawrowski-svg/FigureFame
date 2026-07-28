@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Wand2, Sparkles, Check, Loader2, RotateCcw } from 'lucide-react';
 
 // ============================================================================
@@ -69,7 +69,9 @@ async function composeLights(sourceBlob, glowHex) {
   return await new Promise((res) => canvas.toBlob((b) => res(b), 'image/webp', 0.9));
 }
 
-export default function ImageStudio({ figureId, imageUrl, glowHex, onProcessed, onError }) {
+// memo: Studio wisi w formularzu, który przerysowuje się przy każdej literze.
+// Bez tego przy pisaniu odbudowywały się także jego przyciski i podgląd.
+export default memo(function ImageStudio({ figureId, imageUrl, glowHex, onProcessed, onError }) {
   const [busy, setBusy] = useState('');            // '' | 'bg' | 'lights' | 'save'
   const [preview, setPreview] = useState(null);    // dataURL podglądu
   const [workingBlob, setWorkingBlob] = useState(null);
@@ -172,4 +174,4 @@ export default function ImageStudio({ figureId, imageUrl, glowHex, onProcessed, 
       )}
     </div>
   );
-}
+});

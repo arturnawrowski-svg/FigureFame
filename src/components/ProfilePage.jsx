@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
-import { User, Mail, Globe, Hash, Save, LogOut } from 'lucide-react';
+import { User, Mail, Globe, Hash, Save, LogOut, Trash2, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+
+// Wpisywane ręcznie, żeby skasowanie konta nie było odległe o jedno kliknięcie.
+// Ta sama treść jest sprawdzana po stronie serwera (api/delete-account.js).
+const POTWIERDZENIE = 'USUWAM KONTO';
 
 export default function ProfilePage() {
   const { user, logout, loading: authLoading } = useAuth();
@@ -17,6 +21,12 @@ export default function ProfilePage() {
   const [figuresCount, setFiguresCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // Usuwanie konta: okno potwierdzenia rozwija się dopiero po kliknięciu,
+  // a przycisk ostateczny odblokowuje dopiero przepisane hasło.
+  const [kasowanieOtwarte, setKasowanieOtwarte] = useState(false);
+  const [wpisanePotwierdzenie, setWpisanePotwierdzenie] = useState('');
+  const [kasowanieTrwa, setKasowanieTrwa] = useState(false);
+  const [bladKasowania, setBladKasowania] = useState(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -93,6 +103,38 @@ export default function ProfilePage() {
       alert('Błąd podczas aktualizacji: ' + error.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Usunięcie konta (RODO). Nie wysyłamy tu żadnego identyfikatora: serwer
+  // czyta go z tokenu sesji i kasuje WYŁĄCZNIE konto, do którego ten token
+  // należy. Gdyby id szło w treści żądania, dałoby się skasować cudze konto.
+  const handleDeleteAccount = async () => {
+    setKasowanieTrwa(true);
+    setBladKasowania(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sesja wygasła — zaloguj się ponownie.');
+
+      const res = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ potwierdzenie: wpisanePotwierdzenie }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Nie udało się usunąć konta (kod ${res.status}).`);
+
+      alert('Konto zostało trwale usunięte.');
+      // Najpierw wyjście z profilu, potem wylogowanie — inaczej strażnik tej
+      // strony zdążyłby zobaczyć „brak użytkownika" i otworzyć okno logowania.
+      navigate('/', { replace: true });
+      try { await logout(); } catch { /* konta już nie ma, sesja i tak jest martwa */ }
+    } catch (e) {
+      setBladKasowania(e.message);
+      setKasowanieTrwa(false);
     }
   };
 
@@ -191,6 +233,74 @@ export default function ProfilePage() {
             </button>
           </form>
         </div>
+      </div>
+
+      {/* Strefa nieodwracalna — usunięcie konta.
+          Obowiązek z RODO (prawo do bycia zapomnianym): skoro można się
+          zarejestrować jednym kliknięciem, musi się dać także odejść.
+          Osobna ramka i czerwień, żeby nikt nie kliknął tego przez pomyłkę. */}
+      <div style={{ marginTop: '3rem', padding: '1.5rem', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.35)', background: 'rgba(239, 68, 68, 0.05)' }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 0.75rem 0', color: '#ef4444', fontSize: '1.1rem' }}>
+          <AlertTriangle size={20} /> Usunięcie konta
+        </h3>
+        <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', opacity: 0.85, lineHeight: 1.6 }}>
+          Usuwamy konto, adres e-mail i profil — <strong>trwale i bez możliwości cofnięcia</strong>.
+          Dodane przez Ciebie figurki zostają w bazie jako dane katalogowe (opis produktu, nie dane
+          o Tobie), ale tracą powiązanie z Twoim kontem — nikt nie odczyta już, kto je zgłosił.
+        </p>
+
+        {!kasowanieOtwarte ? (
+          <button
+            onClick={() => { setKasowanieOtwarte(true); setBladKasowania(null); }}
+            style={{ padding: '0.75rem 1.25rem', background: 'transparent', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold' }}
+          >
+            <Trash2 size={18} /> Chcę usunąć konto
+          </button>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <label style={{ fontSize: '0.9rem' }}>
+              Aby potwierdzić, przepisz: <strong style={{ color: '#ef4444', fontFamily: 'monospace' }}>{POTWIERDZENIE}</strong>
+            </label>
+            <input
+              type="text"
+              className="form-input"
+              value={wpisanePotwierdzenie}
+              onChange={e => setWpisanePotwierdzenie(e.target.value)}
+              placeholder={POTWIERDZENIE}
+              autoComplete="off"
+              style={{ fontFamily: 'monospace', letterSpacing: '1px' }}
+            />
+
+            {bladKasowania && (
+              <div style={{ fontSize: '0.85rem', color: '#ef4444', background: 'rgba(239, 68, 68, 0.1)', padding: '0.75rem', borderRadius: '8px' }}>
+                {bladKasowania}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={kasowanieTrwa || wpisanePotwierdzenie.trim().toUpperCase() !== POTWIERDZENIE}
+                style={{
+                  padding: '0.75rem 1.25rem', borderRadius: '8px', border: 'none', fontWeight: 'bold',
+                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                  background: '#ef4444', color: '#fff',
+                  cursor: wpisanePotwierdzenie.trim().toUpperCase() === POTWIERDZENIE && !kasowanieTrwa ? 'pointer' : 'not-allowed',
+                  opacity: wpisanePotwierdzenie.trim().toUpperCase() === POTWIERDZENIE && !kasowanieTrwa ? 1 : 0.45,
+                }}
+              >
+                <Trash2 size={18} /> {kasowanieTrwa ? 'Usuwam konto…' : 'Usuń konto na zawsze'}
+              </button>
+              <button
+                onClick={() => { setKasowanieOtwarte(false); setWpisanePotwierdzenie(''); setBladKasowania(null); }}
+                disabled={kasowanieTrwa}
+                style={{ padding: '0.75rem 1.25rem', background: 'transparent', color: 'inherit', border: '1px solid var(--color-glass-border)', borderRadius: '8px', cursor: 'pointer' }}
+              >
+                Rezygnuję
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -16,6 +16,7 @@ import sitemapHandler from './api/sitemap.js'
 import refreshPricesHandler from './api/refresh-prices.js'
 import generateShortHandler from './api/generate-short.js'
 import figureMetaHandler from './api/figure-meta.js'
+import deleteAccountHandler from './api/delete-account.js'
 
 // Pomocnik: składa body ze streamu POST i odpala handler (dev middleware).
 function postJsonMiddleware(handler) {
@@ -110,6 +111,9 @@ export default defineConfig({
 
         // Generowanie shorta (Etap 4)
         server.middlewares.use('/api/generate-short', postJsonMiddleware(generateShortHandler))
+
+        // Usunięcie konta na żądanie właściciela (RODO)
+        server.middlewares.use('/api/delete-account', postJsonMiddleware(deleteAccountHandler))
 
         // Wizytówka figurki dla robotów (podgląd linku pod filmem).
         // Na produkcji kieruje tu vercel.json po nagłówku User-Agent; w dev

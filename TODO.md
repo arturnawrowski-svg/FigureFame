@@ -1,6 +1,6 @@
 # FigureFame — Roadmap & TODO
 
-Stan na **27.07.2026**. Szczegóły architektury: [plan_claude_210720026.md](plan_claude_210720026.md),
+Stan na **29.07.2026**. Szczegóły architektury: [plan_claude_210720026.md](plan_claude_210720026.md),
 opis aplikacji: [DOKUMENTACJA.md](DOKUMENTACJA.md), lista sklepów: [affiliation.md](affiliation.md).
 
 > **Zasada naczelna: FREE-FIRST.** Darmowe narzędzia tak długo, jak się da.
@@ -37,6 +37,9 @@ opis aplikacji: [DOKUMENTACJA.md](DOKUMENTACJA.md), lista sklepów: [affiliation
 ### Infrastruktura
 - [x] GitHub + automatyczne wdrożenia na Vercel.
 - [x] RLS, strażnik `/admin`, klucze wyłącznie po stronie serwera.
+- [x] **Usuwanie konta (RODO)** — profil → strefa nieodwracalna, potwierdzenie przez
+      przepisanie hasła. Figurki zostają, znika powiązanie z osobą. Konto moderatora
+      zablokowane przed skasowaniem. Sprawdzone na jednorazowym koncie w żywej bazie.
 - [x] Migracje w repo (wcześniej reguła `*.sql` trzymała schemat poza kontrolą wersji).
 
 ---

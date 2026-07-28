@@ -1,4 +1,4 @@
-# FigureFame — stan projektu (28.07.2026)
+# FigureFame — stan projektu (29.07.2026)
 
 Pigułka dla nowego okna czatu. Szczegóły: [TODO.md](TODO.md),
 [DOKUMENTACJA.md](DOKUMENTACJA.md), [plan_claude_210720026.md](plan_claude_210720026.md).
@@ -40,6 +40,38 @@ wierszy" to sukces. Prawdziwy test idzie na istniejący wiersz z nagłówkiem
 `Prefer: return=representation` i liczy zwrócone wiersze.
 
 ---
+
+## 0a. Usuwanie konta — jest (29.07.2026)
+
+Ostatni warunek prawny premiery. **Profil → „Usunięcie konta"**: trzeba przepisać
+`USUWAM KONTO`, dopiero wtedy odblokowuje się przycisk.
+
+Kasuje [api/delete-account.js](api/delete-account.js), bo tylko klucz `service_role`
+umie usunąć konto — a ten nigdy nie może trafić do przeglądarki. Przeglądarka
+wysyła wyłącznie swój token sesji; **tożsamość serwer bierze z tokenu, nigdy
+z treści żądania** — inaczej dałoby się skasować cudze konto, podając jego numer.
+
+**Figurki zostają, znika powiązanie z osobą** (`submitted_by` → NULL). Dane figurki
+to fakty o produkcie, nie dane osobowe; kasowanie ich razem z kontem wycięłoby
+dziury w Gablocie i skasowało pracę moderatora. RODO wymaga usunięcia powiązania —
+i to robimy. Użytkownik czyta o tym w oknie potwierdzenia, zanim kliknie.
+
+**Konto moderatora jest zablokowane przed skasowaniem** (403). Bez tego da się
+zostać bez żadnego admina i stracić panel na własnej stronie.
+
+Sprawdzone od początku do końca na jednorazowym koncie w żywej bazie:
+
+```
+bez tokenu                 401
+złe potwierdzenie          400
+podrobiony token           401
+GET zamiast POST           405
+konto moderatora           403
+właściwe usunięcie         200   { odpieteFigurki: 1 }
+konto w Auth po usunięciu  404   (nie ma)
+profil                     pusto (kaskada zadziałała)
+figurka                    została, submitted_by = null
+```
 
 ## 1. Stack i wdrożenie
 
@@ -195,6 +227,26 @@ pierwszy bajt z Vercela   ~150 ms
   na hasło działa na każdym adresie**, w tym na ścieżce powrotu z logowania. Zniknie
   samo w dniu premiery.
 
+### Panel moderatora — co spowalniało pisanie (29.07.2026)
+
+Vercel Toolbar mierzył INP **1254 ms** (próg „słabo": 500 ms), z czego 929 ms
+szło na rysowanie. Winowajcą nie były dane, tylko **rozmycia przerysowywane przy
+każdym naciśnięciu klawisza**: podgląd karty ma poświatę `filter: blur(80px)` i dwa
+tła z `backdrop-filter`, a jego treść i kolor poświaty zmieniały się z każdą literą
+wpisywaną w pole „nazwa".
+
+Zmiany w [AdminDashboard.jsx](src/components/AdminDashboard.jsx):
+
+| co | dlaczego |
+|---|---|
+| podgląd karty wydzielony + `useDeferredValue` | rozmycie przerysowuje się, gdy przeglądarka ma wolne, a nie przy każdej literze |
+| `FieldMark` wyjęty poza komponent | komponent zdefiniowany w środku innego jest **nowym typem przy każdym renderze** — React rozbierał i budował te znaczniki od zera |
+| szukanie przez `useDeferredValue` + `useMemo` | lista przestała się przeliczać i przerysowywać przy każdym znaku w wyszukiwarce |
+| `memo` na Wgrywarce i Studiu zdjęcia + `useCallback` na ich funkcjach | bez stałych funkcji `memo` niczego nie daje — komponent widzi „nowe propsy" i rysuje się mimo to |
+
+**Nie zmierzone ponownie** — pomiar INP daje wyłącznie prawdziwa przeglądarka
+z paskiem Vercela. Po wdrożeniu warto zerknąć jeszcze raz.
+
 ## 9. Pułapki, które kosztowały czas
 
 - **Przy logowaniach ufaj `/auth/v1/authorize`, nie `/auth/v1/settings`.** Wykaz
@@ -222,13 +274,12 @@ pierwszy bajt z Vercela   ~150 ms
 
 - **Facebook** — działa, brak przycisku. Dodać czy wyłączyć?
 - **4 duplikaty figurek** w Archiwum.
-- **Profil użytkownika** — dziś tylko `id, is_admin, username`. Do dodania: awatar (webp),
-  język, bio, kraj, **usunięcie konta (obowiązek RODO, warunek premiery)**.
-  Zmiana hasła tylko dla kont z rejestracji hasłem — kto wszedł Discordem, hasła nie ma.
-- **Wydajność panelu moderatora** — Vercel Toolbar mierzy INP **1254 ms opóźnienia
-  reakcji** i 929 ms rysowania. Próg „słabo" to 500 ms. Podejrzenie:
-  przerysowywanie całej listy przy każdej zmianie stanu. Optymalizacje z 28.07
-  dotyczyły Gabloty, nie panelu. **Niezbadane.**
+- **Profil użytkownika** — formularz pyta o kraj, bio, telefon i awatar, ale w bazie
+  tych kolumn **nie ma** (sprawdzone 29.07: `profiles` to `id, is_admin, username,
+  created_at`). Zapis kończy się dziś błędem „Could not find the 'avatar_url' column".
+  Naprawia to [migracje-usuwanie-konta.sql](migracje-usuwanie-konta.sql) — do uruchomienia.
+  Zostaje do decyzji: awatar (webp) i język. Zmiana hasła tylko dla kont z rejestracji
+  hasłem — kto wszedł Discordem, hasła nie ma.
 - **Tłumaczenia** — szkielet i18n istnieje ([i18n.js](src/lib/i18n.js), `t()`, `cycleLocale`).
   Rekomendacja: **najpierw głębia po polsku** (300–500 figurek), potem niemiecki,
   francuski, angielski na końcu — tam konkurencja z MFC jest najostrzejsza.
@@ -238,21 +289,31 @@ pierwszy bajt z Vercela   ~150 ms
 
 1. Usunąć `SITE_GATE_*` z Vercela (zdjęcie zasłony)
 2. Przywrócić `robots.txt` z sekcji „DOCELOWO" i zdjąć `<meta name="robots">` z `index.html`
-3. **Usuwanie konta (RODO)** — jedyny warunek prawny, którego jeszcze nie ma
-4. Zasłona blokuje też roboty programów afiliacyjnych — przy zgłoszeniach potrzebny wyjątek
+3. Zasłona blokuje też roboty programów afiliacyjnych — przy zgłoszeniach potrzebny wyjątek
+4. ~~Usuwanie konta (RODO)~~ — zrobione 29.07, patrz sekcja 0a
 5. ~~Audyt RLS~~ — zrobiony 28.07, patrz sekcja 0
 
 ## 12. Migracje do uruchomienia w SQL Editor
 
+Supabase → SQL Editor → New query → wklej całość → Run. Obie czekające są krótkie
+i bezpieczne do wielokrotnego uruchomienia; kolejność nie ma znaczenia.
+
 | plik | stan |
 |---|---|
 | [migracje-rls-zamkniecie-bazy.sql](migracje-rls-zamkniecie-bazy.sql) | ✅ uruchomiona i zweryfikowana 28.07 |
-| [migracje-prawa-do-zdjec.sql](migracje-prawa-do-zdjec.sql) | ⏳ **czeka** — kolumna `image_credit` |
+| [migracje-prawa-do-zdjec.sql](migracje-prawa-do-zdjec.sql) | ⏳ **czeka** — kolumna `image_credit` (sprawdzone 29.07: nadal jej nie ma) |
+| [migracje-usuwanie-konta.sql](migracje-usuwanie-konta.sql) | ⏳ **czeka** — brakujące pola profilu + `submitted_by ON DELETE SET NULL` |
 
-Podpisy praw działają już bez tej drugiej migracji (biorą producenta), ale bez
+Podpisy praw działają już bez pierwszej z nich (biorą producenta), ale bez
 kolumny nie da się ich nadpisać tam, gdzie producent nie jest autorem zdjęcia.
 Kod schodzi na wersję bez kolumny — **sprawdzone na żywej bazie**, bo bez tego
 zabezpieczenia brakująca kolumna wywaliłaby cały odczyt i Gablota byłaby pusta.
+
+Usuwanie konta działa **już dziś, bez drugiej migracji** — endpoint sam odpina
+figurki, zanim skasuje konto (zweryfikowane na żywej bazie). Migracja jest
+zabezpieczeniem na drugą drogę: kasowanie użytkownika **ręcznie w panelu
+Supabase** bez niej potrafi się odbić o klucz obcy. Przy okazji dokłada pola
+profilu, bez których „Zapisz zmiany" w profilu kończy się błędem.
 
 ---
 *Po przeczytaniu tego pliku masz komplet kontekstu do dalszej pracy z Arturem.*

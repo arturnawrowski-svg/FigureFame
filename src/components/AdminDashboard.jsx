@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useDeferredValue, memo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Check, Trash2, Clock, AlertCircle, Edit3, X, Lock, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +9,79 @@ import ImageStudio from './ImageStudio';
 import { PRESETS, ACCENTS, MUSIC_TRACKS, RESOLUTIONS, LANGS, defaultShortOptions, QUEUE_MAX, BUFFER_WARN } from '../lib/shortOptions';
 import { generateGlowColor } from '../lib/glowColor';
 import { streamLookup, mergeLookupIntoForm } from '../lib/figureLookup';
+
+// ============================================================================
+// Znacznik przy etykiecie pola. Rozróżnia dane PEWNE od domysłu modelu — bez
+// tego pole wypełnione przez AI wygląda identycznie jak zweryfikowane,
+// a właśnie takie potrafi zawierać nieprawdę.
+//
+// Stoi POZA komponentem panelu z powodu wydajności: komponent zdefiniowany
+// w środku innego jest przy każdym renderze NOWYM typem, więc React nie
+// odświeża go, tylko rozbiera i buduje od zera — a tych znaczników jest
+// kilkanaście i przebudowywały się przy każdym naciśnięciu klawisza.
+// ============================================================================
+const FieldMark = memo(function FieldMark({ src }) {
+  if (!src) return null;
+  const catalog = src === 'catalog';
+  return (
+    <span
+      title={catalog
+        ? 'Potwierdzone przez katalog figurek — dane pewne'
+        : 'Uzupełnione przez AI — sprawdź przed dodaniem do Gabloty'}
+      style={{
+        marginLeft: '6px',
+        fontSize: '0.78rem',
+        color: catalog ? '#2ed573' : '#ffa502',
+        cursor: 'help',
+      }}
+    >
+      {catalog ? '✅' : '⚠️'}
+    </span>
+  );
+});
+
+// ============================================================================
+// Podgląd karty w Gablocie. Wydzielony i zapamiętany (memo) NIE dla porządku,
+// tylko dlatego, że jest najdroższym elementem panelu: karta ma poświatę
+// rozmytą na 80 px i dwa tła z `backdrop-filter`. Przerysowanie takiego
+// rozmycia przy każdym naciśnięciu klawisza w polu „nazwa" to główna
+// przyczyna zmierzonego opóźnienia reakcji (INP 1254 ms).
+//
+// Dostaje dane OPÓŹNIONE (useDeferredValue) — litera pojawia się w polu
+// natychmiast, a podgląd dogania ją, gdy przeglądarka ma chwilę wolnego.
+// ============================================================================
+const PodgladKarty = memo(function PodgladKarty({ name, imageUrl, price }) {
+  return (
+    <div style={{ marginTop: '1.5rem', width: '256px' }}>
+      <label style={{ display: 'block', marginBottom: '0.5rem', opacity: 0.8 }}>Podgląd karty w Gablocie (Live):</label>
+      {/* transform: scale() zmniejsza tylko WYGLĄD — miejsce w układzie
+          strony zostaje takie jak przed pomniejszeniem. Karta ma 320×500,
+          więc rezerwowała tyle właśnie i nachodziła na sekcję niżej.
+          Ramka poniżej ma rozmiar PO pomniejszeniu (0,8 × 320 = 256), a
+          overflow ucina resztę, żeby nic nie wystawało poza nią. */}
+      <div style={{ width: '256px', height: '400px', overflow: 'hidden' }}>
+        <div style={{ transform: 'scale(0.8)', transformOrigin: 'top left', width: '320px', height: '500px' }}>
+          <div className="figure-card">
+            <div className="figure-name-badge">{name || 'Nazwa figurki'}</div>
+            <div className="ambient-light" style={{ background: generateGlowColor(name || 'x') }}></div>
+            <div className="figure-image-container">
+              <img src={getImageUrl(imageUrl)} alt="Podgląd" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} onError={(e) => { e.target.style.display = 'none'; }} onLoad={(e) => { e.target.style.display = 'block'; }} />
+            </div>
+            <div className="hover-panel">
+              <div className="market-value">
+                <span>Najlepsza oferta:</span>
+                <strong>~ {price || 'Brak danych'}</strong>
+              </div>
+              <button className="btn-primary" style={{ width: '100%', marginTop: '1rem' }} disabled>
+                Szczegóły i Oferty
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -42,34 +115,16 @@ export default function AdminDashboard() {
   // Czy któryś domowy komputer (Studio) właśnie pracuje.
   const [studio, setStudio] = useState({ online: false, stations: [] });
 
-  const showToast = (message) => {
+  // Dane opóźnione: przepisywane do ciężkich elementów (podgląd karty,
+  // filtrowanie listy) dopiero wtedy, gdy przeglądarka nadąży. Pola formularza
+  // korzystają z `editForm`, więc pisanie zostaje natychmiastowe.
+  const editFormPodglad = useDeferredValue(editForm);
+  const searchDeferred = useDeferredValue(searchQuery);
+
+  const showToast = useCallback((message) => {
     setToastMessage(message);
     setTimeout(() => setToastMessage(null), 3000);
-  };
-
-  // Znacznik przy etykiecie pola. Rozróżnia dane PEWNE od domysłu modelu —
-  // bez tego pole wypełnione przez AI wygląda identycznie jak zweryfikowane,
-  // a właśnie takie potrafi zawierać nieprawdę.
-  const FieldMark = ({ field }) => {
-    const src = provenance[field];
-    if (!src) return null;
-    const catalog = src === 'catalog';
-    return (
-      <span
-        title={catalog
-          ? 'Potwierdzone przez katalog figurek — dane pewne'
-          : 'Uzupełnione przez AI — sprawdź przed dodaniem do Gabloty'}
-        style={{
-          marginLeft: '6px',
-          fontSize: '0.78rem',
-          color: catalog ? '#2ed573' : '#ffa502',
-          cursor: 'help',
-        }}
-      >
-        {catalog ? '✅' : '⚠️'}
-      </span>
-    );
-  };
+  }, []);
 
   // Wyszukiwanie danych figurki. opts.deep = tryb TOP (więcej wariantów nazwy,
   // dłużej i drożej), opts.refresh = pomiń pamięć podręczną i pobierz na nowo.
@@ -272,6 +327,20 @@ export default function AdminDashboard() {
       market_value: typeof fig.market_value === 'string' ? { average: fig.market_value } : fig.market_value || null
     });
   };
+
+  // Wywołania zwrotne dla Wgrywarki i Studia zdjęcia. Muszą być STAŁE
+  // (useCallback), inaczej oba komponenty dostają przy każdym naciśnięciu
+  // klawisza nowe funkcje, uznają to za zmianę i przerysowują się razem
+  // z całym formularzem — mimo że nic się w nich nie zmieniło.
+  const handleUploaded = useCallback((url) => {
+    setEditForm(prev => ({ ...prev, official_image_url: url }));
+    showToast('Dodano kandydata do folderu roboczego.');
+  }, [showToast]);
+
+  const handleProcessed = useCallback((url) => {
+    setEditForm(prev => ({ ...prev, official_image_url: url }));
+    showToast('Zapisano obrobione zdjęcie jako kandydata.');
+  }, [showToast]);
 
   const processImageIfNeeded = async (formObj) => {
     const url = formObj.official_image_url;
@@ -525,15 +594,22 @@ export default function AdminDashboard() {
     }
   };
 
-  const filteredFigures = figures.filter(fig => {
-    const matchesSearch =
-      fig.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      fig.series?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      fig.japanese_name?.toLowerCase().includes(searchQuery.toLowerCase());
-    if (activeTab !== 'SHORTS' || shortsFilter === 'all') return matchesSearch;
-    if (shortsFilter === 'inprogress') return matchesSearch && ['queued', 'rendering'].includes(fig.video_status);
-    return matchesSearch && fig.video_status === shortsFilter;
-  });
+  // Filtrowanie liczone raz na zmianę danych, nie przy każdym renderze.
+  // Szukana fraza jest OPÓŹNIONA: litera pojawia się w polu od razu, a lista
+  // przelicza się chwilę później — inaczej każde naciśnięcie klawisza
+  // przebudowywało całą listę zgłoszeń razem ze zdjęciami.
+  const filteredFigures = useMemo(() => {
+    const fraza = searchDeferred.toLowerCase();
+    return figures.filter(fig => {
+      const matchesSearch =
+        fig.name.toLowerCase().includes(fraza) ||
+        fig.series?.toLowerCase().includes(fraza) ||
+        fig.japanese_name?.toLowerCase().includes(fraza);
+      if (activeTab !== 'SHORTS' || shortsFilter === 'all') return matchesSearch;
+      if (shortsFilter === 'inprogress') return matchesSearch && ['queued', 'rendering'].includes(fig.video_status);
+      return matchesSearch && fig.video_status === shortsFilter;
+    });
+  }, [figures, searchDeferred, activeTab, shortsFilter]);
 
   return (
     <div className="dossier-container animate-fade-in" style={{ padding: '2rem' }}>
@@ -950,35 +1026,35 @@ export default function AdminDashboard() {
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                     <div className="form-group">
-                      <label>Nazwa postaci <FieldMark field="name" /></label>
+                      <label>Nazwa postaci <FieldMark src={provenance.name} /></label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <input className="form-input" type="text" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} style={{ width: '100%', borderColor: !editForm.name ? '#ff4757' : undefined }} />
                         {!editForm.name && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                       </div>
                     </div>
                     <div className="form-group">
-                      <label>Nazwa Japońska <FieldMark field="japanese_name" /></label>
+                      <label>Nazwa Japońska <FieldMark src={provenance.japanese_name} /></label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <input className="form-input" type="text" value={editForm.japanese_name} onChange={e => setEditForm({...editForm, japanese_name: e.target.value})} style={{ width: '100%', borderColor: !editForm.japanese_name ? '#ff4757' : undefined }} />
                         {!editForm.japanese_name && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                       </div>
                     </div>
                     <div className="form-group">
-                      <label>Seria <FieldMark field="series" /></label>
+                      <label>Seria <FieldMark src={provenance.series} /></label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <input className="form-input" type="text" value={editForm.series} onChange={e => setEditForm({...editForm, series: e.target.value})} style={{ width: '100%', borderColor: !editForm.series ? '#ff4757' : undefined }} />
                         {!editForm.series && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                       </div>
                     </div>
                     <div className="form-group">
-                      <label>Producent <FieldMark field="manufacturer" /></label>
+                      <label>Producent <FieldMark src={provenance.manufacturer} /></label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <input className="form-input" type="text" value={editForm.manufacturer} onChange={e => setEditForm({...editForm, manufacturer: e.target.value})} style={{ width: '100%', borderColor: !editForm.manufacturer ? '#ff4757' : undefined }} />
                         {!editForm.manufacturer && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                       </div>
                     </div>
                     <div className="form-group">
-                      <label>Skala <FieldMark field="scale" /></label>
+                      <label>Skala <FieldMark src={provenance.scale} /></label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <input className="form-input" type="text" value={editForm.scale} onChange={e => setEditForm({...editForm, scale: e.target.value})} style={{ width: '100%', borderColor: !editForm.scale ? '#ff4757' : undefined }} />
                         {!editForm.scale && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
@@ -1002,7 +1078,7 @@ export default function AdminDashboard() {
                     </div>
                     
                     <div className="form-group">
-                      <label>Cena pierwotna <FieldMark field="original_price" /></label>
+                      <label>Cena pierwotna <FieldMark src={provenance.original_price} /></label>
                       <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                         <input className="form-input" type="text" placeholder="np. 15 000 JPY" value={editForm.original_price} onChange={e => setEditForm({...editForm, original_price: e.target.value})} style={{ width: '100%', borderColor: !editForm.original_price ? '#ff4757' : undefined }} />
                         {!editForm.original_price && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
@@ -1012,8 +1088,8 @@ export default function AdminDashboard() {
                   <h5 style={{ margin: '1.5rem 0 0.5rem 0', opacity: 0.8 }}>Zdjęcie figurki (folder roboczy → jedno finalne)</h5>
                   <ImageUploader
                     figureId={fig.id}
-                    onUploaded={(url) => { setEditForm(prev => ({ ...prev, official_image_url: url })); showToast('Dodano kandydata do folderu roboczego.'); }}
-                    onError={(msg) => showToast(msg)}
+                    onUploaded={handleUploaded}
+                    onError={showToast}
                   />
                   {/* Studio ma sens tylko dla zdjęcia, które da się pobrać i obrobić. */}
                   {imageStatus === true && (
@@ -1021,8 +1097,8 @@ export default function AdminDashboard() {
                       figureId={fig.id}
                       imageUrl={getImageUrl(editForm.official_image_url)}
                       glowHex={generateGlowColor(editForm.name || 'x')}
-                      onProcessed={(url) => { setEditForm(prev => ({ ...prev, official_image_url: url })); showToast('Zapisano obrobione zdjęcie jako kandydata.'); }}
-                      onError={(msg) => showToast(msg)}
+                      onProcessed={handleProcessed}
+                      onError={showToast}
                     />
                   )}
                   {imageStatus === false && (
@@ -1073,59 +1149,36 @@ export default function AdminDashboard() {
                   </label>
 
                   <div className="form-group" style={{ marginBottom: '1rem' }}>
-                    <label>URL Obrazka (np. miku_figure, albo pełny link http...) <FieldMark field="official_image_url" /></label>
+                    <label>URL Obrazka (np. miku_figure, albo pełny link http...) <FieldMark src={provenance.official_image_url} /></label>
                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                       <input className="form-input" type="text" value={editForm.official_image_url} onChange={e => setEditForm({...editForm, official_image_url: e.target.value})} style={{ width: '100%', borderColor: !editForm.official_image_url ? '#ff4757' : undefined }} />
                       {!editForm.official_image_url && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                     </div>
                     {imageStatus === true && (
-                      <div style={{ marginTop: '1.5rem', width: '256px' }}>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', opacity: 0.8 }}>Podgląd karty w Gablocie (Live):</label>
-                        {/* transform: scale() zmniejsza tylko WYGLĄD — miejsce w układzie
-                            strony zostaje takie jak przed pomniejszeniem. Karta ma 320×500,
-                            więc rezerwowała tyle właśnie i nachodziła na sekcję niżej.
-                            Ramka poniżej ma rozmiar PO pomniejszeniu (0,8 × 320 = 256), a
-                            overflow ucina resztę, żeby nic nie wystawało poza nią. */}
-                        <div style={{ width: '256px', height: '400px', overflow: 'hidden' }}>
-                        <div style={{ transform: 'scale(0.8)', transformOrigin: 'top left', width: '320px', height: '500px' }}>
-                          <div className="figure-card">
-                            <div className="figure-name-badge">{editForm.name || 'Nazwa figurki'}</div>
-                            <div className="ambient-light" style={{ background: generateGlowColor(editForm.name || 'x') }}></div>
-                            <div className="figure-image-container">
-                              <img src={getImageUrl(editForm.official_image_url)} alt="Podgląd" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} onError={(e) => { e.target.style.display = 'none'; }} onLoad={(e) => { e.target.style.display = 'block'; }} />
-                            </div>
-                            <div className="hover-panel">
-                              <div className="market-value">
-                                <span>Najlepsza oferta:</span>
-                                <strong>~ {editForm.original_price || 'Brak danych'}</strong>
-                              </div>
-                              <button className="btn-primary" style={{ width: '100%', marginTop: '1rem' }} disabled>
-                                Szczegóły i Oferty
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                        </div>
-                      </div>
+                      <PodgladKarty
+                        name={editFormPodglad.name}
+                        imageUrl={editFormPodglad.official_image_url}
+                        price={editFormPodglad.original_price}
+                      />
                     )}
                   </div>
 
                   <h5 style={{ margin: '1.5rem 0 0.5rem 0', opacity: 0.8 }}>Encyklopedia</h5>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
                     <div className="form-group">
-                      <label>Dodatkowe informacje (Linijka po linijce) <FieldMark field="additional_info" /></label>
+                      <label>Dodatkowe informacje (Linijka po linijce) <FieldMark src={provenance.additional_info} /></label>
                       <textarea className="form-input" rows="3" value={editForm.additional_info ? editForm.additional_info.join('\n') : ''} onChange={e => setEditForm({...editForm, additional_info: e.target.value ? e.target.value.split('\n') : null})} style={{ width: '100%' }}></textarea>
                     </div>
                     <div className="form-group">
-                      <label>Gdzie szukać (Linijka po linijce) <FieldMark field="where_to_search" /></label>
+                      <label>Gdzie szukać (Linijka po linijce) <FieldMark src={provenance.where_to_search} /></label>
                       <textarea className="form-input" rows="3" value={editForm.where_to_search ? editForm.where_to_search.join('\n') : ''} onChange={e => setEditForm({...editForm, where_to_search: e.target.value ? e.target.value.split('\n') : null})} style={{ width: '100%' }}></textarea>
                     </div>
                     <div className="form-group">
-                      <label>Strategia zakupowa (Linijka po linijce) <FieldMark field="strategy" /></label>
+                      <label>Strategia zakupowa (Linijka po linijce) <FieldMark src={provenance.strategy} /></label>
                       <textarea className="form-input" rows="3" value={editForm.strategy ? editForm.strategy.join('\n') : ''} onChange={e => setEditForm({...editForm, strategy: e.target.value ? e.target.value.split('\n') : null})} style={{ width: '100%' }}></textarea>
                     </div>
                     <div className="form-group">
-                      <label>Wartość Rynkowa (Średnia) <FieldMark field="market_value" /></label>
+                      <label>Wartość Rynkowa (Średnia) <FieldMark src={provenance.market_value} /></label>
                       <textarea className="form-input" rows="3" value={editForm.market_value?.average || ''} onChange={e => setEditForm({...editForm, market_value: { average: e.target.value }})} style={{ width: '100%' }}></textarea>
                     </div>
                   </div>
