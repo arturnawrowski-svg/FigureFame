@@ -19,7 +19,21 @@ export function driveConfigured() {
   );
 }
 
+// Gdy Google unieważni token odświeżania, ŻADNA kolejna próba się nie uda —
+// dopóki człowiek nie przejdzie zgody w przeglądarce. Zapamiętujemy to, żeby
+// worker w trybie ciągłym nie dobijał się co 30 sekund i nie zasypywał okna
+// tym samym błędem, ukrywając wszystko inne.
+let tokenUniewazniony = false;
+
+export function driveWymagaLogowania() {
+  return tokenUniewazniony;
+}
+
 export async function getAccessToken() {
+  if (tokenUniewazniony) {
+    throw new Error("Drive: dostęp wygasł — uruchom `npm run gdrive-auth` i zaloguj się ponownie.");
+  }
+
   const body = new URLSearchParams({
     client_id: process.env.GOOGLE_DRIVE_CLIENT_ID,
     client_secret: process.env.GOOGLE_DRIVE_CLIENT_SECRET,
@@ -28,6 +42,18 @@ export async function getAccessToken() {
   });
   const r = await fetch(TOKEN_URL, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body });
   const j = await r.json();
+
+  if (j.error === "invalid_grant") {
+    tokenUniewazniony = true;
+    throw new Error(
+      [
+        'Drive: Google unieważnił dostęp. Uruchom `npm run gdrive-auth` i kliknij Zezwól.',
+        '        Jeśli powtarza się co tydzień — ekran zgody OAuth stoi w trybie Testing,',
+        '        a wtedy Google kasuje tokeny po 7 dniach. Przełącz go na In production',
+        '        w Google Cloud Console → APIs & Services → OAuth consent screen.',
+      ].join('\n')
+    );
+  }
   if (!j.access_token) throw new Error("Drive: nie uzyskano access_token: " + JSON.stringify(j));
   return j.access_token;
 }

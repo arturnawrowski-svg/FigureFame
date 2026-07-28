@@ -22,7 +22,7 @@ import dotenv from "dotenv";
 import { renderShort } from "./renderShort.mjs";
 import { computeBootlegRisk } from "../src/lib/bootlegRisk.js";
 import { scaleOf, defaultShortOptions, QUEUE_MAX } from "../src/lib/shortOptions.js";
-import { driveConfigured, getAccessToken, ensureFolder, uploadMp4 } from "./lib/gdrive.mjs";
+import { driveConfigured, driveWymagaLogowania, getAccessToken, ensureFolder, uploadMp4 } from "./lib/gdrive.mjs";
 import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 import { figureUrl } from "../src/lib/figureIdentity.js";
 import { startHeartbeat } from "./lib/heartbeat.mjs";
@@ -134,6 +134,10 @@ async function publishApproved(supabase) {
     .limit(QUEUE_MAX);
   if (error) throw error;
   if (!data || data.length === 0) return 0;
+
+  // Bez dostępu do Dysku nie ma po co ogłaszać, że publikujemy — filmy
+  // poczekają w kolejce, a okno nie zapełni się powtórzonym błędem.
+  if (driveWymagaLogowania()) return 0;
 
   console.log(`Publikacja: ${data.length} zaakceptowanych → Google Drive.`);
   const token = await getAccessToken();
