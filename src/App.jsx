@@ -44,7 +44,10 @@ function App() {
             {/* Stara postać adresu. Filmy i linki wypuszczone wcześniej muszą
                 działać dalej, więc nie kasujemy jej — przekierowujemy. */}
             <Route path="/dossier/:key" element={<Dossier />} />
-            <Route path="/add" element={<ProtectedRoute><AddFigure /></ProtectedRoute>} />
+            {/* Dodawanie figurek wymaga potwierdzonego adresu. Logowanie przez
+                Google/Discorda/X spełnia ten warunek od razu — dostawca już go
+                sprawdził. Bramka dotyczy realnie tylko rejestracji hasłem. */}
+            <Route path="/add" element={<ProtectedRoute wymagaPotwierdzenia><AddFigure /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

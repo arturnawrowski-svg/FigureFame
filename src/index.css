@@ -92,6 +92,149 @@ header p {
   -webkit-text-fill-color: transparent;
 }
 
+/* ---- Dymek jak z komiksu (potwierdzenie adresu) ----
+   Świadomie JEDEN wygląd w obu motywach: dymek w komiksie jest z papieru,
+   więc zostaje jasny także na ciemnej stronie. Siedzi na przyciemnionym tle,
+   więc czyta się tak samo dobrze w każdym motywie. */
+.dymek-tlo {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.dymek {
+  position: relative;
+  max-width: 30rem;
+  background: #fdfaf3;
+  color: #16150f;
+  border: 3px solid #16150f;
+  border-radius: 28px;
+  padding: 2.25rem 2rem 1.75rem;
+  text-align: center;
+  /* Cień twardy, bez rozmycia — tak rysuje się kadry w komiksie. */
+  box-shadow: 8px 8px 0 0 #f59e0b;
+  animation: dymek-wskok 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Ogonek dymka: dwa trójkąty — ciemny obrys i jasne wypełnienie na nim. */
+.dymek::before,
+.dymek::after {
+  content: "";
+  position: absolute;
+  left: 3.25rem;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+.dymek::before {
+  bottom: -26px;
+  border-width: 26px 22px 0 0;
+  border-color: #16150f transparent transparent transparent;
+}
+
+.dymek::after {
+  bottom: -20px;
+  border-width: 21px 16px 0 0;
+  border-color: #fdfaf3 transparent transparent transparent;
+}
+
+@keyframes dymek-wskok {
+  from { opacity: 0; transform: scale(0.82) rotate(-2deg); }
+  to   { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dymek { animation: none; }
+}
+
+.dymek-zamknij {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  color: #16150f;
+  opacity: 0.55;
+  display: flex;
+  padding: 4px;
+  border-radius: 50%;
+}
+
+.dymek-zamknij:hover { opacity: 1; }
+
+.dymek-ikona {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-bottom: 0.75rem;
+  border: 3px solid #16150f;
+  border-radius: 50%;
+  background: #fbbf24;
+  color: #16150f;
+}
+
+.dymek-tytul {
+  font-family: var(--font-heading);
+  color: #16150f;
+  font-size: 1.6rem;
+  margin: 0 0 0.5rem;
+}
+
+.dymek-tresc {
+  margin: 0 0 1.25rem;
+  line-height: 1.55;
+  color: #3a3626;
+}
+
+.dymek-tresc strong {
+  /* Adres skrócony, ale i tak wyróżniony — to on jest tu konkretem. */
+  background: #fde68a;
+  padding: 0 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.dymek-przycisk {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  background: #16150f;
+  color: #fdfaf3;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: transform 0.15s ease;
+}
+
+.dymek-przycisk:hover:not(:disabled) { transform: translateY(-2px); }
+.dymek-przycisk:disabled { opacity: 0.55; cursor: default; }
+
+.dymek-udalo {
+  margin: 0;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.dymek-blad {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+  color: #b91c1c;
+}
+
+.dymek-drobne {
+  margin: 1.1rem 0 0;
+  font-size: 0.82rem;
+  color: #6b6553;
+}
+
 /* ---- Wejście nagłówka ----
    Wcześniej robiła to biblioteka animacji (framer-motion) — 5,5 MB zależności
    wciąganej do paczki startowej po to, żeby dwa bloki tekstu wjechały z góry
