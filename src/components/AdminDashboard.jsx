@@ -1058,9 +1058,15 @@ export default function AdminDashboard() {
                       {!editForm.official_image_url && <Lock size={16} color="#ff4757" style={{ position: 'absolute', right: '10px' }} title="Brak danych" />}
                     </div>
                     {imageStatus === true && (
-                      <div style={{ marginTop: '1.5rem', width: '320px' }}>
+                      <div style={{ marginTop: '1.5rem', width: '256px' }}>
                         <label style={{ display: 'block', marginBottom: '0.5rem', opacity: 0.8 }}>Podgląd karty w Gablocie (Live):</label>
-                        <div style={{ transform: 'scale(0.8)', transformOrigin: 'top left', width: '368px', height: '500px' }}>
+                        {/* transform: scale() zmniejsza tylko WYGLĄD — miejsce w układzie
+                            strony zostaje takie jak przed pomniejszeniem. Karta ma 320×500,
+                            więc rezerwowała tyle właśnie i nachodziła na sekcję niżej.
+                            Ramka poniżej ma rozmiar PO pomniejszeniu (0,8 × 320 = 256), a
+                            overflow ucina resztę, żeby nic nie wystawało poza nią. */}
+                        <div style={{ width: '256px', height: '400px', overflow: 'hidden' }}>
+                        <div style={{ transform: 'scale(0.8)', transformOrigin: 'top left', width: '320px', height: '500px' }}>
                           <div className="figure-card">
                             <div className="figure-name-badge">{editForm.name || 'Nazwa figurki'}</div>
                             <div className="ambient-light" style={{ background: generateGlowColor(editForm.name || 'x') }}></div>
@@ -1077,6 +1083,7 @@ export default function AdminDashboard() {
                               </button>
                             </div>
                           </div>
+                        </div>
                         </div>
                       </div>
                     )}

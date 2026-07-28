@@ -6,14 +6,28 @@ const MAX_IMAGE_BYTES = 15 * 1024 * 1024; // 15 MB — ochrona przed nadużyciem
 
 const PROXY_URL = process.env.PROXY_URL; // e.g. "https://api.scraperapi.com?api_key=KEY&url="
 
-// Helper do odpytywania stron z ominięciem Cloudflare (jeśli proxy ustalone)
-async function fetchWithProxy(url, options = {}) {
-  if (PROXY_URL && !url.includes('supabase.co')) {
-    const fullUrl = `${PROXY_URL}${encodeURIComponent(url)}`;
-    console.log("Fetching image via proxy:", fullUrl);
-    return fetch(fullUrl, options);
+// Pobranie zdjęcia: NAJPIERW wprost, pośrednik dopiero gdy się nie uda.
+//
+// Wcześniej było odwrotnie — wszystko szło przez płatnego pośrednika. To błąd
+// z dwóch powodów. Serwery ze zdjęciami produktów (Good Smile, Kotobukiya)
+// oddają pliki każdemu, bo chcą, żeby sklepy je pokazywały; Cloudflare broni
+// stron HTML, nie obrazków. Więc pośrednik nic tu nie dawał, a kosztował.
+// Gorzej: gdy jego klucz wygasł, zwracał 401 i zapis figurki wywalał się
+// komunikatem „Failed to fetch image", mimo że zdjęcie było dostępne wprost.
+async function fetchImage(url, options = {}) {
+  try {
+    const direct = await fetch(url, options);
+    if (direct.ok) return direct;
+    console.log(`Bezpośrednio ${direct.status} — próbuję przez pośrednika`);
+  } catch (e) {
+    console.log(`Bezpośrednio nie wyszło (${e.message}) — próbuję przez pośrednika`);
   }
-  return fetch(url, options);
+
+  if (!PROXY_URL || url.includes('supabase.co')) {
+    // Nie ma czym ponowić — oddajemy uczciwą porażkę zamiast udawać.
+    return fetch(url, options);
+  }
+  return fetch(`${PROXY_URL}${encodeURIComponent(url)}`, options);
 }
 
 export default async function handler(req, res) {
@@ -41,7 +55,7 @@ export default async function handler(req, res) {
     console.log(`Pobieranie obrazu: ${imageUrl}`);
 
     // Pobierz obraz z zewnętrznego adresu
-    const imageResponse = await fetchWithProxy(imageUrl, {
+    const imageResponse = await fetchImage(imageUrl, {
       headers: {
         'User-Agent': BROWSER_UA,
         'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'

@@ -60,6 +60,33 @@ async function enqueueLookup(name, series, mode) {
   }
 }
 
+// Ostatnia bramka przed oddaniem odpowiedzi z pamięci podręcznej.
+//
+// Reguła całego endpointu brzmi: do formularza trafia albo GOTOWE zdjęcie
+// w naszym Storage, albo pusto. Świeże wyniki przechodzą przez blok obróbki
+// niżej, ale odpowiedź z pamięci wracała wcześniej — omijając go bokiem.
+// Wpisy zapisane, zanim ta obróbka powstała, podawały więc surowy adres
+// z cudzego serwera prosto do panelu: pole wyglądało na wypełnione, podgląd
+// pokazywał obrazek, a do Gabloty szedł link, który właściciel może odciąć.
+//
+// Nie potrafimy tu potwierdzić zdjęcia drugim źródłem (nie mamy już wyników
+// wyszukiwania), więc zamiast zgadywać — czyścimy pole i mówimy wprost,
+// czego brakuje.
+function oczyscZdjecie(dane) {
+  const url = dane?.official_image_url;
+  const zewnetrzny = typeof url === 'string' && url.startsWith('http') && !url.includes('supabase.co');
+  if (!zewnetrzny) return dane;
+
+  const oczyszczone = { ...dane, official_image_url: '' };
+  if (oczyszczone._provenance) {
+    oczyszczone._provenance = { ...oczyszczone._provenance };
+    delete oczyszczone._provenance.official_image_url;
+  }
+  oczyszczone._imageError =
+    'Zapamiętany wynik zawierał zdjęcie z cudzego serwera — nie wpuszczamy takich do Gabloty. Kliknij „⭐ TOP", żeby pobrać je na nowo do naszego magazynu.';
+  return oczyszczone;
+}
+
 async function writeCache(key, mode, payload) {
   try {
     const supabase = getSupabaseAdmin();
@@ -110,11 +137,12 @@ export default async function handler(req, res) {
       if (cached) {
         console.log(`Cache HIT (${key}) — bez odpytywania źródeł.`);
         send('progress', { step: 'cache', label: 'Mam to już w naszej bazie', percent: 100 });
+        const zPamieci = { ...oczyscZdjecie(cached), _fromCache: true };
         if (streaming) {
-          send('result', { ...cached, _fromCache: true });
+          send('result', zPamieci);
           return res.end();
         }
-        return res.status(200).json({ ...cached, _fromCache: true });
+        return res.status(200).json(zPamieci);
       }
     }
 
