@@ -20,6 +20,30 @@
 -- odpowiada pod własnym adresem `*.supabase.co` — z pominięciem zasłony.
 -- ============================================================================
 
+-- --- NAJPIERW: skasowanie WSZYSTKICH istniejących reguł ---------------------
+-- Reguły RLS działają na zasadzie „wystarczy, że JEDNA pozwala". Na tych
+-- tabelach siedzą starsze reguły z pierwotnej konfiguracji projektu. Dopisanie
+-- obok nich reguł ostrzejszych NICZEGO nie zamyka — stara, przepuszczająca
+-- nadal wygrywa. (Sprawdzone: po pierwszym podejściu zapis i kasowanie były
+-- wciąż dozwolone kluczem publicznym.)
+--
+-- Dlatego czyścimy tabelę z reguł do zera i budujemy komplet od nowa.
+do $$
+declare
+  r record;
+begin
+  for r in
+    select schemaname, tablename, policyname
+    from pg_policies
+    where schemaname = 'public'
+      and tablename in ('figures', 'profiles', 'price_snapshots',
+                        'studio_status', 'lookup_cache', 'lookup_queue')
+  loop
+    execute format('drop policy if exists %I on %I.%I',
+                   r.policyname, r.schemaname, r.tablename);
+  end loop;
+end $$;
+
 -- --- Kto jest moderatorem -------------------------------------------------
 -- SECURITY DEFINER, żeby zapytanie o `profiles` wewnątrz reguły nie wpadło
 -- w rekurencję z regułami nałożonymi na samą tabelę `profiles`.
