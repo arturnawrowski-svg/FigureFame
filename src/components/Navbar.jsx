@@ -4,6 +4,7 @@ import { User, Info, Plus, Sun, Moon, ShieldAlert } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useTranslation, LOCALES } from '../lib/i18n'
+import Flaga from './Flaga'
 
 // Okno logowania ciągnie za sobą sporą bibliotekę formularzy Supabase.
 // Doczytujemy je dopiero po kliknięciu „Zaloguj", a nie przy każdym wejściu
@@ -53,7 +54,7 @@ export default function Navbar() {
           </button>
 
           <button className="nav-btn" onClick={cycleLocale} title={`Język: ${current.label} (kliknij, by zmienić)`} style={{ border: '1px solid var(--color-glass-border)', borderRadius: '20px', padding: '4px 12px', background: 'rgba(255, 255, 255, 0.05)' }}>
-            <span style={{ fontSize: '16px' }}>{current.flag}</span> {current.code.toUpperCase()}
+            <Flaga kod={current.code} /> {current.code.toUpperCase()}
           </button>
 
           <Link to="/about" className="nav-btn" style={{ textDecoration: 'none' }}>

@@ -89,12 +89,13 @@ export default function Login({ onClose }) {
             label="Zaloguj z Discord"
           />
 
-          <div style={{ height: '8px' }}></div>
-
+          {/* Bez rozpychacza między Discordem a X: odstępami rządzi `gap`
+              kontenera, a wstawka 8 px robiła jedną szczelinę szerszą od
+              pozostałych i cały rząd wyglądał na przypadkowy. */}
           <SocialButton
             onClick={() => handleSocialLogin('x')}
             icon={<TwitterIcon />}
-            label="Zaloguj z Twitter / X"
+            label="Zaloguj z X"
           />
         </div>
 
@@ -130,19 +131,55 @@ export default function Login({ onClose }) {
           }}
           providers={[]} // Empty array to hide Supabase's native social buttons
           redirectTo={window.location.origin}
+          // Biblioteka Supabase wstawia własne teksty po angielsku. Tłumaczenie
+          // etykiet nie wystarczy — po angielsku zostają jeszcze PODPOWIEDZI
+          // w polach („Your email address"), odnośnik odzyskiwania hasła oraz
+          // wszystkie komunikaty po wysłaniu formularza. Nieprzetłumaczone
+          // resztki na polskiej stronie wyglądają jak niedokończona robota,
+          // więc uzupełniamy komplet.
           localization={{
             variables: {
               sign_up: {
-                email_label: 'Adres Email',
-                password_label: 'Utwórz Hasło',
+                email_label: 'Adres e-mail',
+                password_label: 'Utwórz hasło',
+                email_input_placeholder: 'twoj@email.pl',
+                password_input_placeholder: 'Wymyśl hasło',
                 button_label: 'Zarejestruj się',
-                link_text: 'Nie masz konta? Zarejestruj się'
+                loading_button_label: 'Zakładam konto…',
+                link_text: 'Nie masz konta? Zarejestruj się',
+                confirmation_text: 'Sprawdź skrzynkę — wysłaliśmy link potwierdzający.'
               },
               sign_in: {
-                email_label: 'Adres Email',
+                email_label: 'Adres e-mail',
                 password_label: 'Hasło',
+                email_input_placeholder: 'twoj@email.pl',
+                password_input_placeholder: 'Twoje hasło',
                 button_label: 'Zaloguj się',
+                loading_button_label: 'Loguję…',
                 link_text: 'Masz już konto? Zaloguj się'
+              },
+              forgotten_password: {
+                email_label: 'Adres e-mail',
+                email_input_placeholder: 'twoj@email.pl',
+                button_label: 'Wyślij link do zmiany hasła',
+                loading_button_label: 'Wysyłam…',
+                link_text: 'Nie pamiętasz hasła?',
+                confirmation_text: 'Sprawdź skrzynkę — wysłaliśmy link do zmiany hasła.'
+              },
+              update_password: {
+                password_label: 'Nowe hasło',
+                password_input_placeholder: 'Wymyśl nowe hasło',
+                button_label: 'Zapisz nowe hasło',
+                loading_button_label: 'Zapisuję…',
+                confirmation_text: 'Hasło zostało zmienione.'
+              },
+              magic_link: {
+                email_input_label: 'Adres e-mail',
+                email_input_placeholder: 'twoj@email.pl',
+                button_label: 'Wyślij link do logowania',
+                loading_button_label: 'Wysyłam…',
+                link_text: 'Wyślij mi link do logowania',
+                confirmation_text: 'Sprawdź skrzynkę — wysłaliśmy link do logowania.'
               }
             }
           }}
