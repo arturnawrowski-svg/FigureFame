@@ -5,6 +5,7 @@ import { renderShort } from "../worker/renderShort.mjs";
 import { computeBootlegRisk } from "../src/lib/bootlegRisk.js";
 import { scaleOf, defaultShortOptions } from "../src/lib/shortOptions.js";
 import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
+import { wymagajModeratora } from "../server-lib/wymagajModeratora.js";
 
 // ============================================================================
 // generate-short (Etap 4) — renderuje 20s short dla figurki i zapisuje MP4.
@@ -22,6 +23,8 @@ function resolveImage(officialUrl) {
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  // Render zjada procesor i miejsce w Storage — nie do wywołania z ulicy.
+  if (!(await wymagajModeratora(req, res))) return;
 
   let body = req.body;
   if (Buffer.isBuffer(req.body)) body = JSON.parse(req.body.toString());

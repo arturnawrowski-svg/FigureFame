@@ -1,4 +1,5 @@
 import { callAI } from "../server-lib/aiClient.js";
+import { limitIP } from "../server-lib/limitIP.js";
 
 // ============================================================================
 // ask-figure (flagowy wyróżnik z PDF: „Ask AI about this figure")
@@ -51,6 +52,10 @@ export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
+  // Ten endpoint zostaje PUBLICZNY — to asystent dla odwiedzającego kartę
+  // figurki, więc nie da się go zamknąć logowaniem. Zamiast tego próg na IP,
+  // bo każde pytanie zjada nasz darmowy limit u providera AI.
+  if (!limitIP(req, res, { naMinute: 10 })) return;
   try {
     let body = req.body;
     if (Buffer.isBuffer(req.body)) body = JSON.parse(req.body.toString());

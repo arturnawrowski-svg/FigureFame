@@ -1,16 +1,44 @@
-# React + Vite
+# FigureFame
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Baza danych i agregator wiedzy o **japońskich figurkach kolekcjonerskich** — z oceną ryzyka
+podróbek, asystentem AI przy każdej figurce i (docelowo) śledzeniem realnych cen.
 
-Currently, two official plugins are available:
+Projekt hobbystyczny, prowadzony w duchu **FREE-FIRST**: darmowe narzędzia tak długo, jak się da.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Dokumenty — zacznij tutaj
 
-## React Compiler
+| Plik | Co w nim jest |
+|---|---|
+| **[ZALOZENIA.md](ZALOZENIA.md)** | Czym jest projekt, na czym stoi, jakich zasad nie wolno złamać |
+| **[DONE.md](DONE.md)** | Co już zrobione i dlaczego tak, a nie inaczej |
+| **[TODO.md](TODO.md)** | Co do zrobienia, od najbardziej krytycznego |
+| **[FUTURE.md](FUTURE.md)** | Co dalej — z warunkami wejścia zamiast dat |
+| [handoff_summary.md](handoff_summary.md) | Stan techniczny i pułapki, które kosztowały czas |
+| [DOKUMENTACJA.md](DOKUMENTACJA.md) | Opis produktu i architektury |
+| [affiliation.md](affiliation.md) | Sklepy i programy partnerskie (dane referencyjne) |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Uruchomienie
 
-## Expanding the Oxlint configuration
+```bash
+npm install
+npm run dev      # front + endpointy /api/* przez middleware Vite
+npm test         # 49 testów
+npm run build
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+Zmienne środowiskowe w `.env.local` (klucze Supabase i AI) — bez nich aplikacja się nie zaloguje
+i nie pobierze danych. Na produkcji te same zmienne stoją w ustawieniach Vercela.
+
+## Narzędzia
+
+| polecenie | co robi |
+|---|---|
+| `npm run adresy` | nadaje slug / kod / identity_key figurkom; `-- --zapisz` wykonuje |
+| `npm run zdjecia` | ściąga zdjęcia do naszego magazynu; `-- --zapisz` wykonuje |
+| `npm run kopia` | kopia zapasowa: ZIP do `kopie/` **oraz** na Dysk Google |
+| `npm run lookup-worker:watch` | worker wyszukiwań (lokalna przeglądarka omija Cloudflare) |
+| `npm run worker:watch` | kolejka renderowania shortów |
+| `npm run gdrive-auth` | odnowienie dostępu do Dysku Google |
+
+Najwygodniej: dwuklik na `FigureFame-Studio.cmd` — uruchamia oba workery naraz.
+Instalacja pomocnika na stałe: [instalacja/CZYTAJ-TO-NAJPIERW.md](instalacja/CZYTAJ-TO-NAJPIERW.md).

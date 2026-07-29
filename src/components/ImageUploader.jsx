@@ -1,5 +1,6 @@
 import { useState, useRef, memo } from 'react';
 import { Upload, ImagePlus, Loader2 } from 'lucide-react';
+import { authFetch } from '../lib/authFetch';
 
 // ============================================================================
 // ImageUploader (Etap 2) — upload zdjęcia-kandydata do FOLDERU ROBOCZEGO figurki.
@@ -62,7 +63,7 @@ export default memo(function ImageUploader({ figureId, onUploaded, onError }) {
       const webp = await fileToWebpBlob(file);
       const imageBase64 = await blobToBase64(webp);
 
-      const res = await fetch('/api/upload-work-image', {
+      const res = await authFetch('/api/upload-work-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ figureId, imageBase64 }),

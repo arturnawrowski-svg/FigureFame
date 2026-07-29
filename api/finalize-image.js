@@ -1,6 +1,7 @@
 import sharp from "sharp";
 import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 import { BROWSER_UA } from "../server-lib/lookupShared.js";
+import { wymagajModeratora } from "../server-lib/wymagajModeratora.js";
 
 // ============================================================================
 // finalize-image (Etap 2) — finalizacja zdjęcia figurki:
@@ -46,6 +47,9 @@ export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
+  // Serwer pobiera tu adres podany w żądaniu i zapisuje wynik u nas — bez tej
+  // bramy obcy mógłby kazać naszemu serwerowi ściągać, co mu się podoba.
+  if (!(await wymagajModeratora(req, res))) return;
   try {
     let body = req.body;
     if (Buffer.isBuffer(req.body)) body = JSON.parse(req.body.toString());

@@ -9,6 +9,7 @@ import ImageStudio from './ImageStudio';
 import { PRESETS, ACCENTS, MUSIC_TRACKS, RESOLUTIONS, LANGS, defaultShortOptions, QUEUE_MAX, BUFFER_WARN } from '../lib/shortOptions';
 import { generateGlowColor } from '../lib/glowColor';
 import { streamLookup, mergeLookupIntoForm } from '../lib/figureLookup';
+import { authFetch } from '../lib/authFetch';
 
 // ============================================================================
 // Znacznik przy etykiecie pola. Rozróżnia dane PEWNE od domysłu modelu — bez
@@ -347,7 +348,7 @@ export default function AdminDashboard() {
     if (url && url.startsWith('http') && !url.includes('supabase.co')) {
       showToast('Przetwarzanie i optymalizacja obrazka...');
       try {
-        const response = await fetch('/api/process-image', {
+        const response = await authFetch('/api/process-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ imageUrl: url, figureName: formObj.name || 'figure' })
@@ -370,7 +371,7 @@ export default function AdminDashboard() {
 
   // Finalizacja: kanoniczny webp + skasowanie folderu roboczego (serwer, service_role).
   const finalizeImage = async (figureId, imageUrl, figureName) => {
-    const res = await fetch('/api/finalize-image', {
+    const res = await authFetch('/api/finalize-image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ figureId, imageUrl, figureName }),
@@ -458,7 +459,7 @@ export default function AdminDashboard() {
     const query = [editForm.name || fig.name, editForm.series || fig.series].filter(Boolean).join(' ');
     showToast('Odświeżam oferty (eBay)...');
     try {
-      const res = await fetch('/api/refresh-prices', {
+      const res = await authFetch('/api/refresh-prices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ figureId: fig.id, query }),
@@ -475,7 +476,7 @@ export default function AdminDashboard() {
   const handleGenerateShort = async (fig) => {
     showToast('Generuję short teraz (render trwa kilkadziesiąt s)...');
     try {
-      const res = await fetch('/api/generate-short', {
+      const res = await authFetch('/api/generate-short', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ figureId: fig.id, options: shortOpts }),

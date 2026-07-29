@@ -7,6 +7,8 @@
 // publicznej.
 // ============================================================================
 
+import { authFetch } from './authFetch';
+
 /**
  * Czyta strumień zdarzeń (SSE) z /api/fetch-figure.
  * onProgress dostaje kolejne etapy (do paska postępu), funkcja zwraca finalne
@@ -22,7 +24,7 @@ export async function streamLookup(name, series, onProgress, opts = {}) {
     (opts.deep ? '&deep=1' : '') +
     (opts.refresh ? '&refresh=1' : '');
 
-  const res = await fetch(url);
+  const res = await authFetch(url);
   if (!res.ok || !res.body) throw new Error(`Serwer odpowiedział ${res.status}`);
 
   const reader = res.body.getReader();

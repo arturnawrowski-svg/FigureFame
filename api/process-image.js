@@ -1,6 +1,7 @@
 import sharp from "sharp";
 import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 import { BROWSER_UA } from "../server-lib/lookupShared.js";
+import { wymagajModeratora } from "../server-lib/wymagajModeratora.js";
 
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024; // 15 MB — ochrona przed nadużyciem
 
@@ -34,6 +35,8 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  // Jak w finalize-image: serwer ściąga podany adres i zapisuje u nas.
+  if (!(await wymagajModeratora(req, res))) return;
 
   try {
     const supabase = getSupabaseAdmin();

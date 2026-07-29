@@ -1,5 +1,6 @@
 import sharp from "sharp";
 import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
+import { wymagajModeratora } from "../server-lib/wymagajModeratora.js";
 
 // ============================================================================
 // upload-work-image (Etap 2) — zapisuje zdjęcie-KANDYDATA do folderu roboczego:
@@ -14,6 +15,8 @@ export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
+  // Zapis do naszego Storage kluczem service_role — wyłącznie dla moderatora.
+  if (!(await wymagajModeratora(req, res))) return;
   try {
     let body = req.body;
     if (Buffer.isBuffer(req.body)) body = JSON.parse(req.body.toString());

@@ -1,96 +1,165 @@
-# FigureFame — Roadmap & TODO
+# FigureFame — co do zrobienia
 
-Stan na **29.07.2026**. Szczegóły architektury: [plan_claude_210720026.md](plan_claude_210720026.md),
-opis aplikacji: [DOKUMENTACJA.md](DOKUMENTACJA.md), lista sklepów: [affiliation.md](affiliation.md).
-
-> **Zasada naczelna: FREE-FIRST.** Darmowe narzędzia tak długo, jak się da.
-> Jedyny akceptowany koszt na dziś: domena i poczta w przyszłości.
-
----
-
-## ✅ Zrobione
-
-### Silnik danych
-- [x] Baza Supabase (figures, price_snapshots, lookup_cache, lookup_queue).
-- [x] Kolejka moderacji: `PENDING` → `APPROVED` / `ARCHIVED`.
-- [x] **Drabina źródeł** (`api/lib/figureSources.js`): encyklopedia + katalogi producentów,
-      AI dopiero na końcu i wyłącznie na braki. Japońskie nazwy, ostrzeżenia o podróbkach.
-- [x] **Pamięć podręczna wyszukiwań** — każdą figurkę pobieramy raz (9,96 s → 0,09 s).
-- [x] **Lokalna przeglądarka** (Playwright): omija Cloudflare, ~1,2 s, bez limitów, za darmo.
-- [x] **Łańcuch dostawców scrapingu** z fallbackiem (6 usług, każda z własnym darmowym limitem).
-- [x] Worker kolejki wyszukiwań — klik na żywej stronie realizuje komputer admina.
-- [x] Warstwa multi-AI: 9 modeli z fallbackiem + grounding (Tavily / Gemini).
-
-### Interfejs
-- [x] Widok „Dossier", tooltipy, lista ofert.
-- [x] Panel moderatora: zakładki, Studio zdjęcia, podgląd karty na żywo.
-- [x] **Pasek postępu** z realnymi etapami; publicznie ogólne nazwy źródeł, dokładne tylko dla admina.
-- [x] **Tryb ⭐ TOP** — dokładniejsze szukanie na żądanie.
-- [x] Wyszukiwarka publiczna wyłącznie po własnej bazie (także po nazwach japońskich).
-- [x] Przełącznik języka PL/EN (szkielet i18n).
-
-### Generator shortów
-- [x] Render lokalny (sharp + ffmpeg), opcje: scenariusz, akcent, muzyka, rozdzielczość, język.
-- [x] Kolejka renderu w bazie + moderacja wideo + publikacja na Google Drive.
-- [x] `FigureFame-Studio.cmd` — jedno kliknięcie uruchamia oba workery.
-
-### Infrastruktura
-- [x] GitHub + automatyczne wdrożenia na Vercel.
-- [x] RLS, strażnik `/admin`, klucze wyłącznie po stronie serwera.
-- [x] **Usuwanie konta (RODO)** — profil → strefa nieodwracalna, potwierdzenie przez
-      przepisanie hasła. Figurki zostają i przechodzą na konto moderatora. Konto
-      moderatora zablokowane przed skasowaniem. Sprawdzone na jednorazowych kontach
-      w żywej bazie.
-- [x] Migracje w repo (wcześniej reguła `*.sql` trzymała schemat poza kontrolą wersji).
+> **Aktualizacja: 29.07.2026.** Kolejność od najbardziej krytycznego w dół.
+> Zasady → [ZALOZENIA.md](ZALOZENIA.md) · Zrobione → [DONE.md](DONE.md) · Dalej → [FUTURE.md](FUTURE.md)
+>
+> Lista powstała z przeglądu **wszystkich** dokumentów projektu i trzech audytów z zewnątrz.
+> Każda pozycja została sprawdzona w kodzie albo na żywej bazie — to, co się nie potwierdziło,
+> jest na dole, w sekcji „Sprawdzone — NIE jest problemem", żeby nie wracało przy kolejnym audycie.
 
 ---
 
-## 🔜 Następne w kolejce
+## 🔴 Blokuje premierę
 
-### 1. Ceny i afiliacja (największy zysk — monetyzacja)
-- [ ] **Klucze eBay** (`EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET`) — kod czeka gotowy.
-- [ ] **Rakuten** (`RAKUTEN_APP_ID`) — jw.
-- [ ] Rejestracja w programach partnerskich → identyfikatory do `.env`
-      (warstwa `affiliateLinks.js` obsługuje 12 platform, m.in. Amazon; bez identyfikatora
-      linki zostają nietknięte, więc nic nie łamiemy przed akceptacją).
-- [ ] Nota o linkach partnerskich w regulaminie i przy ofertach (wymóg w UE).
-- [ ] Odświeżanie cen wyzwalane z panelu; automat dopiero, gdy będzie sens.
+### 1. Adres `figurefame.com` zamiast `figure-fame.vercel.app`
 
-### 2. Domena i tożsamość
-- [ ] Zakup domeny + poczta (`admin@`), przepięcie Vercela.
-- [ ] Konta partnerskie docelowo na adres z domeny — przy istniejących kontach
-      **zmieniać e-mail, nie zakładać nowych** (inaczej przepada historia prowizji).
+W [index.html](index.html) cztery miejsca wskazują na adres Vercela: `canonical`, `og:url`,
+`og:image`, `twitter:image`. Do tego `SITE_URL` **nie jest ustawione nigdzie**, więc
+[api/sitemap.js](api/sitemap.js), [api/figure-meta.js](api/figure-meta.js) i
+[worker/renderQueue.mjs](worker/renderQueue.mjs) używają wartości domyślnej — też Vercela.
 
-### 3. Treść i zasięg
-- [ ] Pełne tłumaczenie strony (EN, potem CS/FR) — szkielet i18n gotowy.
-- [ ] Lokalizacja shortów: CS/FR (dopisanie do słownika w `shortOptions.js`).
-- [ ] Publikacja shortów na kanałach (wymaga zgód platform).
+Skutek po premierze: Google zaindeksuje `figure-fame.vercel.app` jako adres główny, a link
+udostępniony na Discordzie zaprowadzi na Vercela zamiast na Twoją domenę.
 
-### 4. Zapas i odporność
-- [ ] Klucze zapasowych scraperów (ScrapingBee, Scrapfly) — wklejenie i gotowe.
-- [ ] „Live Check" ofert przed przekierowaniem (ochrona przed martwymi linkami).
-- [ ] Podział `AdminDashboard.jsx` (1090 linii) — **dopiero przy kolejnej rozbudowie**,
-      dziś rozbijanie działającego panelu to ryzyko bez zysku.
+- [ ] cztery adresy w `index.html`
+- [ ] `SITE_URL=https://figurefame.com` w zmiennych Vercela (naprawia sitemap, wizytówkę dla
+      robotów i opisy filmów na Dysku za jednym razem)
+
+*Dziś nic złego się nie dzieje — strona ma `noindex` i zasłonę. To zadanie na dzień przed premierą.*
+
+### 2. Polityka prywatności i regulamin
+
+Warunek legalnej premiery (RODO art. 13). Usuwanie konta już jest, brakuje **spisanych zasad**:
+jakie dane zbieramy (adres e-mail z logowania, profil, zgłoszenia figurek), po co, jak długo,
+jak je usunąć, kto jest administratorem danych.
+
+- [ ] strona `/prywatnosc` + `/regulamin` (statyczne komponenty, zero zależności)
+- [ ] **nota o linkach afiliacyjnych** — w UE wymagana przy ofertach, nie tylko w regulaminie
+- [ ] odnośniki w stopce
+
+> **Uwaga, bo audyty z zewnątrz mówiły inaczej:** obowiązkiem jest *polityka prywatności*,
+> a nie „cookie banner". Supabase trzyma sesję w `localStorage` **niezbędnie do działania
+> logowania**, a na to zgoda nie jest wymagana. Banner stanie się potrzebny dopiero, jeśli
+> kiedyś dołożymy śledzenie marketingowe.
+
+### 3. Premiera — kolejność czynności
+
+- [ ] usunąć `SITE_GATE_USER` i `SITE_GATE_PASSWORD` z Vercela (zdjęcie zasłony)
+- [ ] przywrócić `robots.txt` z sekcji „DOCELOWO" (czeka zakomentowany na końcu pliku)
+- [ ] zdjąć `<meta name="robots" content="noindex...">` z `index.html`
+- [ ] sprawdzić `site:figurefame.com` w Google po 48 h
+
+⚠️ **Punkty 1 i 2 muszą być zrobione WCZEŚNIEJ.** Zdjęcie zasłony jest nieodwracalne
+w tym sensie, że od tej chwili strona jest publiczna razem ze wszystkim, co na niej stoi.
+Endpointy serwerowe są już zamknięte (29.07) — zasłona nie jest ich jedyną ochroną.
+
+---
+
+## 🟠 Ważne, ale nie blokuje
+
+### 4. Statystyki
+
+Ani jednego licznika. Po premierze nie będziesz wiedzieć, skąd przychodzą ludzie ani
+czy shorty w ogóle kierują ruch.
+
+- [ ] **Vercel Analytics** — darmowe, włącza się w panelu Vercela, nie wymaga zgody na ciasteczka
+- [ ] Google Search Console (pozycje w wyszukiwarce)
+
+### 5. Klucze do ofert i afiliacji
+
+Kod czeka gotowy — to najkrótsza droga do pierwszego przychodu.
+
+- [ ] `EBAY_CLIENT_ID` / `EBAY_CLIENT_SECRET`
+- [ ] `RAKUTEN_APP_ID`
+- [ ] rejestracja w programach partnerskich → identyfikatory do `.env`
+      (warstwa [affiliateLinks.js](server-lib/affiliateLinks.js) obsługuje 12 platform;
+      bez identyfikatora linki zostają nietknięte, więc nic się nie psuje przed akceptacją)
+- [ ] ⚠️ zasłona blokuje też roboty programów afiliacyjnych — przy zgłoszeniach potrzebny wyjątek
+
+### 6. Sprzątanie zależności
+
+Sprawdzone: **żadna z tych trzech nie jest importowana w kodzie.**
+
+- [ ] `npm remove framer-motion tailwind-merge clsx`
+
+*Uwaga: to porządek w `package.json`, nie wydajność. Nieużywana zależność nie trafia do
+paczki startowej — „5,5 MB w bundlu" z audytu jest nieprawdą.*
+
+### 7. Drobne decyzje
+
+- [ ] **Facebook** — logowanie działa, brak przycisku. Dodać czy wyłączyć?
+- [ ] **4 duplikaty figurek** w Archiwum — skasować albo scalić
+- [ ] **Rozbieżność „Asuka Jersey Ver."** — baza mówi Alter, a wszystkie dziewięć modeli AI
+      zgodnie mówi Good Smile. Któreś jest w błędzie; sprawdzić w katalogu
+- [ ] **9 figurek w Archiwum bez zgłaszającego** — pochodzą z zasiewu (`scripts/insert_base_figures.cjs`
+      wpisuje `submitted_by: null`), nie po kasowaniu kont. Przypisać moderatorowi albo zostawić
+
+---
+
+## 🟡 Może poczekać
+
+- [ ] **Awatar użytkownika** (webp) i język w profilu — kolumny już są
+- [ ] **Podział `AdminDashboard.jsx`** (1267 linii) — dopiero przy kolejnej rozbudowie;
+      dziś rozbijanie działającego panelu to ryzyko bez zysku
+- [ ] **Testy dla `figureSources.js` i `aiClient.js`** — to rdzeń logiki, dziś bez pokrycia
+- [ ] **Zapasowe klucze scraperów** (ScrapingBee, Scrapfly) — wklejenie i gotowe
+- [ ] **„Live Check" ofert** przed przekierowaniem (ochrona przed martwymi linkami)
+- [ ] **Kopia bazy z produkcji**, nie tylko plików projektu (`npm run kopia` robi ZIP repo;
+      dane figurek żyją w Supabase)
+- [ ] **Monitoring transferu Supabase** — 5 GB/mies. to prawdziwy sufit darmowego tieru
 
 ---
 
 ## ❄️ Odłożone świadomie
 
-- **Cerebras** — usunięty, brak działającego darmowego modelu.
+- **Cerebras** — usunięty, brak działającego darmowego modelu
+- **DeepSeek** — na OpenRouterze nie ma darmowej wersji (sprawdzone 29.07: zero darmowych
+  modeli DeepSeek), a wersja z GitHub Models to model rozumujący, który psuje odczyt JSON-a
+  blokiem `<think>`. Bez wartości dodanej przy dziewięciu działających slotach
 - **AmiAmi / HobbySearch przez pośrednika** — adaptery gotowe, ale darmowe plany nie mają
-  japońskich adresów IP (`ROTATION_FAILED`). Włącznik: `FIGURE_SOURCES_JP=1`.
-- **SerpApi** — zbędne, dubluje darmowe API eBay.
-- **Płatny plan Vercel** — dopiero przy realnym ruchu.
-- **Pozycje 18+ z affiliation.md** — poza zakresem; ewentualnie za bramką wieku.
+  japońskich adresów IP. Włącznik: `FIGURE_SOURCES_JP=1`
+- **SerpApi** — zbędne, dubluje darmowe API eBay
+- **Płatny plan Vercel** — dopiero przy realnym ruchu
+- **Pozycje 18+** — poza zakresem
 
 ---
 
-## ⚠️ O czym pamiętać
+## ⚪ Sprawdzone — NIE jest problemem
 
-1. **Dodawaj figurki lokalnie** (`npm run dev` → `localhost`) — wtedy dane pobiera
-   Twoja przeglądarka: bez limitów i najszybciej. Żywa strona to tryb awaryjny
-   (zlecenie trafia do kolejki, realizuje je FigureFame Studio w domu).
-2. **Backup rób PO zmianach**, nie przed — archiwum ma odzwierciedlać stan końcowy.
-   Stare archiwa trzymaj poza folderem projektu (inaczej puchną kolejne).
-3. **Dane z katalogów są pewne, z AI — nie.** Panel pokazuje pochodzenie; przed
-   dodaniem do Gabloty weryfikuj to, czego nie potwierdziło żadne źródło.
+Zebrane z trzech audytów z zewnątrz (`podsumowanie.md`, `ocenaHD.md`, `AUDYT-...md`).
+Każde twierdzenie sprawdzone w kodzie albo wywołaniem, **nie na oko**.
+
+| Twierdzenie | Jak jest naprawdę |
+|---|---|
+| „Brak error boundary" | Jest — [ErrorBoundary.jsx](src/components/ErrorBoundary.jsx) owija całą aplikację w `main.jsx` |
+| „Tailwind CSS w stacku" | Nie ma Tailwinda. Jest `tailwind-merge` — inna biblioteka, w dodatku nieużywana |
+| „Tylko jeden test" | Pięć plików, **49 testów**, wszystkie przechodzą |
+| „RLS nie audytowane" | Zrobione i zweryfikowane 28.07 |
+| „Usuwanie konta — brak" | Zrobione 29.07, przetestowane na jednorazowych kontach |
+| „Brak Schema.org / rich snippets" | Jest — JSON-LD w [api/figure-meta.js](api/figure-meta.js), serwowane robotom przez przepisanie w `vercel.json` |
+| „Brak Cache-Control na API" | Jest na `figure-meta` (`s-maxage=300`) i `sitemap` (`max-age=3600`); `fetch-figure` to strumień SSE, więc `no-cache` jest **poprawne** |
+| „Każda karta figurki to funkcja serverless → limit 100k/mies." | Nie. Gablota czyta wprost z Supabase, Vercel serwuje pliki statyczne. Sufitem jest **transfer Supabase (5 GB)**, nie liczba wywołań funkcji |
+| „WebP nie działa w Safari na iOS 14 → potrzebny JPEG" | Odwrotnie: Safari 14 (2020) **wprowadziło** obsługę WebP. Fallback byłby pracą bez odbiorcy |
+| „Brak `favicon.ico` — Internet Explorer nie czyta PNG" | IE został wycofany w 2022 |
+| „Basic Auth: sesja żyje wiecznie, dodać `Max-Age=3600`" | Basic Auth nie używa ciasteczka — nie ma czego ograniczać. Ten „fix" nie istnieje |
+| „Brak rate limitingu na `delete-account`" | Wymaga ważnego tokenu **własnego** konta i przepisanego hasła. Cały atak to skasowanie sobie konta raz |
+| „30-dniowa pamięć podręczna zestarzeje ceny" | W pamięci podręcznej leżą dane, które się nie zmieniają (producent, skala, nazwa japońska). Ceny mają własną drogę (`refresh-prices`) |
+| „`supabaseClient.js` ma fallback na placeholder zamiast błędu" | Kosmetyka: bez zmiennych aplikacja i tak nie zadziała, a placeholder daje czytelniejszy komunikat w konsoli niż wyjątek przy starcie |
+| „DeepSeek za darmo na OpenRouterze" | Zero darmowych modeli DeepSeek; oba podane identyfikatory nie istnieją |
+
+**Wniosek na przyszłość:** audyt, który czyta kod, ale nie uruchamia ani jednego zapytania,
+myli się mniej więcej w połowie przypadków — i to w obie strony. Nie zauważył za to rzeczy
+najgroźniejszej: sześciu endpointów z kluczem `service_role` bez żadnej autoryzacji
+(naprawione 29.07, patrz [DONE.md](DONE.md)).
+
+---
+
+## ⚠️ O czym pamiętać przy pracy
+
+1. **Dodawaj figurki lokalnie** (`npm run dev`) — wtedy dane pobiera Twoja przeglądarka:
+   bez limitów i najszybciej. Żywa strona to tryb awaryjny (zlecenie trafia do kolejki).
+2. **Kopię zapasową rób PO zmianach**, nie przed — archiwum ma odzwierciedlać stan końcowy.
+3. **Dane z katalogów są pewne, z AI — nie.** Panel pokazuje pochodzenie; przed dodaniem
+   do Gabloty weryfikuj to, czego nie potwierdziło żadne źródło.
+4. **Zielone światło Studia zapala wyłącznie tryb ciągły** — `npm run lookup-worker:watch`
+   albo `FigureFame-Studio.cmd`.

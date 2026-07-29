@@ -1,5 +1,6 @@
 import { useState, memo } from 'react';
 import { Wand2, Sparkles, Check, Loader2, RotateCcw } from 'lucide-react';
+import { authFetch } from '../lib/authFetch';
 
 // ============================================================================
 // ImageStudio (Etap 2, finał) — obróbka zdjęcia figurki:
@@ -124,7 +125,7 @@ export default memo(function ImageStudio({ figureId, imageUrl, glowHex, onProces
     setBusy('save');
     try {
       const imageBase64 = await blobToBase64(workingBlob);
-      const res = await fetch('/api/upload-work-image', {
+      const res = await authFetch('/api/upload-work-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ figureId, imageBase64 }),

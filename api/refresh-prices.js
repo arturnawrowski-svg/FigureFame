@@ -1,5 +1,6 @@
 import { fetchAllOffers } from "../server-lib/priceProviders.js";
 import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
+import { wymagajModeratora } from "../server-lib/wymagajModeratora.js";
 
 // ============================================================================
 // refresh-prices (Etap 3) — pobiera oferty dla figurki i zapisuje snapshot cen.
@@ -9,6 +10,8 @@ import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  // Każde wywołanie zużywa darmowy limit eBay/Rakuten i nadpisuje oferty w bazie.
+  if (!(await wymagajModeratora(req, res))) return;
   try {
     let body = req.body;
     if (Buffer.isBuffer(req.body)) body = JSON.parse(req.body.toString());

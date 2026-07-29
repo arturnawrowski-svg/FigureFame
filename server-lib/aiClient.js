@@ -5,14 +5,24 @@
 // Zasada FREE-FIRST: darmowe tiery + omijanie limitów przez zmianę providera,
 // a nie przez płatny plan. Zero nowych zależności — czysty fetch.
 //
-// Kolejność prób (konfigurowalna przez env AI_PROVIDER_ORDER):
-//   1. gemini    — natywny REST + grounding Google Search (najlepsza faktyczność)
-//   2. groq      — najszybszy (LPU), Llama 3.1 8B
-//   3. openrouter— agregator, jeden klucz → wiele darmowych modeli
-//   4. github    — GitHub Models (Llama 4 Scout / DeepSeek / GPT), darmowe z tokenem GH
-//   5. github2   — drugi token GH → inny model (Mistral Small)
-//   6. sambanova — bardzo szybki, Llama 3.3 70B, darmowy tier
-//   7. hf        — Hugging Face router, fallback awaryjny (bywa zimny start)
+// Kolejność prób (konfigurowalna przez env AI_PROVIDER_ORDER) — patrz DEFAULT_ORDER
+// niżej. Ustawiona POMIAREM z 29.07.2026 (5 figurek × 9 slotów, ten sam prompt
+// i ten sam kontekst z Tavily), nie przeczuciem:
+//
+//   slot         udane  producent  skala   mediana
+//   groq         4/5    3/5        3/5        654 ms
+//   sambanova    5/5    3/5        5/5      1 523 ms
+//   github2      5/5    3/5        5/5      2 405 ms
+//   github       5/5    3/5        4/5      2 900 ms
+//   github4      5/5    3/5        4/5      3 143 ms
+//   github3      5/5    3/5        4/5      4 621 ms
+//   gemini       5/5    4/5        4/5     16 654 ms   (jedyny z groundingiem)
+//   hf           5/5    3/5        5/5     17 921 ms
+//   openrouter   4/5    3/5        2/5     55 332 ms   (rekord 516 s!)
+//
+// Dlatego openrouter spadł z drugiego miejsca na koniec, a każde wywołanie ma
+// twardy limit czasu (AI_TIMEOUT_MS) — bez niego jeden wiszący provider zjadał
+// cały 60-sekundowy budżet funkcji na Vercelu i wyszukiwanie kończyło się niczym.
 //
 // Grounding dla modeli BEZ własnego wyszukiwania (Groq/OpenRouter/GitHub):
 // opcjonalnie Tavily (TAVILY_API_KEY) — patrz callAI(prompt, { groundQuery }).
@@ -46,19 +56,44 @@ function env() {
   };
 }
 
-// Domyślna kolejność: najpierw zweryfikowane działające (Groq, OpenRouter),
-// potem Gemini z groundingiem (nowy klucz).
-// Aby przywrócić grounding jako pierwszy:
-//   AI_PROVIDER_ORDER=gemini,groq,openrouter,github,github2,github3,github4,sambanova,hf
-const DEFAULT_ORDER = ["groq", "openrouter", "sambanova", "github", "github2", "github3", "github4", "gemini", "hf"];
+// Domyślna kolejność wg pomiaru z nagłówka pliku: najpierw szybcy i pewni,
+// grounding (gemini) jako przedostatnia deska ratunku, openrouter na końcu.
+// Aby postawić grounding na początku (celniejszy, ale ~17 s):
+//   AI_PROVIDER_ORDER=gemini,groq,sambanova,github2,github,github4,github3,hf,openrouter
+const DEFAULT_ORDER = ["groq", "sambanova", "github2", "github", "github4", "github3", "gemini", "hf", "openrouter"];
+
+// Twardy limit na JEDNO wywołanie. Providerzy nie mają obowiązku odpowiedzieć
+// szybko ani w ogóle — openrouter wisiał w pomiarze 516 s, a funkcja na Vercelu
+// ma na wszystko 60 s (vercel.json). Lepiej zejść do następnego providera po
+// 20 s niż oddać użytkownikowi pustkę po minucie.
+const TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS) || 20000;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// fetch z limitem czasu. AbortController przerywa POŁĄCZENIE, nie tylko
+// czekanie — bez tego zerwany provider dalej trzymałby gniazdo otwarte.
+async function fetchZLimitem(url, opts, etykieta) {
+  const ctrl = new AbortController();
+  const stoper = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } catch (e) {
+    if (e.name === "AbortError") {
+      const err = new Error(`${etykieta}: brak odpowiedzi w ${TIMEOUT_MS / 1000} s — pomijam`);
+      err.status = 408;
+      throw err;
+    }
+    throw e;
+  } finally {
+    clearTimeout(stoper);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Wywołanie OpenAI-compatible /chat/completions (Groq, OpenRouter)
 // ---------------------------------------------------------------------------
 async function callOpenAICompatible({ baseURL, apiKey, model, prompt, extraHeaders = {} }) {
-  const res = await fetch(`${baseURL}/chat/completions`, {
+  const res = await fetchZLimitem(`${baseURL}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -70,7 +105,7 @@ async function callOpenAICompatible({ baseURL, apiKey, model, prompt, extraHeade
       messages: [{ role: "user", content: prompt }],
       temperature: 0.4,
     }),
-  });
+  }, model);
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -95,7 +130,7 @@ async function callGemini(prompt) {
   for (const key of keys) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`;
-      const res = await fetch(url, {
+      const res = await fetchZLimitem(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -103,7 +138,7 @@ async function callGemini(prompt) {
           tools: [{ google_search: {} }], // grounding — realne wyszukiwanie zamiast halucynacji
           generationConfig: { temperature: 0.4 },
         }),
-      });
+      }, GEMINI_MODEL);
       if (!res.ok) {
         const text = await res.text().catch(() => "");
         const err = new Error(`Gemini HTTP ${res.status}: ${text.slice(0, 300)}`);

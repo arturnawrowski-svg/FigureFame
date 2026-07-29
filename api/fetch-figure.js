@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 import { gatherFromSources } from "../server-lib/figureSources.js";
 import { rehostImage, crossCheckImage } from "../server-lib/figureImage.js";
 import { cacheKey, hasLocalBrowser } from "../server-lib/lookupShared.js";
+import { wymagajModeratora } from "../server-lib/wymagajModeratora.js";
 
 // Pamięć podręczna wyszukiwań — chroni mały limit pośrednika (patrz migracje-cache.sql).
 const CACHE_DAYS = 30;
@@ -102,6 +103,11 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  // Jedno wyszukanie to kilkanaście zapytań do katalogów, kredyty pośredników
+  // scrapingu i zapytanie do AI. Wołane wyłącznie z panelu moderatora.
+  // Brama MUSI iść przed writeHead — po otwarciu strumienia SSE nie da się już
+  // odesłać zwykłego 401.
+  if (!(await wymagajModeratora(req, res))) return;
 
   const { name, series = '', manufacturer = '', scale = '', stream, deep, refresh } = req.query;
   if (!name) {

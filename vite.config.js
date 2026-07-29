@@ -57,6 +57,9 @@ export default defineConfig({
             const mockReq = {
               method: req.method,
               query: Object.fromEntries(url.searchParams),
+              // Nagłówki muszą przejść — bez nich brama moderatora odbiłaby
+              // każde wyszukiwanie w środowisku developerskim.
+              headers: req.headers,
             };
 
             // Podajemy PRAWDZIWY res (ma writeHead/write — potrzebne dla SSE),
@@ -76,23 +79,14 @@ export default defineConfig({
           }
         });
 
-        // Middleware for processing and uploading images
-        server.middlewares.use('/api/process-image', async (req, res) => {
-          // Aby odczytać body typu POST w Vicie, musimy je najpierw "poskładać" ze streamu.
-          let body = '';
-          req.on('data', chunk => {
-            body += chunk.toString(); // zamiana Buffera na String
-          });
-          req.on('end', async () => {
-            req.body = body; // dopinamy body do obiektu requesta
-            try {
-              await processImageHandler(req, res);
-            } catch (e) {
-              res.statusCode = 500;
-              res.end(JSON.stringify({ error: e.message }));
-            }
-          });
-        })
+        // Konwersja i wysyłka zdjęcia.
+        // Uwaga: ten endpoint miał tu kiedyś własną obsługę bez skrótów
+        // `res.status()/.json()` w stylu Vercela. Póki zwracał tylko treść,
+        // nikt tego nie zauważył — ale gdy doszła brama moderatora (która
+        // odpowiada `res.status(401)`), w środowisku developerskim KAŻDE
+        // wywołanie kończyło się błędem 500. Teraz jedzie tym samym
+        // pomocnikiem co reszta.
+        server.middlewares.use('/api/process-image', postJsonMiddleware(processImageHandler))
 
         // Upload zdjęcia-kandydata do folderu roboczego (Etap 2)
         server.middlewares.use('/api/upload-work-image', postJsonMiddleware(uploadWorkImageHandler))
