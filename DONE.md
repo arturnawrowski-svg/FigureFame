@@ -137,6 +137,23 @@ fetch-figure         401          403           przechodzi
 ask-figure (publiczny): 10× przepuszczone, 11. → 429
 ```
 
+### Token w osobnym nagłówku, 30.07.2026
+
+Brama z 29.07 wysyłała token w nagłówku `Authorization` — a ten należy do **zasłony na hasło**
+(HTTP Basic Auth). Zasłona widziała „to nie jest Basic", odsyłała 401 z `WWW-Authenticate`,
+a przeglądarka na taką odpowiedź kasuje zapamiętane hasło do strony. Efekt: każde kliknięcie
+w panelu wyrzucało moderatora do okienka z hasłem. Lokalnie było niewidoczne, bo w `npm run dev`
+zasłony nie ma — dlatego komplet testów przeszedł, a produkcja się posypała.
+
+Token jedzie teraz nagłówkiem `x-ff-token` ([src/lib/authFetch.js](src/lib/authFetch.js)),
+serwer czyta oba (`tokenZzadania`). Potwierdzone na żywym adresie:
+
+```
+hasło strony, bez tokenu             400   (bez żądania hasła)
+hasło strony + nasz token            401   (bez żądania hasła)   ← tak ma być
+token w Authorization (stary sposób) 401   ŻĄDA HASŁA ← przyczyna awarii
+```
+
 ### Pozostałe
 
 - Strażnik tras (`ProtectedRoute`): `/admin` tylko dla moderatora, `/add` i `/profile` dla zalogowanych.

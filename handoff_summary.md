@@ -1,6 +1,6 @@
 # FigureFame — stan techniczny i pułapki
 
-> **29.07.2026.** Ten plik jest instrukcją obsługi tego, co już stoi: gdzie co jest wpięte,
+> **31.07.2026.** Ten plik jest instrukcją obsługi tego, co już stoi: gdzie co jest wpięte,
 > którym poleceniem się to uruchamia i o co można się boleśnie potknąć.
 >
 > Czym jest projekt i jakich zasad nie łamiemy → [ZALOZENIA.md](ZALOZENIA.md)
@@ -55,6 +55,23 @@ DMARC `p=none` (tryb obserwacji, nic nie blokuje).
 > Zasłona **nie jest** już jedyną ochroną endpointów serwerowych — od 29.07 mają własną bramę
 > ([server-lib/wymagajModeratora.js](server-lib/wymagajModeratora.js)). Wcześniej była, i to
 > był poważny problem: patrz [DONE.md](DONE.md), sekcja 6.
+
+### ⚠️ Zasłona zajmuje nagłówek `Authorization`
+
+To nie jest ciekawostka, tylko rzecz, o którą projekt już się raz wywrócił (30.07).
+
+Zasłona to **HTTP Basic Auth**, a ten mieszka w nagłówku `Authorization`. Gdy panel wkładał
+tam swój token sesji, zasłona widziała „to nie jest Basic", odsyłała 401 z `WWW-Authenticate`
+— a przeglądarka na taką odpowiedź **kasuje zapamiętane hasło do strony** i pyta o nie od nowa.
+Objaw: cokolwiek klikniesz w panelu, wracasz do okienka z hasłem.
+
+Dlatego **nasz token jedzie własnym nagłówkiem `x-ff-token`**
+([src/lib/authFetch.js](src/lib/authFetch.js)), a serwer czyta oba —
+własny pierwszy, `Authorization` jako droga zapasowa dla `curl`a i testów
+(`tokenZzadania` w [wymagajModeratora.js](server-lib/wymagajModeratora.js)).
+
+**Wniosek na przyszłość:** dopóki stoi zasłona, `Authorization` jest zajęty. Każdy nowy
+endpoint wymagający tożsamości ma używać `x-ff-token`.
 
 ## 4. Logowanie
 
@@ -166,6 +183,45 @@ z arkusza [design/logo_FigureFame.png](design/logo_FigureFame.png).
 - **Middleware Vite to nie Vercel.** Endpoint `process-image` miał w dev własną obsługę bez
   skrótów `res.status()/.json()`. Póki zwracał samą treść, nikt tego nie zauważył — ale gdy
   doszła brama moderatora, w dev **każde** wywołanie kończyło się błędem 500.
+- **`localhost` nie ma zasłony, więc nie sprawdzi wszystkiego.** Brama moderatora przeszła
+  lokalnie komplet testów (401/403/200) i **położyła produkcję**, bo tam przed aplikacją stoi
+  jeszcze Basic Auth — patrz sekcja 3. Zmiany dotykające nagłówków, uwierzytelniania albo
+  przekierowań trzeba sprawdzić przez `https://figurefame.com`, nie tylko przez `npm run dev`.
+  Wystarczy `curl -u archi:HASŁO -i https://figurefame.com/api/...` i spojrzenie, czy
+  w odpowiedzi nie ma `WWW-Authenticate`.
 - **Nieużywana zależność nie leży w paczce startowej.** `framer-motion` wisi w `package.json`,
   ale nie jest importowany — więc „5,5 MB w bundlu" to nieprawda. Warto go usunąć dla porządku,
   nie dla wydajności.
+
+## 9. Gdzie jest sufit darmowych planów (ustalone 30.07)
+
+Ani GitHub, ani Vercel. **Supabase — ale nie baza, tylko transfer.**
+
+| Zasób | Limit | Zużycie dziś |
+|---|---|---|
+| Baza (wiersze tekstu) | setki MB | ułamek promila — 24 wiersze to nic |
+| Magazyn plików | 1 GB | 0,4 MB (24 zdjęcia) ≈ 0,04% |
+| **Transfer miesięczny** | **5 GB** | zależy od ruchu ← **tu jest sufit** |
+
+Zdjęcie waży ~17 kB, więc 5 GB to jakieś **250–300 tys. wyświetleń zdjęć miesięcznie**.
+Przy dzisiejszym ruchu nieosiągalne; przy jednym shorcie, który zaskoczy — do zjedzenia
+w weekend.
+
+**Dzielenie bazy na dwa darmowe konta odpada** i nie jest to kwestia regulaminu:
+
+1. Nie rozwiązuje problemu — sufitem jest transfer zdjęć, nie miejsce.
+2. Baza jest relacyjna (`figures` ↔ `price_snapshots` ↔ `profiles`); podział wywala klucze
+   obce, złączenia i reguły RLS, czyli wszystko, co zamknęliśmy 28.07.
+3. Konta użytkowników żyją w **jednym** projekcie — człowiek zalogowany w projekcie A nie
+   istnieje dla projektu B.
+4. Dwa klucze, dwa klienty, dwie kopie zapasowe przy projekcie jednoosobowym.
+5. Supabase usypia nieaktywne darmowe projekty.
+
+**Właściwa droga, gdy transfer zacznie boleć:** Cloudflare przed zdjęciami (domena już tam
+stoi, więc to konfiguracja, nie przeprowadzka). Cloudflare pobiera plik z Supabase **raz**
+i serwuje go dalej ze swojej pamięci. Koszt 0 zł. Gdyby i to nie starczyło — Cloudflare R2:
+10 GB miejsca i **zero opłat za transfer wychodzący**, a baza zostaje jedna.
+
+> Uczciwie: dziś wąskim gardłem nie jest żadna z tych usług, tylko **24 figurki**.
+> Do limitów trzeba najpierw dorosnąć, a droga do nich prowadzi przez treść —
+> dlatego w [FUTURE.md](FUTURE.md) głębia bazy stoi przed wszystkim innym.
