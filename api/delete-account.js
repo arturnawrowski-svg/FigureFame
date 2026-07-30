@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
+import { tokenZzadania } from "../server-lib/wymagajModeratora.js";
 
 // ============================================================================
 // delete-account — TRWAŁE usunięcie konta na żądanie właściciela (RODO, art. 17).
@@ -52,8 +53,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: `Brak potwierdzenia („${POTWIERDZENIE}").` });
     }
 
-    const naglowek = req.headers?.authorization || req.headers?.Authorization || "";
-    const token = naglowek.startsWith("Bearer ") ? naglowek.slice(7).trim() : "";
+    // Token idzie własnym nagłówkiem — `Authorization` należy do zasłony
+    // na hasło (patrz server-lib/wymagajModeratora.js).
+    const token = tokenZzadania(req);
     if (!token) {
       return res.status(401).json({ error: "Brak tokenu sesji." });
     }

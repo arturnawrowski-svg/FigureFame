@@ -19,13 +19,28 @@ import { getSupabaseAdmin } from "./supabaseAdmin.js";
 // ============================================================================
 
 /**
- * Sprawdza token sesji z nagłówka Authorization i uprawnienia moderatora.
+ * Wyjmuje token sesji z żądania.
+ *
+ * Kolejność jest istotna: NAJPIERW własny nagłówek `x-ff-token`, dopiero potem
+ * `Authorization`. Powód: `Authorization` należy do zasłony na hasło (HTTP Basic
+ * Auth w middleware.js) i wpisanie tam czegokolwiek innego wyrzuca moderatora
+ * z powrotem do okienka z hasłem — patrz src/lib/authFetch.js.
+ * `Authorization` zostaje obsługiwany jako droga zapasowa: dla wywołań spoza
+ * przeglądarki (curl, testy), gdzie zasłona nie przeszkadza.
+ */
+export function tokenZzadania(req) {
+  const h = req.headers || {};
+  const surowy = h["x-ff-token"] || h["X-FF-Token"] || h.authorization || h.Authorization || "";
+  return surowy.startsWith("Bearer ") ? surowy.slice(7).trim() : "";
+}
+
+/**
+ * Sprawdza token sesji i uprawnienia moderatora.
  * Sam odpowiada 401/403 i zwraca null, gdy dostępu nie ma.
  * @returns {Promise<{id: string, email: string} | null>}
  */
 export async function wymagajModeratora(req, res) {
-  const naglowek = req.headers?.authorization || req.headers?.Authorization || "";
-  const token = naglowek.startsWith("Bearer ") ? naglowek.slice(7).trim() : "";
+  const token = tokenZzadania(req);
   if (!token) {
     res.status(401).json({ error: "Wymagane logowanie moderatora." });
     return null;

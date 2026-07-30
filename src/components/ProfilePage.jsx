@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { User, Mail, Globe, Hash, Save, LogOut, Trash2, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { authFetch } from '../lib/authFetch';
 
 // Wpisywane ręcznie, żeby skasowanie konta nie było odległe o jedno kliknięcie.
 // Ta sama treść jest sprawdzana po stronie serwera (api/delete-account.js).
@@ -113,15 +114,9 @@ export default function ProfilePage() {
     setKasowanieTrwa(true);
     setBladKasowania(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error('Sesja wygasła — zaloguj się ponownie.');
-
-      const res = await fetch('/api/delete-account', {
+      const res = await authFetch('/api/delete-account', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ potwierdzenie: wpisanePotwierdzenie }),
       });
       const data = await res.json().catch(() => ({}));

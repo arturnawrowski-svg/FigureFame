@@ -15,13 +15,24 @@ to, co ostatecznie wyszło.
 | [200720261841.md](200720261841.md) | Podsumowanie sesji z 20.07.2026 (OAuth Discord, pierwszy rurociąg konwersji zdjęć). | [DONE.md](../DONE.md) |
 | [plan_claude_210720026.md](plan_claude_210720026.md) | **Zatwierdzony plan wdrożeniowy z 21.07.2026** — etapy 0–5, decyzje architektoniczne, sekcja o domenie i poczcie. Wszystkie etapy poza „realnymi cenami" zostały wykonane. | [DONE.md](../DONE.md) (co wyszło) i [FUTURE.md](../FUTURE.md) (co dalej) |
 
-## Czego tu nie ma
+| [rozwój.md](rozwój.md) | Roczny plan rozwojowy z 28.07.2026 przygotowany w innym narzędziu: fazy z datami, harmonogram social, mierniki sukcesu. | [FUTURE.md](../FUTURE.md) — ta sama zawartość, ale zamiast dat są **warunki wejścia** („zaczynamy, gdy…"), bo daty w projekcie po godzinach zamieniają się w wyrzuty sumienia |
 
-- **`rozwój.md`** — roczny plan rozwojowy z 28.07.2026, przygotowany w innym narzędziu.
-  Zniknął z katalogu projektu przed porządkami (nie był w gicie, więc nie ma go też w historii).
-  Treść przejęło [FUTURE.md](../FUTURE.md), z jedną różnicą: zamiast dat mamy **warunki
-  wejścia**. Jeśli plik gdzieś jeszcze leży, można go tu dorzucić.
-- **Audyty z zewnątrz** (`podsumowanie.md`, `ocenaHD.md`, `AUDYT-...md`) — nigdy nie były
-  w repozytorium. Ich ustalenia zostały sprawdzone jeden po drugim; wynik jest w sekcji
-  „Sprawdzone — NIE jest problemem" w [TODO.md](../TODO.md). Warto je tam wrzucić, bo dobrze
-  pokazują, jak łatwo audyt bez uruchomienia kodu mija się z prawdą w obie strony.
+## Audyty z zewnątrz
+
+[podsumowanie.md](podsumowanie.md) · [ocenaHD.md](ocenaHD.md) ·
+[AUDYT-FIGUREFAME-ROZMOWA-2026-07-29.md](AUDYT-FIGUREFAME-ROZMOWA-2026-07-29.md) ·
+[FigureFame-konsultacja-2026-07-28.md](FigureFame-konsultacja-2026-07-28.md)
+
+Oceny projektu zrobione przez inne narzędzia. **Nie traktować ich jako listy zadań** —
+każde twierdzenie zostało sprawdzone w kodzie albo wywołaniem, a wynik jest w sekcji
+„Sprawdzone — NIE jest problemem" w [TODO.md](../TODO.md).
+
+Krótko: około połowa „krytycznych" pozycji się nie potwierdziła (error boundary istnieje,
+Tailwinda w projekcie nie ma, testów jest 49 a nie jeden, Schema.org jest, WebP działa na
+iOS 14), a rzeczy najgroźniejszej — sześciu endpointów z kluczem `service_role` bez żadnej
+autoryzacji — nie zauważył żaden z nich.
+
+Trzymamy je jako przypomnienie, że **audyt czytający kod, ale nieuruchamiający ani jednego
+zapytania, myli się w obie strony**: straszy tym, czego nie ma, i przemilcza to, co jest.
+Cenna jest za to część o social mediach i programach afiliacyjnych w konsultacji z 28.07 —
+tamte ustalenia weszły do [FUTURE.md](../FUTURE.md).

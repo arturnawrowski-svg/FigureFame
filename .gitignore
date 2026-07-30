@@ -42,3 +42,9 @@ dist-ssr
 
 # Kopie zapasowe — lokalne archiwa, nie do repozytorium
 kopie/
+
+# Katalogi robocze narzędzi (zapisy sesji, historia asystentów).
+# Bez tego `git add -A` wciąga je do repozytorium przy pierwszej okazji.
+.specstory/
+.exportal/
+.waylog/
