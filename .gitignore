@@ -48,3 +48,7 @@ kopie/
 .specstory/
 .exportal/
 .waylog/
+
+# Cudze repozytorium sklonowane obok (wtyczki do Claude Code). Ma własny .git,
+# więc bez tej linii `git add -A` wciągnąłby je jako zagnieżdżony moduł.
+agent-toolkit/

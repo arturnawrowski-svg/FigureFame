@@ -14,7 +14,18 @@ html {
   --color-miku-cyan: rgba(0, 255, 255, 0.6);
   --color-sonico-pink: rgba(255, 102, 204, 0.6);
   --color-particles: rgba(250, 204, 21, 0.5);
-  
+
+  /* Kolor marki. Cyan i róż wyżej są nazwane od postaci (Miku, Sonico) —
+     to akcenty przy figurkach, nie tożsamość serwisu. Tożsamością jest
+     pomarańcz z logotypu i kropek tła, i to on rządzi interfejsem.
+
+     --color-accent      tekst i drobne elementy; MUSI być czytelny
+     --color-accent-fill wypełnienia przycisków; zawsze żywy pomarańcz
+     --color-accent-ink  napis na wypełnieniu (6,3:1 na #f97316) */
+  --color-accent: #f97316;
+  --color-accent-fill: #f97316;
+  --color-accent-ink: #181818;
+
   --font-main: 'Inter', sans-serif;
   --font-heading: 'Outfit', sans-serif;
   --font-japanese: 'Noto Serif JP', serif;
@@ -1022,26 +1033,184 @@ body.light-mode .hero-logo {
   background: rgba(0, 0, 0, 0.4);
 }
 
-/* Footer */
+/* ---- Stopka ----------------------------------------------------------------
+   Dwa wiersze: górny robi robotę, dolny jest podpisem.
+
+   ⚠️ NIE PRZYWRACAĆ `opacity` NA CAŁOŚCI. Poprzednia wersja miała `opacity: .6`
+   i przez to tekst #a0aab2 schodził z 7,5:1 do 3,5:1 — poniżej progu WCAG AA.
+   Stonowanie robi jawny `--footer-text`, który da się zmierzyć:
+   #8f979f na #181818 = 6,04:1, a w trybie jasnym #5a636b na #f8f9fa = 5,81:1.
+--------------------------------------------------------------------------- */
 .app-footer {
+  --footer-text: #8f979f;
   margin-top: 8rem;
-  padding-top: 2rem;
+  padding: 2.5rem 2rem 2rem;
   border-top: 1px solid var(--color-glass-border);
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+  font-size: 1rem;
+  color: var(--footer-text);
+}
+
+body.light-mode .app-footer {
+  --footer-text: #5a636b;
+}
+
+.footer-gora {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1.8rem;
+  flex-wrap: wrap;
+}
+
+.footer-lewo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.footer-prywatnosc {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 1rem 0.55rem 0.8rem;
+  border: 1px solid var(--color-glass-border);
+  border-radius: 999px;
+  color: var(--footer-text);
+  text-decoration: none;
+  transition: color 0.18s ease, border-color 0.18s ease;
+}
+
+.footer-prywatnosc svg {
+  color: var(--color-accent);
+}
+
+.footer-prywatnosc:hover {
+  color: var(--color-text-highlight);
+  border-color: var(--color-accent);
+}
+
+.footer-linki {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.footer-linki a {
+  color: var(--footer-text);
+  text-decoration: none;
+  transition: color 0.18s ease;
+}
+
+.footer-linki a:hover {
+  color: var(--color-text-highlight);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.footer-linki span {
+  color: var(--color-glass-border);
+  user-select: none;
+}
+
+.footer-social {
+  display: flex;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.footer-social a {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 10px;
+  color: var(--footer-text);
+  border: 1px solid transparent;
+  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.footer-social a:hover {
+  color: var(--color-text-highlight);
+  border-color: var(--color-glass-border);
+  background: var(--color-glass-bg);
+}
+
+.footer-linia {
+  height: 1px;
+  background: var(--color-glass-border);
+  border: 0;
+  margin: 0;
+}
+
+.footer-dol {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.85rem;
-  opacity: 0.6;
+  gap: 1.2rem;
+  flex-wrap: wrap;
 }
 
-.app-footer a {
+.footer-prawa,
+.footer-autor {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0;
+}
+
+/* Znak z tych samych plików co nagłówek — patrz .hero-logo.
+   Płótno jest wyższe niż szersze (238×320), więc wiążemy WYSOKOŚĆ i zostawiamy
+   proporcje. Kwadratowe pole wpisywałoby znak w listki i zjadało jego rozmiar. */
+.footer-znak {
+  height: 2.4rem;
+  aspect-ratio: 238 / 320;
+  flex-shrink: 0;
+  background: url('/logo-ff-dark.webp') center / contain no-repeat;
+}
+
+body.light-mode .footer-znak {
+  background-image: url('/logo-ff-light.webp');
+}
+
+.footer-autor a {
   color: var(--color-text-highlight);
   text-decoration: none;
-  font-weight: bold;
+  font-weight: 600;
 }
 
-.app-footer a:hover {
+.footer-autor a:hover {
   text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .app-footer {
+    padding: 2rem 1.2rem 1.6rem;
+    align-items: center;
+    text-align: center;
+  }
+  .footer-gora {
+    flex-direction: column;
+    align-items: center;
+    gap: 1.4rem;
+  }
+  .footer-lewo {
+    align-items: center;
+  }
+  .footer-linki {
+    justify-content: center;
+  }
+  .footer-dol {
+    flex-direction: column;
+    gap: 0.9rem;
+  }
 }
 
 /* Light Theme Override */
@@ -1053,6 +1222,11 @@ body.light-mode {
   --color-text-main: #4b5563;
   --color-text-highlight: #111827;
   --color-particles: rgba(255, 71, 87, 0.8);
+
+  /* Pomarańcz z ciemnego motywu ma na bieli 2,7:1 — za mało na drobny tekst.
+     Wypełnienia przycisków zostają żywe (tam liczy się napis NA nich),
+     ale odnośniki i ikony schodzą do głębszej odmiany: 4,9:1. */
+  --color-accent: #c2410c;
 }
 
 body.light-mode .hero-container {
@@ -1350,4 +1524,289 @@ body.light-mode .official-shops {
 }
 @media (prefers-reduced-motion: reduce) {
   .skeleton-card { animation: none; }
+}
+
+/* ============================================================================
+   OKNO NAD STRONĄ (OknoDokumentu.jsx)
+   ----------------------------------------------------------------------------
+   Dokument nakładany na Gablotę. Adres jest prawdziwy — patrz App.jsx (`tlo`).
+   ========================================================================== */
+
+.okno-tlo {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.62);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.2rem;
+  animation: okno-tlo-wejscie 0.18s ease both;
+}
+
+body.light-mode .okno-tlo {
+  background: rgba(20, 24, 27, 0.42);
+}
+
+.okno {
+  width: min(92rem, 100%);
+  max-height: min(88vh, 100%);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-obsidian);
+  border: 1px solid var(--color-glass-border);
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  animation: okno-wejscie 0.22s cubic-bezier(0, 0, 0.4, 1) both;
+}
+
+.okno:focus {
+  outline: none; /* okno łapie fokus programowo, obwódka byłaby myląca */
+}
+
+.okno-belka {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.4rem 1.6rem;
+  border-bottom: 1px solid var(--color-glass-border);
+  flex-shrink: 0;
+  /* Zerowanie globalnej reguły `header` z góry tego pliku (margin-bottom: 4rem
+     i wyśrodkowanie). Bez tego pod tytułem okna zieje 51 px pustki. */
+  margin-bottom: 0;
+  text-align: left;
+}
+
+.okno-belka h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.55rem;
+  color: var(--color-text-highlight);
+}
+
+.okno-x {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-main);
+  cursor: pointer;
+  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.okno-x:hover {
+  color: var(--color-text-highlight);
+  border-color: var(--color-glass-border);
+  background: var(--color-glass-bg);
+}
+
+.okno-tresc {
+  overflow-y: auto;
+  overscroll-behavior: contain; /* przewijanie nie „przeskakuje" na tło */
+  flex: 1;
+}
+
+.okno-stopka {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1.1rem 1.6rem;
+  border-top: 1px solid var(--color-glass-border);
+  flex-shrink: 0;
+}
+
+/* Przycisk zamknięcia — wypełnienie kolorem marki. Napis #181818 na #f97316
+   daje 6,3:1, więc ten sam żywy pomarańcz działa w OBU motywach. */
+.btn-zamknij {
+  font: inherit;
+  font-weight: 600;
+  font-size: 1.05rem;
+  padding: 0.7rem 2rem;
+  border: 1px solid var(--color-accent-fill);
+  border-radius: 10px;
+  background: var(--color-accent-fill);
+  color: var(--color-accent-ink);
+  cursor: pointer;
+  transition: filter 0.18s ease;
+}
+
+.btn-zamknij:hover {
+  filter: brightness(1.1);
+}
+
+@keyframes okno-tlo-wejscie {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes okno-wejscie {
+  from { opacity: 0; transform: translateY(10px) scale(0.99); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .okno-tlo,
+  .okno {
+    animation: none;
+  }
+}
+
+/* ============================================================================
+   DOKUMENTY PRAWNE (UkladDokumentu.jsx)
+   ========================================================================== */
+
+.dokument {
+  display: grid;
+  grid-template-columns: 1fr;
+  max-width: 100rem;
+  margin: 0 auto;
+}
+
+@media (min-width: 900px) {
+  .dokument {
+    grid-template-columns: 22rem 1fr;
+  }
+}
+
+.dokument-spis {
+  padding: 2.2rem 1.8rem;
+  border-bottom: 1px solid var(--color-glass-border);
+  font-size: 0.95rem;
+}
+
+@media (min-width: 900px) {
+  .dokument-spis {
+    border-bottom: 0;
+    border-right: 1px solid var(--color-glass-border);
+    position: sticky;
+    top: 0;
+    align-self: start;
+  }
+}
+
+.dokument-spis > p {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-main);
+}
+
+.dokument-spis ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.dokument-spis button {
+  font: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--color-text-main);
+  cursor: pointer;
+  transition: color 0.18s ease;
+}
+
+.dokument-spis button:hover {
+  color: var(--color-accent);
+}
+
+.dokument-tresc {
+  padding: 2.4rem 2rem 3rem;
+  max-width: 68ch;
+  line-height: 1.75;
+}
+
+.dokument--w-oknie .dokument-tresc {
+  padding-top: 1.8rem;
+}
+
+.dokument-powrot {
+  margin-bottom: 2rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dokument-tresc h1 {
+  margin: 0 0 0.6rem;
+  color: var(--color-text-highlight);
+}
+
+.dokument-data {
+  margin: 0 0 2rem;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-main);
+}
+
+.dokument-tresc h2 {
+  margin: 2.6rem 0 0.8rem;
+  font-size: 1.35rem;
+  color: var(--color-text-highlight);
+  scroll-margin-top: 1.5rem; /* nagłówek nie chowa się pod krawędzią po przewinięciu */
+}
+
+.dokument-tresc h2:focus {
+  outline: none;
+}
+
+.dokument-tresc p {
+  margin: 0 0 1rem;
+}
+
+.dokument-tresc ul {
+  margin: 0 0 1rem;
+  padding-left: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.dokument-tresc strong {
+  color: var(--color-text-highlight);
+}
+
+.dokument-tresc a {
+  color: var(--color-accent);
+}
+
+.dokument-tresc code {
+  font-size: 0.92em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: var(--color-glass-bg);
+  border: 1px solid var(--color-glass-border);
+}
+
+.dokument-skrot {
+  background: var(--color-glass-bg);
+  border: 1px solid var(--color-glass-border);
+  border-radius: 12px;
+  padding: 1.2rem 1.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.dokument-skrot span {
+  display: block;
+  font-size: 0.85rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 0.5rem;
+}
+
+.dokument-skrot p {
+  margin: 0;
 }

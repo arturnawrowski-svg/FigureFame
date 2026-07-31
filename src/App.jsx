@@ -1,4 +1,4 @@
-import { Routes, Route, useNavigate } from 'react-router-dom'
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import Showcase from './components/Showcase'
 import Dossier from './components/Dossier'
@@ -9,6 +9,10 @@ import About from './components/About'
 import Faq from './components/Faq'
 import NotFound from './components/NotFound'
 import ScrollToTop from './components/ScrollToTop'
+import Footer from './components/Footer'
+import OknoDokumentu from './components/OknoDokumentu'
+import PolitykaPrywatnosci from './components/PolitykaPrywatnosci'
+import Regulamin from './components/Regulamin'
 
 // Ekrany po zalogowaniu doczytujemy dopiero przy wejściu na nie.
 // Wcześniej KAŻDY odwiedzający (także na telefonie) pobierał cały panel
@@ -24,6 +28,18 @@ function Loading() {
 
 function App() {
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // OKNO NAD STRONĄ, ale z prawdziwym adresem.
+  //
+  // Odnośniki w stopce niosą `state.tlo` — czyli stronę, która ma zostać pod
+  // spodem. Gdy `tlo` jest, trasy pod spodem renderujemy dla NIEJ, a dokument
+  // pokazujemy w oknie. Gdy `tlo` nie ma (wejście wprost na /prywatnosc,
+  // odświeżenie, link z Google) — zwyczajna pełna strona.
+  //
+  // Dzięki temu polityka prywatności ma stały adres, którego wymagają programy
+  // afiliacyjne i wyszukiwarki, a mimo to nie wyrzuca czytelnika z Gabloty.
+  const tlo = location.state?.tlo
 
   return (
     <div className="app-container">
@@ -33,10 +49,14 @@ function App() {
 
       <main>
         <Suspense fallback={<Loading />}>
-          <Routes>
+          <Routes location={tlo || location}>
             <Route path="/" element={<Showcase />} />
             <Route path="/about" element={<About />} />
             <Route path="/faq" element={<Faq />} />
+            {/* Dokumenty prawne. Muszą mieć własne, stałe adresy — sprawdzają je
+                programy afiliacyjne, a od 2026 wskazuje na nie panel zgód. */}
+            <Route path="/prywatnosc" element={<PolitykaPrywatnosci />} />
+            <Route path="/regulamin" element={<Regulamin />} />
             {/* Stały adres figurki — to on trafia pod filmy na TikToka i YouTube'a.
                 Przyjmuje czytelny adres (izumi-konata-clayz-1-8) oraz krótki kod
                 wypalany w obrazie shorta (7K2M). */}
@@ -55,10 +75,40 @@ function App() {
         </Suspense>
       </main>
 
-      <footer className="app-footer">
-        <div className="footer-left">2026 Copyright by FigureFame.com</div>
-        <div className="footer-right">Created by <a href="mailto:artur.nawrowski@gmail.com">ArChi</a></div>
-      </footer>
+      <Footer />
+
+      {/* Warstwa okien. Rysowana TYLKO gdy przyszliśmy z `tlo` — czyli
+          kliknięciem wewnątrz serwisu. Zamknięcie to `navigate(-1)`:
+          wraca do strony pod spodem i zdejmuje adres dokumentu z historii,
+          więc przycisk „wstecz" zachowuje się tak, jak człowiek oczekuje. */}
+      {tlo && (
+        <Routes>
+          <Route
+            path="/prywatnosc"
+            element={
+              <OknoDokumentu tytul="Polityka prywatności" onClose={() => navigate(-1)}>
+                <PolitykaPrywatnosci wOknie />
+              </OknoDokumentu>
+            }
+          />
+          <Route
+            path="/regulamin"
+            element={
+              <OknoDokumentu tytul="Regulamin serwisu" onClose={() => navigate(-1)}>
+                <Regulamin wOknie />
+              </OknoDokumentu>
+            }
+          />
+          <Route
+            path="/about"
+            element={
+              <OknoDokumentu tytul="O aplikacji FigureFame" onClose={() => navigate(-1)}>
+                <About wOknie />
+              </OknoDokumentu>
+            }
+          />
+        </Routes>
+      )}
     </div>
   )
 }

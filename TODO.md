@@ -98,6 +98,20 @@ paczki startowej — „5,5 MB w bundlu" z audytu jest nieprawdą.*
 
 ## 🟡 Może poczekać
 
+- [ ] **Ściśnięcie nagłówka, żeby Gablota weszła na pierwszy ekran** (pomysł z 31.07,
+      świadomie odłożony). Dziś [AnimatedHero.jsx:194](src/components/AnimatedHero.jsx#L194)
+      rezerwuje `minHeight: '60vh'`, a do tego wewnątrz panelu zostaje sporo pustego miejsca —
+      razem spycha karty pod krawędź ekranu.
+      - Cel mierzalny to **nie** „wszystko na jednej stronie" (zależy od monitora), tylko:
+        nagłówek + wyszukiwarka + pełny pierwszy rząd kart + skrawek następnego. Ten skrawek
+        jest ważniejszy od stopki — to on mówi „przewiń, jest tego więcej"
+      - Największy zysk bez ruszania logotypu: ściągnąć puste miejsce wokół lockupu
+        i zamienić sztywne `60vh` na zakres (dolna granica ~280 px, górna ~460 px)
+      - ⚠️ `vh` na telefonie liczy się z paskiem przeglądarki i strona skacze przy przewijaniu —
+        potrzebna jednostka odporna na chowanie paska
+      - ⚠️ Gdyby nagłówek miał się zwężać przy przewijaniu: ruszać wyłącznie przekształceniem,
+        nigdy rozmyciem (patrz [handoff_summary.md](handoff_summary.md), sekcja 8)
+
 - [ ] **Awatar użytkownika** (webp) i język w profilu — kolumny już są
 - [ ] **Podział `AdminDashboard.jsx`** (1267 linii) — dopiero przy kolejnej rozbudowie;
       dziś rozbijanie działającego panelu to ryzyko bez zysku

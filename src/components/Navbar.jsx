@@ -57,7 +57,9 @@ export default function Navbar() {
             <Flaga kod={current.code} /> {current.code.toUpperCase()}
           </button>
 
-          <Link to="/about" className="nav-btn" style={{ textDecoration: 'none' }}>
+          {/* `state.tlo` otwiera stronę jako okno nad bieżącym widokiem,
+              bez opuszczania Gabloty. Wejście wprost na /about dalej działa. */}
+          <Link to="/about" state={{ tlo: location }} className="nav-btn" style={{ textDecoration: 'none' }}>
             <Info size={18} /> {t('nav.about')}
           </Link>
 

@@ -14,16 +14,26 @@ const FEATURES = [
   { icon: Film, title: 'Krótkie filmy', desc: 'Docelowo: automatyczne shorty prowadzące z social media wprost do karty figurki (w przygotowaniu).' },
 ];
 
-export default function About() {
+// `wOknie` — gdy strona jest nakładana jako okno, tytuł niesie belka okna,
+// a wyjście zapewnia przycisk „Zamknij". Powtarzanie ich tutaj dałoby dwa
+// tytuły i dwa wyjścia w jednym widoku.
+export default function About({ wOknie = false }) {
   const navigate = useNavigate();
 
   return (
-    <div className="dossier-container animate-fade-in" style={{ maxWidth: '820px', margin: '0 auto', padding: '2rem' }}>
-      <button className="btn-secondary" onClick={() => navigate('/')} style={{ marginBottom: '2rem' }}>
-        <ArrowLeft size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Wróć do bazy
-      </button>
+    <div
+      className="dossier-container animate-fade-in"
+      style={{ maxWidth: '820px', margin: '0 auto', padding: wOknie ? '0' : '2rem' }}
+    >
+      {!wOknie && (
+        <>
+          <button className="btn-secondary" onClick={() => navigate('/')} style={{ marginBottom: '2rem' }}>
+            <ArrowLeft size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Wróć do bazy
+          </button>
 
-      <h1 style={{ color: 'var(--color-text-highlight)' }}>O aplikacji FigureFame</h1>
+          <h1 style={{ color: 'var(--color-text-highlight)' }}>O aplikacji FigureFame</h1>
+        </>
+      )}
       <p style={{ opacity: 0.85, lineHeight: 1.7, fontSize: '1.05rem' }}>
         FigureFame to baza danych i agregator informacji o japońskich figurkach kolekcjonerskich.
         Naszym celem jest miejsce, które łączy rzetelne dane, wartość rynkową, ochronę przed podróbkami
