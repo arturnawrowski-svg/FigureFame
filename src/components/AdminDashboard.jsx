@@ -256,15 +256,27 @@ export default function AdminDashboard() {
     fetchBufferCount();
   }, [activeTab]);
 
+  // Zapytanie o listę figurek — JEDNO miejsce dla obu ścieżek odczytu.
+  //
+  // ⚠️ Wcześniej ten warunek stał w dwóch kopiach: fetchFigures znało zakładkę
+  // SHORTS, a refreshFiguresQuiet nie. Ciche odświeżanie pytało wtedy o
+  // `status = 'SHORTS'` — a taki status nie istnieje, więc wracało zero wierszy
+  // i lista kasowała się sama po 8 sekundach. Objaw był mylący: shorty
+  // pojawiały się i znikały, i to WYŁĄCZNIE gdy coś się renderowało, bo tylko
+  // wtedy chodzi auto-odświeżanie. Nie rozdzielaj tego z powrotem.
+  const zapytanieOFigurki = () => {
+    const q = supabase.from('figures').select('*');
+    return activeTab === 'SHORTS'
+      // Zakładka Shorty: wszystkie figurki, które mają jakiś short (dowolny status)
+      ? q.not('video_status', 'is', null).order('created_at', { ascending: false })
+      : q.eq('status', activeTab).order('created_at', { ascending: false });
+  };
+
   // Ciche odświeżanie listy: aktualizuje dane BEZ zamykania otwartej edycji
   // i bez migotania „Ładowanie…". Używane przez auto-odświeżanie.
   const refreshFiguresQuiet = async () => {
     try {
-      const { data, error } = await supabase
-        .from('figures')
-        .select('*')
-        .eq('status', activeTab)
-        .order('created_at', { ascending: false });
+      const { data, error } = await zapytanieOFigurki();
       if (!error) setFigures(data || []);
     } catch { /* ignoruj */ }
   };
@@ -283,14 +295,7 @@ export default function AdminDashboard() {
     setLoading(true);
     setEditingId(null);
     try {
-      let query = supabase.from('figures').select('*');
-      if (activeTab === 'SHORTS') {
-        // Zakładka Shorty: wszystkie figurki, które mają jakiś short (dowolny status)
-        query = query.not('video_status', 'is', null).order('created_at', { ascending: false });
-      } else {
-        query = query.eq('status', activeTab).order('created_at', { ascending: false });
-      }
-      const { data, error } = await query;
+      const { data, error } = await zapytanieOFigurki();
 
       if (error) throw error;
       setFigures(data || []);
