@@ -22,7 +22,7 @@ Projekt hobbystyczny, prowadzony w duchu **FREE-FIRST**: darmowe narzędzia tak 
 ```bash
 npm install
 npm run dev      # front + endpointy /api/* przez middleware Vite
-npm test         # 49 testów
+npm test         # 53 testy
 npm run build
 ```
 

@@ -1,6 +1,6 @@
 # FigureFame — stan techniczny i pułapki
 
-> **31.07.2026.** Ten plik jest instrukcją obsługi tego, co już stoi: gdzie co jest wpięte,
+> **01.08.2026.** Ten plik jest instrukcją obsługi tego, co już stoi: gdzie co jest wpięte,
 > którym poleceniem się to uruchamia i o co można się boleśnie potknąć.
 >
 > Czym jest projekt i jakich zasad nie łamiemy → [ZALOZENIA.md](ZALOZENIA.md)
@@ -115,7 +115,64 @@ wtedy Cloudflare przed Supabase, nie GDrive.
 producent figurki. Puste pole NIE zostawia zdjęcia bez podpisu. Piszemy **„Fot.", nie „©"** —
 przypisujemy autorstwo zdjęcia, a nie rozstrzygamy o prawach do postaci.
 
-## 7. Narzędzia (npm run …)
+## 7. Stopka, dokumenty prawne i okna (01.08)
+
+Stopka nie jest już dwoma `div`-ami w `App.jsx` — to [Footer.jsx](src/components/Footer.jsx).
+Niesie odnośniki do polityki prywatności, regulaminu i „O aplikacji", czyli rzeczy **wymagane
+przed zdjęciem zasłony**.
+
+### Okno nad stroną — wzorzec, którego nie wolno zamienić na `window.open`
+
+Dokumenty otwierają się jako okno nakładane na Gablotę, ale **mają prawdziwy adres**
+(`/prywatnosc`, `/regulamin`, `/about`, `/faq`). Odnośnik niesie w `state` pole `tlo`
+(stronę, która ma zostać pod spodem); `App.jsx` renderuje wtedy trasy tła dla `tlo`,
+a dokument w oknie. Wejście wprost albo odświeżenie → zwykła pełna strona.
+
+> ⚠️ **`window.open` jest tu zły i nie jest to kwestia gustu.** Blokują go wtyczki, na telefonie
+> okien nie ma, a polityka prywatności **musi** mieć stały, linkowalny adres — sprawdzają go
+> programy afiliacyjne przy weryfikacji i wyszukiwarki.
+
+**Dodanie nowego dokumentu to jeden wiersz** w tablicy `OKNA` w [App.jsx](src/App.jsx).
+Warunek: komponent treści przyjmuje `wOknie` i w tym trybie nie rysuje własnego tytułu ani
+przycisku powrotu (niesie je belka okna i „Zamknij").
+
+**⚠️ FAQ jest osiągalne WYŁĄCZNIE z „O aplikacji"** — w nagłówku nie ma do niego odnośnika.
+Kto będzie sprzątał `About.jsx`, ten łatwo odetnie całą stronę FAQ.
+
+### Kolor marki
+
+Tożsamością jest **pomarańcz z logotypu**, nie cyan. `--color-miku-cyan` i `--color-sonico-pink`
+są nazwane od postaci — to akcenty przy figurkach, nie kolor interfejsu.
+
+| token | ciemny | jasny | po co |
+|---|---|---|---|
+| `--color-accent` | `#f97316` | `#c2410c` | tekst i drobne elementy |
+| `--color-accent-fill` | `#f97316` | `#f97316` | wypełnienia przycisków |
+
+**Dlaczego jasny motyw ma inny odcień:** `#f97316` na bieli to 2,7:1 — poniżej progu WCAG AA
+dla tekstu. Na wypełnieniu przycisku to nie problem, bo liczy się napis NA nim
+(`#181818` na `#f97316` = 6,3:1), dlatego „Zamknij" jest tym samym żywym pomarańczem w obu motywach.
+
+### Teksty prawne to SZKIC
+
+[PolitykaPrywatnosci.jsx](src/components/PolitykaPrywatnosci.jsx) i
+[Regulamin.jsx](src/components/Regulamin.jsx) opisują to, co serwis **naprawdę** robi, ale
+**podpisuje je administrator danych, nie autor kodu**. W polityce jest miejsce oznaczone
+do uzupełnienia po rejestracji działalności (nazwa, adres, NIP).
+
+Trzy punkty regulaminu są **zobowiązaniem powiązanym z kodem** — jeśli kod się zmieni, tekst
+przestaje być prawdziwy: wpis zostaje po usunięciu konta (`api/delete-account.js`), podpis
+„Fot." zamiast „©" ([prawaDoZdjecia.js](src/lib/prawaDoZdjecia.js)), prowizja nie zmienia
+kolejności ofert (`server-lib/affiliateLinks.js`).
+
+### Ikony mediów społecznościowych
+
+[src/lib/social.js](src/lib/social.js) to jedyne źródło adresów marki. **Pusty adres = brak
+ikony**, świadomie: odnośnik do konta, na którym nic nie ma, szkodzi bardziej niż jego brak.
+Dziś wszystkie są puste, więc żadna ikona się nie rysuje. Znaki to oficjalne ścieżki
+z `simple-icons` — **nie wolno ich odrysowywać z pamięci**.
+
+## 8. Narzędzia (npm run …)
 
 | polecenie | co robi |
 |---|---|
@@ -145,7 +202,7 @@ przełączyć na **In production** w Google Cloud Console.
 `node design/zbuduj-znaki.mjs` odtwarza **wszystkie osiem plików znaku** (logo, ikony, og-image)
 z arkusza [design/logo_FigureFame.png](design/logo_FigureFame.png).
 
-## 8. Pułapki, które kosztowały czas
+## 9. Pułapki, które kosztowały czas
 
 - **Reguły RLS działają na zasadzie „wystarczy, że JEDNA pozwala".** Dopisanie ostrzejszych
   obok starych, przepuszczających, **niczego nie zamyka**. Migracja kasuje więc najpierw
@@ -192,8 +249,27 @@ z arkusza [design/logo_FigureFame.png](design/logo_FigureFame.png).
 - **Nieużywana zależność nie leży w paczce startowej.** `framer-motion` wisi w `package.json`,
   ale nie jest importowany — więc „5,5 MB w bundlu" to nieprawda. Warto go usunąć dla porządku,
   nie dla wydajności.
+- **Pułapka fokusa w modalu ma trzeci przypadek, o którym wszyscy zapominają.** Sprawdzanie
+  „czy fokus jest na pierwszym / ostatnim polu" nie wystarcza, bo **zaraz po otwarciu fokus
+  siedzi na SAMYM kontenerze okna** (`tabIndex={-1}`) i nie jest ani pierwszym, ani ostatnim.
+  Wtedy Shift+Tab przesuwa go **wstecz, na stronę pod nakładką** — jedno naciśnięcie i
+  użytkownik klawiatury klika w stopkę, której nie widzi. Trzeba jawnie obsłużyć „fokus jest
+  na kontenerze albo poza oknem". Zmierzone: 21 wyjść na 25 naciśnięć, po poprawce 0 na 40.
+- **Tab do przodu może działać, gdy Shift+Tab nie działa** — i to maskuje powyższy błąd.
+  Kontener poprzedza swoje dzieci w drzewie, więc Tab wchodzi do środka „sam z siebie".
+  **Każdą pułapkę fokusa sprawdzaj w OBIE strony.**
+- **Globalne reguły na selektorach elementów gryzą się z komponentami.** `header { margin-bottom:
+  4rem }` z góry `index.css` trafiło w `<header>` belki okna i zrobiło 51 px dziury pod tytułem.
+  Testy DOM tego nie widzą — złapał to dopiero zrzut ekranu.
+- **`opacity` na kontenerze niszczy zmierzony kontrast.** Stopka miała `opacity: .6` i tekst
+  `#a0aab2`, który w treści strony daje 7,5:1, schodził do **3,5:1 — poniżej progu WCAG AA**.
+  Stonowanie robimy jawnym kolorem, który da się zmierzyć, nigdy przezroczystością na całości.
+- **Playwright jest w `devDependencies` i warto go używać do sprawdzania interfejsu.** Wszystkie
+  trzy powyższe znalezione sondami na uruchomionej aplikacji, nie czytaniem kodu. Skrypt sondy
+  odpalaj **z katalogu projektu** (inaczej nie widzi `node_modules`) i nie nazywaj stałej `URL`,
+  bo przesłoni globalny konstruktor.
 
-## 9. Gdzie jest sufit darmowych planów (ustalone 30.07)
+## 10. Gdzie jest sufit darmowych planów (ustalone 30.07)
 
 Ani GitHub, ani Vercel. **Supabase — ale nie baza, tylko transfer.**
 

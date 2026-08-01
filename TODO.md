@@ -29,13 +29,17 @@ udostępniony na Discordzie zaprowadzi na Vercela zamiast na Twoją domenę.
 
 ### 2. Polityka prywatności i regulamin
 
-Warunek legalnej premiery (RODO art. 13). Usuwanie konta już jest, brakuje **spisanych zasad**:
-jakie dane zbieramy (adres e-mail z logowania, profil, zgłoszenia figurek), po co, jak długo,
-jak je usunąć, kto jest administratorem danych.
+Warunek legalnej premiery (RODO art. 13). **Strony powstały 01.08 — zostaje decyzja człowieka,
+nie kod.**
 
-- [ ] strona `/prywatnosc` + `/regulamin` (statyczne komponenty, zero zależności)
-- [ ] **nota o linkach afiliacyjnych** — w UE wymagana przy ofertach, nie tylko w regulaminie
-- [ ] odnośniki w stopce
+- [x] strona `/prywatnosc` + `/regulamin` (statyczne komponenty, zero zależności)
+- [x] **nota o linkach afiliacyjnych** — w regulaminie, pkt 6
+- [x] odnośniki w stopce ([Footer.jsx](src/components/Footer.jsx))
+- [ ] ⚠️ **przeczytać i zaakceptować treść** — to SZKIC; podpisujesz jako administrator danych
+- [ ] ⚠️ **uzupełnić dane administratora** po rejestracji działalności (nazwa, adres, NIP) —
+      miejsce oznaczone w [PolitykaPrywatnosci.jsx](src/components/PolitykaPrywatnosci.jsx)
+- [ ] rzut oka prawnika przed zdjęciem zasłony, zwłaszcza na granicę wieku 16 lat
+      i na punkt o odpowiedzialności
 
 > **Uwaga, bo audyty z zewnątrz mówiły inaczej:** obowiązkiem jest *polityka prywatności*,
 > a nie „cookie banner". Supabase trzyma sesję w `localStorage` **niezbędnie do działania
@@ -110,7 +114,7 @@ paczki startowej — „5,5 MB w bundlu" z audytu jest nieprawdą.*
       - ⚠️ `vh` na telefonie liczy się z paskiem przeglądarki i strona skacze przy przewijaniu —
         potrzebna jednostka odporna na chowanie paska
       - ⚠️ Gdyby nagłówek miał się zwężać przy przewijaniu: ruszać wyłącznie przekształceniem,
-        nigdy rozmyciem (patrz [handoff_summary.md](handoff_summary.md), sekcja 8)
+        nigdy rozmyciem (patrz [handoff_summary.md](handoff_summary.md), sekcja 9)
 
 - [ ] **Awatar użytkownika** (webp) i język w profilu — kolumny już są
 - [ ] **Podział `AdminDashboard.jsx`** (1267 linii) — dopiero przy kolejnej rozbudowie;
