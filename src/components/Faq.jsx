@@ -51,18 +51,27 @@ const BOOTLEG_CHECKLIST = [
   ['Weryfikacja', 'Porównaj z kartą produktu producenta lub wpisem na MyFigureCollection.'],
 ];
 
-export default function Faq() {
+// `wOknie` — gdy strona jest nakładana jako okno, tytuł niesie belka okna,
+// a wyjście zapewnia „Zamknij". Patrz App.jsx, tablica OKNA.
+export default function Faq({ wOknie = false }) {
   const navigate = useNavigate();
 
   return (
-    <div className="dossier-container animate-fade-in" style={{ maxWidth: '780px', margin: '0 auto', padding: '2rem' }}>
-      <button className="btn-secondary" onClick={() => navigate('/')} style={{ marginBottom: '2rem' }}>
-        <ArrowLeft size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Wróć do bazy
-      </button>
+    <div
+      className="dossier-container animate-fade-in"
+      style={{ maxWidth: '780px', margin: '0 auto', padding: wOknie ? '0' : '2rem' }}
+    >
+      {!wOknie && (
+        <>
+          <button className="btn-secondary" onClick={() => navigate('/')} style={{ marginBottom: '2rem' }}>
+            <ArrowLeft size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Wróć do bazy
+          </button>
 
-      <h1 style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-text-highlight)' }}>
-        <HelpCircle size={28} /> FAQ i poradnik kolekcjonera
-      </h1>
+          <h1 style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-text-highlight)' }}>
+            <HelpCircle size={28} /> FAQ i poradnik kolekcjonera
+          </h1>
+        </>
+      )}
       <p style={{ opacity: 0.8, lineHeight: 1.7 }}>
         Najczęstsze pytania o FigureFame oraz praktyczny poradnik, jak nie dać się nabrać na podróbkę.
       </p>

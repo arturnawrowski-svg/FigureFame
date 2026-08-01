@@ -26,6 +26,17 @@ function Loading() {
   return <div style={{ padding: '3rem', textAlign: 'center', opacity: 0.6 }}>Ładowanie…</div>
 }
 
+// Strony, które umieją pokazać się na dwa sposoby: jako zwykły adres i jako
+// okno nad Gablotą. Jedno miejsce zamiast czterech bliźniaczych bloków —
+// dopisanie wiersza wystarczy, żeby nowa strona działała w obu trybach.
+// Warunek dla komponentu treści: musi przyjmować `wOknie`.
+const OKNA = [
+  { sciezka: '/prywatnosc', tytul: 'Polityka prywatności', Tresc: PolitykaPrywatnosci },
+  { sciezka: '/regulamin', tytul: 'Regulamin serwisu', Tresc: Regulamin },
+  { sciezka: '/about', tytul: 'O aplikacji FigureFame', Tresc: About },
+  { sciezka: '/faq', tytul: 'FAQ i poradnik kolekcjonera', Tresc: Faq },
+]
+
 function App() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -83,30 +94,17 @@ function App() {
           więc przycisk „wstecz" zachowuje się tak, jak człowiek oczekuje. */}
       {tlo && (
         <Routes>
-          <Route
-            path="/prywatnosc"
-            element={
-              <OknoDokumentu tytul="Polityka prywatności" onClose={() => navigate(-1)}>
-                <PolitykaPrywatnosci wOknie />
-              </OknoDokumentu>
-            }
-          />
-          <Route
-            path="/regulamin"
-            element={
-              <OknoDokumentu tytul="Regulamin serwisu" onClose={() => navigate(-1)}>
-                <Regulamin wOknie />
-              </OknoDokumentu>
-            }
-          />
-          <Route
-            path="/about"
-            element={
-              <OknoDokumentu tytul="O aplikacji FigureFame" onClose={() => navigate(-1)}>
-                <About wOknie />
-              </OknoDokumentu>
-            }
-          />
+          {OKNA.map(({ sciezka, tytul, Tresc }) => (
+            <Route
+              key={sciezka}
+              path={sciezka}
+              element={
+                <OknoDokumentu tytul={tytul} onClose={() => navigate(-1)}>
+                  <Tresc wOknie />
+                </OknoDokumentu>
+              }
+            />
+          ))}
         </Routes>
       )}
     </div>

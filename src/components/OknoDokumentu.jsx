@@ -71,11 +71,27 @@ export default function OknoDokumentu({ tytul, onClose, children }) {
       }
       const pierwszy = pola[0];
       const ostatni = pola[pola.length - 1];
+      const aktywny = document.activeElement;
 
-      if (e.shiftKey && document.activeElement === pierwszy) {
+      // PRZYPADEK, KTÓRY ŁATWO PRZEOCZYĆ, a psuje całą pułapkę:
+      // zaraz po otwarciu fokus siedzi na SAMYM oknie (tabIndex=-1), a nie na
+      // żadnym z pól. Porównania z „pierwszym" i „ostatnim" wtedy nie trafiają,
+      // więc przeglądarka przesuwa fokus po swojemu — a Shift+Tab z kontenera
+      // idzie WSTECZ, czyli na stronę pod nakładką. Jedno naciśnięcie i
+      // użytkownik klawiatury klika w stopkę, której nie widzi.
+      // Ten sam warunek ratuje sytuację, gdy fokus wypadł poza okno z innego
+      // powodu (klik w tło, zamknięcie rozwijanej listy).
+      const wSrodku = oknoRef.current.contains(aktywny) && aktywny !== oknoRef.current;
+      if (!wSrodku) {
+        e.preventDefault();
+        (e.shiftKey ? ostatni : pierwszy).focus();
+        return;
+      }
+
+      if (e.shiftKey && aktywny === pierwszy) {
         e.preventDefault();
         ostatni.focus();
-      } else if (!e.shiftKey && document.activeElement === ostatni) {
+      } else if (!e.shiftKey && aktywny === ostatni) {
         e.preventDefault();
         pierwszy.focus();
       }

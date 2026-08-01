@@ -1,5 +1,5 @@
 import { ArrowLeft, Database, Sparkles, ShieldAlert, TrendingUp, Film, Info, HelpCircle } from 'lucide-react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 
 // ============================================================================
 // O aplikacji — statyczna strona informacyjna (bez bazy). Odblokowuje dawny
@@ -19,6 +19,13 @@ const FEATURES = [
 // tytuły i dwa wyjścia w jednym widoku.
 export default function About({ wOknie = false }) {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // FAQ jest osiągalne WYŁĄCZNIE stąd — nie ma do niego odnośnika w nagłówku.
+  // Dlatego w trybie okna ten odnośnik nie może zniknąć ani wyrzucać czytelnika
+  // z okna: przekazujemy dalej to samo tło, więc FAQ otwiera się jako kolejne
+  // okno nad Gablotą, a „wstecz" wraca do „O aplikacji".
+  const doFaq = wOknie ? { tlo: location.state?.tlo || location } : undefined;
 
   return (
     <div
@@ -71,7 +78,7 @@ export default function About({ wOknie = false }) {
       </div>
 
       <div style={{ textAlign: 'center', marginTop: '2.5rem' }}>
-        <Link to="/faq" className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
+        <Link to="/faq" state={doFaq} className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
           <HelpCircle size={18} /> FAQ i poradnik kolekcjonera
         </Link>
       </div>
