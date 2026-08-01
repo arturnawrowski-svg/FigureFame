@@ -13,19 +13,22 @@
 
 ### 1. Adres `figurefame.com` zamiast `figure-fame.vercel.app`
 
-W [index.html](index.html) cztery miejsca wskazują na adres Vercela: `canonical`, `og:url`,
-`og:image`, `twitter:image`. Do tego `SITE_URL` **nie jest ustawione nigdzie**, więc
-[api/sitemap.js](api/sitemap.js), [api/figure-meta.js](api/figure-meta.js) i
-[worker/renderQueue.mjs](worker/renderQueue.mjs) używają wartości domyślnej — też Vercela.
+Skutek po premierze byłby taki: Google zaindeksuje `figure-fame.vercel.app` jako adres główny,
+a link udostępniony na Discordzie zaprowadzi na Vercela zamiast na Twoją domenę.
 
-Skutek po premierze: Google zaindeksuje `figure-fame.vercel.app` jako adres główny, a link
-udostępniony na Discordzie zaprowadzi na Vercela zamiast na Twoją domenę.
+- [x] cztery adresy w [index.html](index.html) — `canonical`, `og:url`, `og:image`, `twitter:image` (01.08)
+- [x] **wartości domyślne** w [api/sitemap.js](api/sitemap.js), [api/figure-meta.js](api/figure-meta.js)
+      i [worker/renderQueue.mjs](worker/renderQueue.mjs) przestawione na `figurefame.com` (01.08)
+- [x] `HTTP-Referer` do OpenRoutera w [server-lib/aiClient.js](server-lib/aiClient.js) — piąte
+      miejsce, którego ta lista wcześniej nie widziała (01.08)
+- [ ] `SITE_URL=https://figurefame.com` w zmiennych Vercela — **już nie jest krytyczne**, bo
+      wartości domyślne są poprawne. Warto ustawić dla jawności, ale zapomnienie nie psuje sitemapy
 
-- [ ] cztery adresy w `index.html`
-- [ ] `SITE_URL=https://figurefame.com` w zmiennych Vercela (naprawia sitemap, wizytówkę dla
-      robotów i opisy filmów na Dysku za jednym razem)
-
-*Dziś nic złego się nie dzieje — strona ma `noindex` i zasłonę. To zadanie na dzień przed premierą.*
+> **Dlaczego domyślne, a nie sama zmienna środowiskowa.** Pierwotny plan opierał wszystko na
+> `SITE_URL` w Vercelu. Zmienne **nie jadą z pushem**, więc jedno zapomnienie = sitemap po cichu
+> podaje zły adres, bez żadnego komunikatu. To dokładnie ta „cicha awaria", przed którą ostrzega
+> [handoff_summary.md](handoff_summary.md) sekcja 9. Domyślna wartość jest teraz tą właściwą,
+> a `SITE_URL` nadal ją nadpisuje — np. na adres podglądu.
 
 ### 2. Polityka prywatności i regulamin
 
@@ -66,8 +69,17 @@ Endpointy serwerowe są już zamknięte (29.07) — zasłona nie jest ich jedyn�
 Ani jednego licznika. Po premierze nie będziesz wiedzieć, skąd przychodzą ludzie ani
 czy shorty w ogóle kierują ruch.
 
-- [ ] **Vercel Analytics** — darmowe, włącza się w panelu Vercela, nie wymaga zgody na ciasteczka
-- [ ] Google Search Console (pozycje w wyszukiwarce)
+- [x] **Vercel Analytics** — `<Analytics />` wpięty w [src/main.jsx](src/main.jsx), wewnątrz
+      `BrowserRouter` (inaczej liczyłby tylko pierwsze wejście). Nie stawia ciasteczek,
+      nie wymaga zgody (01.08)
+- [ ] ⚠️ **włączyć Web Analytics w panelu Vercela** — bez tego komponent nic nie raportuje.
+      Kod to połowa roboty, druga połowa jest w panelu
+- [ ] Google Search Console (pozycje w wyszukiwarce) — dopiero po zdjęciu zasłony, wcześniej
+      nie ma czego zweryfikować
+
+> **Dlaczego to weszło przed premierą, choć jest w „nie blokuje".** Pierwsze dni po zdjęciu
+> zasłony są najbardziej pouczające — wtedy widać, czy shorty w ogóle kierują ruch — i **nie
+> da się ich odzyskać wstecz**. Licznik dołożony tydzień po premierze nie pokaże premiery.
 
 ### 5. Klucze do ofert i afiliacji
 
@@ -79,6 +91,27 @@ Kod czeka gotowy — to najkrótsza droga do pierwszego przychodu.
       (warstwa [affiliateLinks.js](server-lib/affiliateLinks.js) obsługuje 12 platform;
       bez identyfikatora linki zostają nietknięte, więc nic się nie psuje przed akceptacją)
 - [ ] ⚠️ zasłona blokuje też roboty programów afiliacyjnych — przy zgłoszeniach potrzebny wyjątek
+
+> **To jest zakleszczenie — i jest przyjęte świadomie.**
+>
+> ```
+> brak kluczy afiliacyjnych ← brak akceptacji ← zasłona ← czekanie na klucze
+> ```
+>
+> Programy partnerskie (eBay Partner Network, Rakuten) weryfikują **żywą, publiczną**
+> witrynę z widoczną polityką prywatności. Zza Basic Auth nie mają czego zatwierdzić.
+> Więc premiera jest **warunkiem** afiliacji, nie odwrotnie — a ceny i agregatory stoją
+> za tym samym progiem, bo są pochodną kluczy.
+>
+> **Decyzja: nie ma afiliacji, nie ma SEO ani GEO, dopóki strona nie jest dopieszczona.**
+> Zasłona zostaje z premedytacją. Pusto tu nie dlatego, że o czymś zapomniano —
+> ta kolejność jest wybrana. Wnioskiem z zakleszczenia **nie jest** „zdejmij zasłonę
+> szybciej", tylko: „to, co blokuje premierę, blokuje też pierwszy przychód",
+> więc pkt 1–3 z sekcji „🔴 Blokuje premierę" mają pierwszeństwo przed każdą rozbudową.
+>
+> Praktycznie: karty nie kłamią w międzyczasie — [AuctionDeals.jsx](src/components/AuctionDeals.jsx)
+> daje uczciwy pusty stan zamiast atrap, a [OfficialShops.jsx](src/components/OfficialShops.jsx)
+> to prawdziwe linki wyszukiwania, działające bez identyfikatorów.
 
 ### 6. Sprzątanie zależności
 

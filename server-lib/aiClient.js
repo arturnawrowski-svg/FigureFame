@@ -189,7 +189,7 @@ function buildProviders() {
               model: e.OPENROUTER_MODEL,
               prompt,
               extraHeaders: {
-                "HTTP-Referer": "https://figure-fame.vercel.app",
+                "HTTP-Referer": "https://figurefame.com",
                 "X-Title": "FigureFame",
               },
             }),

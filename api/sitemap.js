@@ -12,7 +12,7 @@ function getSupabase() {
 }
 
 export default async function handler(req, res) {
-  const base = (process.env.SITE_URL || "https://figure-fame.vercel.app").replace(/\/+$/, "");
+  const base = (process.env.SITE_URL || "https://figurefame.com").replace(/\/+$/, "");
   try {
     let sciezki = [];
     try {

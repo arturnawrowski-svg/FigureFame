@@ -4,7 +4,8 @@
 > **Status:** szkic roboczy · opisuje stan na 21.07.2026 — **nowsze fakty są w**
 > [ZALOZENIA.md](ZALOZENIA.md), [DONE.md](DONE.md), [TODO.md](TODO.md), [FUTURE.md](FUTURE.md).
 > **Środowisko produkcyjne:** [figurefame.com](https://figurefame.com)
-> (adres `figure-fame.vercel.app` nadal działa i wciąż siedzi w `index.html` — patrz TODO, pkt 1).
+> (adres `figure-fame.vercel.app` nadal działa, ale od 01.08 nie jest już nigdzie adresem
+> kanonicznym — kod wskazuje na `figurefame.com`).
 
 ---
 

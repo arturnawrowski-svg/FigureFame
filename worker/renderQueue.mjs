@@ -89,7 +89,7 @@ async function processFigure(supabase, figure) {
 
     // Adres, pod który ma trafić widz. Ten sam kod jest wypalany w obrazie,
     // a pełny adres wędruje do opisu przy publikacji (patrz niżej).
-    const adres = figureUrl(figure, process.env.SITE_URL || "https://figure-fame.vercel.app");
+    const adres = figureUrl(figure, process.env.SITE_URL || "https://figurefame.com");
     if (!figure.short_code) {
       console.warn(`  ! ${figure.name}: brak kodu figurki — outro pokaże samą domenę. Uruchom: npm run adresy`);
     }

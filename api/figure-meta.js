@@ -62,7 +62,7 @@ function buildDescription(figure) {
 }
 
 export default async function handler(req, res) {
-  const base = (process.env.SITE_URL || "https://figure-fame.vercel.app").replace(/\/+$/, "");
+  const base = (process.env.SITE_URL || "https://figurefame.com").replace(/\/+$/, "");
   const key = String(req.query.key || req.query.slug || "").trim();
 
   try {
