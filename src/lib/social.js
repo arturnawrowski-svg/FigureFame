@@ -58,7 +58,33 @@ export const KONTA = [
   },
 ];
 
+// ----------------------------------------------------------------------------
+// PODGLĄD — ikony kont, których jeszcze nie założono.
+//
+// Zasada wyżej mówi „pusty adres = ikony nie ma" i nadal obowiązuje tam, gdzie
+// szkodziła naprawdę: w ODNOŚNIKU. Szkodę robi klik prowadzący w pustkę, nie
+// sam znaczek. Dlatego podgląd rysuje ikonę, ale NIE jest odnośnikiem —
+// nie da się w niego kliknąć, więc nie da się wylądować na nieistniejącym koncie.
+//
+// Po co: żeby było widać, gdzie te ikony siedzą i jak wyglądają — to jest
+// przypomnienie „załóż wreszcie te konta", a nie obietnica dla odwiedzającego.
+//
+// Gdy wpiszesz `url`, ikona sama zamienia się w prawdziwy, klikalny odnośnik.
+// Po założeniu wszystkich kont ta stała przestaje cokolwiek zmieniać.
+// ----------------------------------------------------------------------------
+export const POKAZ_PODGLAD = true;
+
 /** Tylko konta, które naprawdę istnieją. */
 export function kontaAktywne() {
   return KONTA.filter((k) => k.url.trim() !== '');
+}
+
+/**
+ * Co narysować w stopce. Każda pozycja niesie `gotowe`:
+ *   true  → prawdziwy odnośnik
+ *   false → wyszarzony, nieklikalny podgląd
+ */
+export function kontaDoStopki() {
+  if (!POKAZ_PODGLAD) return kontaAktywne().map((k) => ({ ...k, gotowe: true }));
+  return KONTA.map((k) => ({ ...k, gotowe: k.url.trim() !== '' }));
 }

@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Fingerprint } from 'lucide-react';
-import { kontaAktywne } from '../lib/social';
+import { kontaDoStopki } from '../lib/social';
 
 // ============================================================================
 // Stopka — dwa wiersze. Górny robi robotę (prywatność, dokumenty, media),
@@ -15,8 +15,10 @@ import { kontaAktywne } from '../lib/social';
 //
 // 2. ROK LICZONY Z DATY. Wpisany na sztywno zestarzeje się 1 stycznia.
 //
-// 3. IKONY MEDIÓW TYLKO DLA ISTNIEJĄCYCH KONT (patrz src/lib/social.js).
-//    Odnośnik do pustego kanału szkodzi bardziej niż jego brak.
+// 3. ODNOŚNIK DO MEDIÓW TYLKO DLA ISTNIEJĄCEGO KONTA (patrz src/lib/social.js).
+//    Konto bez adresu rysuje się jako wyszarzony `span`, NIE jako `a` — bo
+//    szkodę robi klik prowadzący w pustkę, nie sam znaczek. Nie zamieniaj
+//    tego z powrotem na `a` z `href="#"`.
 //
 // Odnośniki do dokumentów niosą `state.tlo` — dzięki temu otwierają się jako
 // okno nad stroną, a nie przeładowaniem. Wejście wprost na /prywatnosc dalej
@@ -25,7 +27,10 @@ import { kontaAktywne } from '../lib/social';
 
 export default function Footer() {
   const location = useLocation();
-  const konta = kontaAktywne();
+  const konta = kontaDoStopki();
+  // Gdy nie ma ani jednego prawdziwego konta, cała lista jest dekoracją —
+  // czytnik ekranu nie ma po co ogłaszać „media społecznościowe: pusto".
+  const maPrawdziwe = konta.some((k) => k.gotowe);
 
   // `tlo` mówi trasie: „pokaż mnie jako okno, a pod spodem zostaw to, co jest".
   const jakoOkno = { tlo: location };
@@ -52,16 +57,31 @@ export default function Footer() {
         </div>
 
         {konta.length > 0 && (
-          <ul className="footer-social" aria-label="FigureFame w mediach społecznościowych">
-            {konta.map(({ klucz, nazwa, url, d }) => (
-              <li key={klucz}>
-                <a href={url} target="_blank" rel="noopener noreferrer" aria-label={`FigureFame na ${nazwa}`}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d={d} />
-                  </svg>
-                </a>
-              </li>
-            ))}
+          <ul
+            className="footer-social"
+            aria-label={maPrawdziwe ? 'FigureFame w mediach społecznościowych' : undefined}
+            aria-hidden={maPrawdziwe ? undefined : 'true'}
+          >
+            {konta.map(({ klucz, nazwa, url, d, gotowe }) => {
+              const znak = (
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d={d} />
+                </svg>
+              );
+              return (
+                <li key={klucz}>
+                  {gotowe ? (
+                    <a href={url} target="_blank" rel="noopener noreferrer" aria-label={`FigureFame na ${nazwa}`}>
+                      {znak}
+                    </a>
+                  ) : (
+                    <span className="social-podglad" title={`${nazwa} — konto jeszcze nie założone`} aria-hidden="true">
+                      {znak}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

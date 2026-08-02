@@ -51,6 +51,11 @@ nie kod.**
 
 ### 3. Premiera — kolejność czynności
 
+- [ ] **założyć konta w mediach i wpisać adresy** w [src/lib/social.js](src/lib/social.js).
+      Od 01.08 ikony są widoczne jako **wyszarzony, nieklikalny podgląd** — nie prowadzą
+      donikąd, więc nic nie psują, ale są przypomnieniem. Wpisanie `url` zamienia ikonę
+      w prawdziwy odnośnik. Gdy konta będą komplet, `POKAZ_PODGLAD` przestaje mieć znaczenie;
+      gdybyś ruszał premierę bez nich — ustaw je na `false`
 - [ ] usunąć `SITE_GATE_USER` i `SITE_GATE_PASSWORD` z Vercela (zdjęcie zasłony)
 - [ ] przywrócić `robots.txt` z sekcji „DOCELOWO" (czeka zakomentowany na końcu pliku)
 - [ ] zdjąć `<meta name="robots" content="noindex...">` z `index.html`

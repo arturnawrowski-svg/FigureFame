@@ -1043,6 +1043,10 @@ body.light-mode .hero-logo {
 --------------------------------------------------------------------------- */
 .app-footer {
   --footer-text: #8f979f;
+  /* Podgląd nieistniejącego konta — ciemniejszy niż --footer-text, ale nadal
+     mierzalny: #6b7278 na #181818 = 3,64:1, powyżej progu 3:1, jaki WCAG 1.4.11
+     stawia elementom graficznym (to znak, nie tekst). */
+  --footer-social-podglad: #6b7278;
   margin-top: 8rem;
   padding: 2.5rem 2rem 2rem;
   border-top: 1px solid var(--color-glass-border);
@@ -1055,6 +1059,8 @@ body.light-mode .hero-logo {
 
 body.light-mode .app-footer {
   --footer-text: #5a636b;
+  /* #7e868d na #f8f9fa = 3,51:1 — też powyżej progu 3:1. */
+  --footer-social-podglad: #7e868d;
 }
 
 .footer-gora {
@@ -1140,6 +1146,20 @@ body.light-mode .app-footer {
   color: var(--color-text-highlight);
   border-color: var(--color-glass-border);
   background: var(--color-glass-bg);
+}
+
+/* Podgląd konta, którego jeszcze nie ma: ten sam kształt co odnośnik, ale
+   `span` — nieklikalny i poza kolejnością Tab. Stonowanie jawnym kolorem,
+   NIE `opacity` (patrz ostrzeżenie nad .app-footer). */
+.footer-social .social-podglad {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 10px;
+  color: var(--footer-social-podglad);
+  border: 1px dashed var(--color-glass-border);
+  cursor: default;
 }
 
 .footer-linia {
