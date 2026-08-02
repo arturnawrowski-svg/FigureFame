@@ -1148,6 +1148,42 @@ body.light-mode .app-footer {
   background: var(--color-glass-bg);
 }
 
+/* --------------------------------------------------------------------------
+   KOLOR MARKI NA NAJECHANIE
+   --------------------------------------------------------------------------
+   W spoczynku ikony są jednolite — stopka nie jest miejscem na siedem
+   konkurujących barw obok pomarańczowego logotypu. Kolor pojawia się dopiero
+   pod kursorem: daje rozpoznawalność bez rozbijania układu.
+
+   Klucz platformy wnosi atrybut `data-social` z Footer.jsx.
+
+   ⚠️ TRZY ZNAKI MAJĄ INNY KOLOR W KAŻDYM MOTYWIE i nie jest to kaprys:
+     • TikTok i X mają w identyfikacji CZERŃ. Na ciemnym tle (#181818) czarny
+       znak znika całkowicie, więc tam biorą swój drugi firmowy kolor
+       (TikTok — cyan) albo biel (X).
+     • Pinterest w wersji ciemnoczerwonej (#bd081c) daje na #181818 tylko
+       2,7:1 — poniżej progu 3:1, jaki WCAG 1.4.11 stawia elementom
+       graficznym. Na ciemnym idzie więc jaśniejszy firmowy czerwony
+       (#e60023 = 3,7:1), na jasnym zostaje ciemny (6,2:1).
+
+   Pozostałe cztery mieszczą się w progu na obu tłach bez zmian:
+   YouTube 4,4/3,8 · Instagram 4,4/3,8 · Discord 3,9/4,4 · Bluesky 4,9/3,4.
+   -------------------------------------------------------------------------- */
+.footer-social a[data-social="youtube"]:hover   { color: #ff0000; }
+.footer-social a[data-social="instagram"]:hover { color: #e4405f; }
+.footer-social a[data-social="discord"]:hover   { color: #5865f2; }
+.footer-social a[data-social="bluesky"]:hover   { color: #0285ff; }
+
+/* Motyw ciemny — warianty dla znaków, które w oryginale są czarne. */
+.footer-social a[data-social="tiktok"]:hover    { color: #25f4ee; }
+.footer-social a[data-social="x"]:hover         { color: #ffffff; }
+.footer-social a[data-social="pinterest"]:hover { color: #e60023; }
+
+/* Motyw jasny — tam czerń działa, a Pinterest wraca do ciemnej czerwieni. */
+body.light-mode .footer-social a[data-social="tiktok"]:hover    { color: #000000; }
+body.light-mode .footer-social a[data-social="x"]:hover         { color: #000000; }
+body.light-mode .footer-social a[data-social="pinterest"]:hover { color: #bd081c; }
+
 /* Podgląd konta, którego jeszcze nie ma: ten sam kształt co odnośnik, ale
    `span` — nieklikalny i poza kolejnością Tab. Stonowanie jawnym kolorem,
    NIE `opacity` (patrz ostrzeżenie nad .app-footer). */

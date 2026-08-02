@@ -71,7 +71,9 @@ export default function Footer() {
               return (
                 <li key={klucz}>
                   {gotowe ? (
-                    <a href={url} target="_blank" rel="noopener noreferrer" aria-label={`FigureFame na ${nazwa}`}>
+                    // `data-social` niesie klucz platformy do CSS — stąd bierze się
+                    // kolor marki na najechanie (patrz index.css, sekcja stopki).
+                    <a href={url} target="_blank" rel="noopener noreferrer" data-social={klucz} aria-label={`FigureFame na ${nazwa}`}>
                       {znak}
                     </a>
                   ) : (
