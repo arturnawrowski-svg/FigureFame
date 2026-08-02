@@ -268,6 +268,19 @@ z arkusza [design/logo_FigureFame.png](design/logo_FigureFame.png).
   trzy powyższe znalezione sondami na uruchomionej aplikacji, nie czytaniem kodu. Skrypt sondy
   odpalaj **z katalogu projektu** (inaczej nie widzi `node_modules`) i nie nazywaj stałej `URL`,
   bo przesłoni globalny konstruktor.
+- **Stan „w toku" wygląda identycznie jak awaria — i to najgroźniejszy rodzaj cichej usterki.**
+  `working` w `lookup_queue` pełni rolę blokady, a worker bierze wyłącznie `pending`. Gdy Studio
+  padło **dwie sekundy po podjęciu** zlecenia (02.08), wiersz został zablokowany na zawsze:
+  panel nie miał czego pokazać, Studio świeciło na zielono, a figurka była martwa. Prawdę
+  pokazało dopiero **zestawienie dwóch rzeczy naraz** — `lookup_queue.updated_at` i
+  `studio_status.last_seen` zatrzymały się w tej samej sekundzie. Worker zwalnia dziś porzucone
+  zlecenia po 10 minutach ([lookupWorker.mjs](worker/lookupWorker.mjs)), ale **wniosek jest
+  ogólniejszy: każdy stan pośredni potrzebuje limitu czasu**, inaczej awaria procesu zamienia
+  się w trwałą blokadę danych.
+- **Kolejki nie mają atomowego pobierania zlecenia.** Oba workery robią `SELECT` wierszy
+  o danym statusie, a potem `UPDATE` na „zajęte". Przy **jednym** komputerze to bez znaczenia —
+  pętla jest sekwencyjna. Przy **dwóch** to wyścig: obie stacje mogą wziąć to samo zlecenie.
+  To jedyna rzecz do naprawienia przed rozdzieleniem Studia na kilka maszyn (patrz sekcja 11).
 
 ## 10. Gdzie jest sufit darmowych planów (ustalone 30.07)
 
@@ -301,3 +314,42 @@ i serwuje go dalej ze swojej pamięci. Koszt 0 zł. Gdyby i to nie starczyło �
 > Uczciwie: dziś wąskim gardłem nie jest żadna z tych usług, tylko **24 figurki**.
 > Do limitów trzeba najpierw dorosnąć, a droga do nich prowadzi przez treść —
 > dlatego w [FUTURE.md](FUTURE.md) głębia bazy stoi przed wszystkim innym.
+
+## 11. Studio na wielu komputerach — architektura już na to pozwala
+
+**Nie trzeba nic przebudowywać.** Układ jest kolejkowy od początku: Vercel to mózg,
+komputer to ręce, a **spotykają się wyłącznie przez tabelę w Supabase**. Żadna maszyna
+nie musi widzieć drugiej ani mieć publicznego adresu.
+
+```
+        Vercel  ──zapis zlecenia──►  Supabase  ◄──odpyta co 20-30 s──  komputer A
+        (mózg)                       (kolejka)                          komputer B
+                                                                        komputer C
+```
+
+Baza jest na to przygotowana wprost: **`studio_status` ma `station` jako klucz główny**
+(czyli osobny wiersz na maszynę, nie jeden na wszystkie) oraz **`can_browse` i `can_render`** —
+każda stacja ogłasza, co potrafi.
+
+**Rozdzielenie ról jest darmowe i nie wymaga kodu**, bo to dwa osobne procesy:
+
+| polecenie | co robi | czego potrzebuje |
+|---|---|---|
+| `npm run lookup-worker:watch` | pobiera dane z katalogów | Chromium (Playwright) |
+| `npm run worker:watch` | renderuje i publikuje shorty | ffmpeg, CPU, dostęp do Dysku |
+
+Słaby laptop może więc pobierać dane, a mocny pecet renderować filmy. Wystarczy na drugiej
+maszynie repozytorium, `.env.local` z kluczem `service_role` i uruchomienie **tylko jednego**
+z tych poleceń.
+
+> ⚠️ **Zanim uruchomisz DRUGĄ stację, napraw pobieranie zleceń.** Oba workery robią
+> `SELECT` wierszy o danym statusie, a dopiero potem `UPDATE` na „zajęte". Między tymi
+> dwoma zapytaniami jest szpara: dwie maszyny mogą wziąć **to samo zlecenie** i zrobić
+> tę samą robotę dwa razy — a przy renderze to dwa filmy dla jednej figurki.
+> Przy jednym komputerze problem nie istnieje, bo pętla jest sekwencyjna.
+>
+> Naprawa jest krótka: pobranie musi być **jednym** zapytaniem, które od razu oznacza
+> wiersz jako zajęty i zwraca to, co faktycznie zajęło —
+> `update … set status='working' where id in (select … where status='pending'
+> for update skip locked) returning *`. `SKIP LOCKED` sprawia, że druga stacja pomija
+> zajęte wiersze zamiast na nie czekać.
