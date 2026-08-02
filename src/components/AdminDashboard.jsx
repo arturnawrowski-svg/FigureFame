@@ -142,6 +142,10 @@ export default function AdminDashboard() {
     // Producent rozstrzyga między wersjami tej samej postaci — bez niego
     // katalog trafia w pierwszą lepszą (stąd „Clayz" → „Good Smile Company").
     const knownManufacturer = fig.manufacturer || editForm.manufacturer || '';
+    // Skala razem z producentem — para potwierdza zdjęcie z jednego źródła
+    // (patrz figureLookup.js). Bez niej worker wyrzuca poprawne zdjęcie z MFC
+    // jako „niepotwierdzone" i figurka zostaje bez grafiki.
+    const knownScale = fig.scale || editForm.scale || '';
 
     // Pola potwierdzone katalogiem w POPRZEDNICH przebiegach są nietykalne.
     const confirmed = new Set(
@@ -167,7 +171,7 @@ export default function AdminDashboard() {
             log: text.startsWith('✓') ? [...(prev?.log || []), text] : (prev?.log || []),
           }));
         },
-        { ...opts, manufacturer: knownManufacturer }
+        { ...opts, manufacturer: knownManufacturer, scale: knownScale }
       );
 
       if (data) {

@@ -21,6 +21,11 @@ export async function streamLookup(name, series, onProgress, opts = {}) {
     // Producent nie wchodzi do klucza pamięci podręcznej — jest wskazówką dla
     // katalogów, która z kilkunastu wersji tej samej postaci jest właściwa.
     (opts.manufacturer ? `&manufacturer=${encodeURIComponent(opts.manufacturer)}` : '') +
+    // Skala jedzie razem z producentem i NIE jest ozdobnikiem: dopiero para
+    // „producent + skala" pozwala workerowi potwierdzić zdjęcie podane przez
+    // jedno źródło (crossCheckImage, droga 3). Sama skala albo sam producent
+    // nic nie dają — warunek wymaga obu naraz.
+    (opts.scale ? `&scale=${encodeURIComponent(opts.scale)}` : '') +
     (opts.deep ? '&deep=1' : '') +
     (opts.refresh ? '&refresh=1' : '');
 

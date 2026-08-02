@@ -8,6 +8,31 @@ import { wymagajModeratora } from "../server-lib/wymagajModeratora.js";
 // Pamięć podręczna wyszukiwań — chroni mały limit pośrednika (patrz migracje-cache.sql).
 const CACHE_DAYS = 30;
 
+// Czy zapamiętany wynik w ogóle coś WNOSI?
+//
+// ⚠️ W bazie leżą wpisy zapisane pod starą, zbyt luźną regułą — wystarczał
+// `manufacturer`, a ten przychodzi ZE ZGŁOSZENIA, nie z badania (patrz
+// komentarz przy writeCache). Taki wpis nie niesie ani jednej rzeczy, której
+// moderator sam nie wpisał, a mimo to dawał Cache HIT i blokował ponowne
+// szukanie przez całe CACHE_DAYS. Traktujemy go jak BRAK wpisu, żeby stare
+// zatrucia goiły się same przy pierwszym wejściu.
+//
+// Zdjęcie z cudzego serwera nie liczy się jako treść — i tak wytnie je
+// oczyscZdjecie() niżej, więc wpis z samym takim adresem jest pusty.
+function wpisMaTresc(dane) {
+  if (!dane) return false;
+  const zdjecieUNas =
+    typeof dane.official_image_url === 'string' &&
+    dane.official_image_url.includes('supabase.co');
+  return Boolean(
+    zdjecieUNas ||
+    dane.japanese_name ||
+    dane.additionalInfo ||
+    dane.whereToSearch ||
+    dane.strategy
+  );
+}
+
 async function readCache(key) {
   try {
     const supabase = getSupabaseAdmin();
@@ -20,6 +45,10 @@ async function readCache(key) {
 
     const ageDays = (Date.now() - new Date(data.created_at).getTime()) / 86_400_000;
     if (ageDays > CACHE_DAYS) return null; // przeterminowane — poszukamy od nowa
+    if (!wpisMaTresc(data.data)) {
+      console.log(`Cache ODRZUCONY (${key}) — wpis bez treści, szukamy od nowa.`);
+      return null;
+    }
     return data.data;
   } catch {
     return null; // brak tabeli/uprawnień nie może blokować wyszukiwania
@@ -29,7 +58,11 @@ async function readCache(key) {
 // Zlecenie dla lokalnego workera: gdy serwer nie ma jak pobrać danych
 // (Cloudflare przepuszcza tylko prawdziwą przeglądarkę), zostawiamy zadanie
 // w bazie — komputer admina je odbierze. Ten sam układ co kolejka filmów.
-async function enqueueLookup(name, series, mode) {
+// ⚠️ manufacturer i scale MUSZĄ tu dojechać. Worker potwierdza nimi zdjęcie
+// podane przez jedno źródło (crossCheckImage, droga 3). Gdy ich brakowało,
+// MFC podawało poprawne zdjęcie, a worker je wyrzucał jako niepotwierdzone —
+// patrz migracje-kolejka-producent-skala.sql.
+async function enqueueLookup(name, series, mode, manufacturer = '', scale = '') {
   try {
     const supabase = getSupabaseAdmin();
 
@@ -47,9 +80,22 @@ async function enqueueLookup(name, series, mode) {
 
     if (existing && existing.length > 0) return true; // już czeka w kolejce
 
-    const { error } = await supabase
+    let { error } = await supabase
       .from("lookup_queue")
-      .insert({ name, series, mode, status: "pending" });
+      .insert({ name, series, mode, manufacturer, scale, status: "pending" });
+
+    // Kod może pojechać na produkcję ZANIM ktoś uruchomi migrację w Supabase —
+    // zmienne i schemat bazy nie jadą z pushem. Wtedy PostgREST odrzuca zapis
+    // z powodu nieznanej kolumny. Zamiast położyć całe zlecanie, zapisujemy bez
+    // tych dwóch pól: worker zadziała jak dotąd (bez potwierdzania zdjęcia
+    // danymi ze zgłoszenia), zamiast nie zadziałać wcale.
+    const brakKolumny = error && (error.code === "PGRST204" || error.code === "42703");
+    if (brakKolumny) {
+      console.warn("[kolejka] brak kolumn manufacturer/scale — uruchom migracje-kolejka-producent-skala.sql");
+      ({ error } = await supabase
+        .from("lookup_queue")
+        .insert({ name, series, mode, status: "pending" }));
+    }
 
     // Wyścig dwóch kliknięć naraz: indeks odrzuci drugie — to nie jest błąd.
     if (error && error.code === "23505") return true;
@@ -229,10 +275,34 @@ export default async function handler(req, res) {
     // a nie dopiero gdy padną wszystkie źródła.
     const encyclopediaMissing = sources.mfc !== 'ok';
     if (encyclopediaMissing && !hasLocalBrowser()) {
-      const queued = await enqueueLookup(name, series, mode);
+      const queued = await enqueueLookup(name, series, mode, manufacturer, scale);
       if (queued) {
         figureData._queued = 'Zlecono pobranie danych — FigureFame Studio na Twoim komputerze pobierze je z katalogów. Kliknij ponownie za chwilę.';
         send('progress', { step: 'queue', label: 'Zlecono pobranie lokalne…', percent: 72 });
+      }
+
+      // ⚠️ Chmura nie dosięgnie MFC — Cloudflare przepuszcza tylko prawdziwą
+      // przeglądarkę. Jeśli worker kiedyś przyniósł dane, są one Z KATALOGU,
+      // a więc twardsze od wszystkiego, co dopisze tu AI. Zwracamy je zamiast
+      // zgadywanki — także przy „⭐ TOP".
+      //
+      // Bez tego TOP działał wprost przeciwnie do swojej nazwy: pomijał pamięć
+      // podręczną (czyli dorobek workera), pytał chmurę, dostawał zero
+      // z katalogów i pokazywał moderatorowi domysł AI — innego producenta
+      // i inną skalę niż w rzeczywistości. Im mocniej klikałeś TOP, tym gorsze
+      // dane widziałeś. Zlecenie dla workera i tak zostało złożone wyżej,
+      // więc następne kliknięcie pokaże świeży wynik.
+      const zWorkera = await readCache(key);
+      if (zWorkera) {
+        const wynik = { ...oczyscZdjecie(zWorkera), _fromCache: true };
+        if (figureData._queued) wynik._queued = figureData._queued;
+        console.log(`Chmura bez MFC — oddaję dane workera z pamięci (${key}).`);
+        send('progress', { step: 'cache', label: 'Mam dane z Twojego komputera', percent: 100 });
+        if (streaming) {
+          send('result', wynik);
+          return res.end();
+        }
+        return res.status(200).json(wynik);
       }
     }
 
@@ -366,9 +436,29 @@ export default async function handler(req, res) {
 
     figureData._provenance = provenance;
 
-    // Zapisujemy tylko sensowne wyniki — inaczej utrwalilibyśmy pustą porażkę.
-    if (figureData.official_image_url || figureData.japanese_name || figureData.manufacturer) {
+    // Zapisujemy tylko wyniki, za którymi stoi PRACA — nie echo zgłoszenia.
+    //
+    // ⚠️ Wcześniej wystarczył tu sam `manufacturer`. To był błąd, bo producent
+    // przychodzi ZE ZGŁOSZENIA, a nie z badania — jest w danych, zanim
+    // cokolwiek odpytamy. Skutek: wynik, w którym katalogi milczały, AI
+    // zwróciła puste stringi, a zdjęcia nie było, i tak przechodził jako
+    // „sensowny". Potem każde kolejne wejście dostawało Cache HIT i tę samą
+    // pustkę — natychmiast, bez ponowienia, w nieskończoność. Objaw dla
+    // moderatora: „tyle źródeł, a wszystkie pola puste".
+    //
+    // Warunek musi więc pytać o DOWÓD pracy: czy jakieś źródło odpowiedziało,
+    // albo czy mamy treść, której zgłoszenie nie zawierało.
+    const cokolwiekOdpowiedzialo = Object.values(sources).some((s) => s === 'ok');
+    const mamyWlasnaTresc = Boolean(
+      figureData.official_image_url ||
+      figureData.japanese_name ||
+      figureData.additionalInfo ||
+      figureData.whereToSearch
+    );
+    if (cokolwiekOdpowiedzialo || mamyWlasnaTresc) {
       await writeCache(key, mode, figureData);
+    } else {
+      console.log(`Cache POMINIĘTY (${key}) — zero źródeł i zero treści, nie utrwalamy pustki.`);
     }
 
     if (streaming) {
