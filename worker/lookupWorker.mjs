@@ -31,6 +31,42 @@ dotenv.config({ path: join(__dirname, "..", ".env.local") });
 const POLL_MS = 20000;
 const BATCH = 5;
 
+// Po jakim czasie uznajemy zlecenie w stanie 'working' za PORZUCONE.
+//
+// Zlecenie oznaczone jako 'working' jest zablokowane — claimJobs bierze
+// wyłącznie 'pending'. Gdy Studio padnie albo zostanie zamknięte w trakcie
+// pracy, wiersz zostaje w tym stanie NA ZAWSZE i figurki nie da się już
+// odblokować niczym poza ręcznym SQL-em. Panel nie pokazuje przy tym żadnego
+// błędu — zlecenie po prostu nigdy się nie kończy.
+//
+// Zdarzyło się naprawdę (02.08): Studio zamilkło dwie sekundy po podjęciu
+// zlecenia, a ono wisiało, dopóki nie zostało odblokowane z zewnątrz.
+//
+// Próg jest hojny: przebieg 'deep' z pobraniem zdjęcia mieści się w minutach,
+// więc dziesięć minut oznacza awarię, a nie wolną pracę. Pętla jest w dodatku
+// sekwencyjna (`for … await`, kolejny cykl startuje dopiero po zakończeniu
+// poprzedniego), więc worker nie może odebrać zlecenia sam sobie.
+const PORZUCONE_PO_MS = 10 * 60 * 1000;
+
+/** Zlecenia porzucone po awarii wracają do kolejki same. */
+async function odblokujPorzucone(supabase) {
+  const prog = new Date(Date.now() - PORZUCONE_PO_MS).toISOString();
+  const { data, error } = await supabase
+    .from("lookup_queue")
+    .update({ status: "pending", updated_at: new Date().toISOString() })
+    .eq("status", "working")
+    .lt("updated_at", prog)
+    .select("id, name");
+
+  if (error) {
+    console.error(`[kolejka] nie udało się odblokować porzuconych: ${error.message}`);
+    return;
+  }
+  if (data && data.length > 0) {
+    console.log(`  ↺ wróciły do kolejki po awarii: ${data.map((j) => j.name).join(", ")}`);
+  }
+}
+
 async function claimJobs(supabase) {
   const { data, error } = await supabase
     .from("lookup_queue")
@@ -119,6 +155,7 @@ async function processJob(supabase, job) {
 
 async function runOnce() {
   const supabase = getSupabaseAdmin();
+  await odblokujPorzucone(supabase); // najpierw sprzątanie po ewentualnej awarii
   const jobs = await claimJobs(supabase);
 
   if (jobs.length === 0) {
