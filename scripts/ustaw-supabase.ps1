@@ -99,27 +99,57 @@ if ($mojaLista -split ';' -contains $KATALOG_CLAUDE) {
 # ---------------------------------------------------------------------------
 Naglowek "Krok 2 z 3: klucz do Supabase"
 
-Write-Host "  Otworz w przegladarce:" -ForegroundColor White
-Write-Host "     https://supabase.com/dashboard/account/tokens" -ForegroundColor White
-Write-Host ""
-Write-Host "  Zrob nowy token (Generate new token), skopiuj go i wklej ponizej."
-Write-Host "  Zaczyna sie od   sbp_"
-Write-Host ""
-Write-Host "  Wklejanie w konsoli: prawy przycisk myszy albo Ctrl+V." -ForegroundColor DarkGray
-Write-Host ""
-
-$klucz = (Read-Host "  Wklej klucz i nacisnij Enter").Trim()
-
-if ([string]::IsNullOrWhiteSpace($klucz)) {
-  Blad "Nic nie wkleiles. Uruchom plik jeszcze raz."
-  Zakoncz 1
+# NAJPIERW szukamy klucza podanego przy wczesniejszym uruchomieniu.
+#
+# Po co: Supabase pokazuje token TYLKO RAZ, w chwili utworzenia. Kto zamknal
+# tamto okno, nie odczyta go juz nigdzie - musialby robic nowy. A my mamy go
+# u siebie, bo zapisal sie w konfiguracji Claude Code. Nie ma powodu meczyc
+# czlowieka o rzecz, ktora juz posiadamy.
+#
+# ⚠️ Czytamy WYRAZENIEM REGULARNYM, nie przez ConvertFrom-Json. Ten plik
+# potrafi miec dwa wpisy tego samego projektu roznaice sie wielkoscia litery
+# dysku ("c:" i "C:"), a ConvertFrom-Json w PowerShellu 5.1 odmawia wtedy
+# pracy: "duplicated keys". Regex tego problemu nie ma.
+$klucz = ''
+$plikKonfig = "$env:USERPROFILE\.claude.json"
+if (Test-Path $plikKonfig) {
+  try {
+    $tresc = Get-Content $plikKonfig -Raw -ErrorAction Stop
+    $m = [regex]::Match($tresc, '"SUPABASE_ACCESS_TOKEN"\s*:\s*"([^"]+)"')
+    if ($m.Success) { $klucz = $m.Groups[1].Value }
+  } catch { }
 }
-if ($klucz -notlike 'sbp_*') {
-  Uwaga "Ten klucz nie zaczyna sie od 'sbp_'. Moze byc pomylony z innym."
-  $dalej = Read-Host "  Sprobowac mimo to? (t/n)"
-  if ($dalej -ne 't') {
-    Write-Host "  Przerwane. Uruchom plik jeszcze raz z wlasciwym kluczem."
+
+if ($klucz) {
+  Ok "Znalazlem klucz z poprzedniego uruchomienia - uzywam go ponownie."
+  Write-Host "  Nie musisz nic wpisywac." -ForegroundColor DarkGray
+} else {
+  Write-Host "  Otworz w przegladarce:" -ForegroundColor White
+  Write-Host "     https://supabase.com/dashboard/account/tokens" -ForegroundColor White
+  Write-Host ""
+  Write-Host "  Zrob nowy token (Generate new token), skopiuj go i wklej ponizej."
+  Write-Host "  Zaczyna sie od   sbp_"
+  Write-Host ""
+  Write-Host "  Uwaga: Supabase pokazuje token TYLKO RAZ. Jesli zamkniesz to"
+  Write-Host "  okno bez skopiowania - trzeba zrobic nowy. Stary mozna wtedy"
+  Write-Host "  spokojnie usunac, sa za darmo i bez limitu."
+  Write-Host ""
+  Write-Host "  Wklejanie w konsoli: prawy przycisk myszy albo Ctrl+V." -ForegroundColor DarkGray
+  Write-Host ""
+
+  $klucz = (Read-Host "  Wklej klucz i nacisnij Enter").Trim()
+
+  if ([string]::IsNullOrWhiteSpace($klucz)) {
+    Blad "Nic nie wkleiles. Uruchom plik jeszcze raz."
     Zakoncz 1
+  }
+  if ($klucz -notlike 'sbp_*') {
+    Uwaga "Ten klucz nie zaczyna sie od 'sbp_'. Moze byc pomylony z innym."
+    $dalej = Read-Host "  Sprobowac mimo to? (t/n)"
+    if ($dalej -ne 't') {
+      Write-Host "  Przerwane. Uruchom plik jeszcze raz z wlasciwym kluczem."
+      Zakoncz 1
+    }
   }
 }
 
