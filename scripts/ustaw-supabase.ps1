@@ -124,14 +124,13 @@ if ($klucz -notlike 'sbp_*') {
 }
 
 # Stare podlaczenie usuwamy, zeby dodanie nowego nie zglosilo konfliktu.
-#
-# Najpierw SPRAWDZAMY, czy w ogole jest co usuwac. Wywolanie "mcp remove"
-# na pusto wypisuje "No MCP server found" - komunikat nieszkodliwy, ale
-# wygladajacy jak awaria, a przy pierwszym uruchomieniu pojawialby sie zawsze.
+# Czyscimy OBA zakresy - wpis moze siedziec w projekcie po wczesniejszym
+# uruchomieniu. Brak wpisu to nie blad, dlatego wynik nas nie obchodzi.
 $lista = ''
 try { $lista = (& $PLIK_CLAUDE mcp list | Out-String) } catch { $lista = '' }
 if ($lista -match 'supabase') {
-  & $PLIK_CLAUDE mcp remove supabase | Out-Null
+  & $PLIK_CLAUDE mcp remove supabase -s local | Out-Null
+  & $PLIK_CLAUDE mcp remove supabase -s user  | Out-Null
   Write-Host "  Usunalem poprzednie podlaczenie." -ForegroundColor DarkGray
 }
 
@@ -145,7 +144,17 @@ Write-Host "  Podlaczam..." -ForegroundColor DarkGray
 #
 # Nazwa musi stac PRZED "-e". Sprawdzone uruchomieniem obu wersji na
 # claude 2.1.96 - pierwsza konczy sie kodem 1, druga kodem 0.
-& $PLIK_CLAUDE mcp add supabase -e "SUPABASE_ACCESS_TOKEN=$klucz" -- npx -y '@supabase/mcp-server-supabase@latest' "--project-ref=$PROJEKT"
+#
+# ⚠️ "-s user" JEST KONIECZNE, a nie ostrozne.
+#
+# Domyslny zakres to "local", czyli przypisany do SCIEZKI projektu. A sciezka
+# nie jest jedna: PowerShell podaje ja z wielkim "C:", wtyczka VS Code z malym
+# "c:". Konfiguracja traktuje to jako DWA rozne projekty, wiec wpis zrobiony
+# stad byl niewidoczny dla Claude w edytorze - serwer zglaszal "Connected",
+# a narzedzia i tak nie dochodzily.
+#
+# Zakres "user" nie jest przypisany do zadnej sciezki, wiec problem znika.
+& $PLIK_CLAUDE mcp add supabase -s user -e "SUPABASE_ACCESS_TOKEN=$klucz" -- npx -y '@supabase/mcp-server-supabase@latest' "--project-ref=$PROJEKT"
 
 if ($LASTEXITCODE -eq 0) {
   Ok "Supabase podlaczony (tylko projekt FigureFame, nie cale konto)."
