@@ -11,6 +11,12 @@ import { generateGlowColor } from '../lib/glowColor';
 import { streamLookup, mergeLookupIntoForm } from '../lib/figureLookup';
 import { authFetch } from '../lib/authFetch';
 
+// Każda zmiana `video_status` niesie ze sobą czas zmiany. To nie statystyka:
+// stan 'rendering' pełni rolę blokady, a worker/renderQueue.mjs zwalnia blokady
+// starsze niż pół godziny — bez znacznika porzucony render wisiałby wiecznie.
+// Pozostałe stany stemplujemy dla spójności, żeby kolumna nie kłamała.
+const teraz = () => new Date().toISOString();
+
 // ============================================================================
 // Znacznik przy etykiecie pola. Rozróżnia dane PEWNE od domysłu modelu — bez
 // tego pole wypełnione przez AI wygląda identycznie jak zweryfikowane,
@@ -518,7 +524,7 @@ export default function AdminDashboard() {
       }
       const { error } = await supabase
         .from('figures')
-        .update({ video_status: 'queued', video_options: shortOpts })
+        .update({ video_status: 'queued', video_options: shortOpts, video_status_at: teraz() })
         .eq('id', fig.id);
       if (error) throw error;
       showToast(already
@@ -538,7 +544,7 @@ export default function AdminDashboard() {
     try {
       const { error } = await supabase
         .from('figures')
-        .update({ video_status: 'approved_for_publish' })
+        .update({ video_status: 'approved_for_publish', video_status_at: teraz() })
         .eq('id', fig.id);
       if (error) throw error;
       showToast('Zatwierdzono do publikacji ✅ (worker przeniesie na Drive)');
@@ -582,7 +588,7 @@ export default function AdminDashboard() {
     const ready = figures.filter(f => f.video_status === 'ready');
     if (ready.length === 0) { showToast('Brak gotowych shortów do zatwierdzenia.'); return; }
     try {
-      const { error } = await supabase.from('figures').update({ video_status: 'approved_for_publish' }).eq('video_status', 'ready');
+      const { error } = await supabase.from('figures').update({ video_status: 'approved_for_publish', video_status_at: teraz() }).eq('video_status', 'ready');
       if (error) throw error;
       showToast(`Zatwierdzono ${ready.length} shortów do publikacji.`);
       fetchFigures();
@@ -595,7 +601,7 @@ export default function AdminDashboard() {
   // Ponowne wrzucenie do kolejki z zachowaniem zapisanych opcji shorta
   const handleRequeue = async (fig) => {
     try {
-      const { error } = await supabase.from('figures').update({ video_status: 'queued' }).eq('id', fig.id);
+      const { error } = await supabase.from('figures').update({ video_status: 'queued', video_status_at: teraz() }).eq('id', fig.id);
       if (error) throw error;
       showToast('Ponownie w kolejce. Worker: FigureFame-Studio (dwuklik).');
       fetchFigures();

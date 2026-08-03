@@ -43,7 +43,15 @@ export default async function handler(req, res) {
     const imageSrc = resolveImage(figure.official_image_url);
     if (!imageSrc) throw new Error("Figurka nie ma zdjęcia — najpierw dodaj zdjęcie.");
 
-    await supabase.from("figures").update({ video_status: "rendering" }).eq("id", figureId);
+    // ⚠️ Znacznik czasu MUSI iść razem ze statusem. `rendering` to blokada,
+    // a worker/renderQueue.mjs zwalnia blokady starsze niż pół godziny —
+    // przy czym wiersz BEZ znacznika uznaje za porzucony od razu. Gdyby ten
+    // render nie stemplował czasu, worker odebrałby go w trakcie pracy i ta
+    // sama figurka renderowałaby się dwa razy naraz.
+    await supabase
+      .from("figures")
+      .update({ video_status: "rendering", video_status_at: new Date().toISOString() })
+      .eq("id", figureId);
 
     const risk = computeBootlegRisk(figure);
     const price = figure.original_price || figure.market_value?.average || "";
@@ -73,12 +81,19 @@ export default async function handler(req, res) {
 
     const { data: pub } = supabase.storage.from("figure-videos").getPublicUrl(filename);
 
-    await supabase.from("figures").update({ video_status: "ready", video_url: pub.publicUrl }).eq("id", figureId);
+    await supabase
+      .from("figures")
+      .update({ video_status: "ready", video_url: pub.publicUrl, video_status_at: new Date().toISOString() })
+      .eq("id", figureId);
 
     return res.status(200).json({ url: pub.publicUrl, video_status: "ready" });
   } catch (err) {
     console.error("generate-short error:", err);
-    await supabase.from("figures").update({ video_status: "failed" }).eq("id", figureId).then(() => {}, () => {});
+    await supabase
+      .from("figures")
+      .update({ video_status: "failed", video_status_at: new Date().toISOString() })
+      .eq("id", figureId)
+      .then(() => {}, () => {});
     return res.status(500).json({ error: err.message });
   } finally {
     await unlink(outPath).catch(() => {});

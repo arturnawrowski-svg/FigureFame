@@ -32,6 +32,47 @@ dotenv.config({ path: join(__dirname, "..", ".env.local") });
 
 const POLL_MS = 30000;
 
+// Po jakim czasie uznajemy render w stanie 'rendering' za PORZUCONY.
+//
+// 'rendering' pełni rolę blokady — fetchQueued bierze wyłącznie 'queued', więc
+// figurka w trakcie renderu nie zostanie złapana drugi raz. Ale nic tej blokady
+// nie zdejmuje: gdy Studio padnie albo zostanie zamknięte w połowie pracy,
+// wiersz zostaje w 'rendering' NA ZAWSZE, a panel nie pokazuje przy tym żadnego
+// błędu — short po prostu nigdy nie jest gotowy. Jeden taki wisi w bazie.
+//
+// To ta sama pułapka, która zjadła zlecenie w lookup_queue (02.08); tam ratunek
+// nazywa się tak samo i stoi w worker/lookupWorker.mjs.
+//
+// Próg jest HOJNIEJSZY niż przy wyszukiwaniu (10 min), bo kodowanie filmu
+// w 1080×1920 trwa realnie minuty, a nie sekundy. Pół godziny oznacza awarię,
+// nie wolną pracę. Pętla --watch jest w dodatku sekwencyjna (kolejny przebieg
+// startuje po zakończeniu poprzedniego), więc worker nie może odblokować
+// renderu, który sam właśnie wykonuje.
+const PORZUCONE_PO_MS = 30 * 60 * 1000;
+
+const teraz = () => new Date().toISOString();
+
+/** Rendery porzucone po awarii Studia wracają do kolejki same. */
+async function odblokujPorzucone(supabase) {
+  const prog = new Date(Date.now() - PORZUCONE_PO_MS).toISOString();
+  const { data, error } = await supabase
+    .from("figures")
+    .update({ video_status: "queued", video_status_at: teraz() })
+    .eq("video_status", "rendering")
+    // NULL = wiersz sprzed migracji video_status_at, czyli „nie wiadomo od
+    // kiedy". Skoro nie wiadomo, a stan jest blokujący — zwalniamy.
+    .or(`video_status_at.lt.${prog},video_status_at.is.null`)
+    .select("id, name");
+
+  if (error) {
+    console.error(`  ! nie udało się odblokować porzuconych renderów: ${error.message}`);
+    return;
+  }
+  if (data && data.length > 0) {
+    console.log(`  ↺ wróciły do kolejki po awarii: ${data.map((f) => f.name).join(", ")}`);
+  }
+}
+
 function resolveImage(officialUrl) {
   if (!officialUrl) return null;
   if (officialUrl.startsWith("http")) return officialUrl;
@@ -81,8 +122,13 @@ async function processFigure(supabase, figure) {
     const imageSrc = resolveImage(figure.official_image_url);
     if (!imageSrc) throw new Error("Figurka nie ma zdjęcia");
 
-    // 'rendering' pełni też rolę prostej blokady (nie złapie jej drugi przebieg)
-    await supabase.from("figures").update({ video_status: "rendering" }).eq("id", figure.id);
+    // 'rendering' pełni też rolę prostej blokady (nie złapie jej drugi przebieg).
+    // Znacznik czasu MUSI iść razem ze statusem — bez niego blokady nie da się
+    // później zdjąć i porzucony render wisi w nieskończoność (odblokujPorzucone).
+    await supabase
+      .from("figures")
+      .update({ video_status: "rendering", video_status_at: teraz() })
+      .eq("id", figure.id);
 
     const risk = computeBootlegRisk(figure);
     const price = figure.original_price || figure.market_value?.average || "";
@@ -107,12 +153,19 @@ async function processFigure(supabase, figure) {
     if (upErr) throw upErr;
     const { data: pub } = supabase.storage.from("figure-videos").getPublicUrl(filename);
 
-    await supabase.from("figures").update({ video_status: "ready", video_url: pub.publicUrl }).eq("id", figure.id);
+    await supabase
+      .from("figures")
+      .update({ video_status: "ready", video_url: pub.publicUrl, video_status_at: teraz() })
+      .eq("id", figure.id);
     console.log(`  ✓ gotowe: ${pub.publicUrl}`);
     console.log(opisDoPublikacji(figure, adres));
   } catch (err) {
     console.error(`  ✗ błąd (${figure.id}): ${err.message}`);
-    await supabase.from("figures").update({ video_status: "failed" }).eq("id", figure.id).then(() => {}, () => {});
+    await supabase
+      .from("figures")
+      .update({ video_status: "failed", video_status_at: teraz() })
+      .eq("id", figure.id)
+      .then(() => {}, () => {});
   } finally {
     await unlink(outPath).catch(() => {});
   }
@@ -161,6 +214,7 @@ async function publishApproved(supabase) {
         drive_file_id: up.id,
         drive_url: up.link,
         video_url: null,
+        video_status_at: teraz(),
       }).eq("id", fig.id);
 
       console.log(`  ✓ opublikowano ${fig.name} → ${up.link}`);
@@ -173,6 +227,10 @@ async function publishApproved(supabase) {
 
 async function runOnce() {
   const supabase = getSupabaseAdmin();
+
+  // Najpierw sprzątanie po ewentualnej awarii — inaczej porzucony render
+  // zostałby pominięty także w tym przebiegu (fetchQueued bierze 'queued').
+  await odblokujPorzucone(supabase);
 
   // 1) RENDER kolejki
   const queued = await fetchQueued(supabase);
