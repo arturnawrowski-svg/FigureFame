@@ -805,10 +805,57 @@ Zostaje jedno kliknięcie człowieka:
 **Stan po D4–D7** (bez archiwum, 17 figurek): `14 bez zarzutu · 3 braki · 0 błędów`.
 Braki to trzy zdjęcia: Kinomoto Sakura, Shikinami Asuka, Super Sonico.
 
+## 24. Etap E — baza pilnuje sama siebie (04.08)
+
+Migracja: [migracje-pilnowanie-danych.sql](migracje-pilnowanie-danych.sql).
+
+Do tej pory reguł czystości pilnował wyłącznie kod przeglądarki. To działa, dopóki
+wszystko idzie tą jedną drogą — a nie idzie: są skrypty w `worker/`, jest panel Supabase
+i jest klucz `service_role`, którym można pisać wprost. **Każda z tych dróg omijała
+wszystkie reguły**, które ustawiliśmy na szczeblu B.
+
+Podział jest celowy i warto go trzymać przy każdej kolejnej regule:
+
+| rodzaj | zachowanie | dlaczego tak |
+|---|---|---|
+| **wyzwalacz** | czyści po cichu | rzeczy mechaniczne, bez decyzji: białe znaki, złamania linii, pusty napis → `NULL`. Obcięcie spacji z „Kotobukiya " nie zmienia znaczenia, więc nie ma o co pytać |
+| **ograniczenie** | odmawia zapisu | rzeczy, w których ktoś musi POMYŚLEĆ: zdjęcie z cudzego serwera, nieznany status, „nazwa japońska" łacinką |
+
+Pięć zamków, **każdy sprawdzony próbą złamania** zaraz po założeniu:
+
+1. zdjęcie z cudzego serwera → odmowa (nazwy z zasiewu jak `miku_figure` przechodzą, bo to nie adresy)
+2. `japanese_name` bez znaku japońskiego → odmowa (w `figures` i w `characters`)
+3. status spoza `PENDING/APPROVED/ARCHIVED` → odmowa
+4. postać bez nazwy → odmowa
+5. białe znaki i pusty napis → cicho posprzątane
+
+> ⚠️ Nowa kolumna tekstowa = nowa linijka w `czysc_figures()` albo `czysc_characters()`.
+> Kolumny wypisane są WPROST, a nie przez sztuczki z `jsonb` — przepisywanie całego
+> wiersza tam i z powrotem potrafi po cichu ruszyć inne pola, a przy naprawie bazy
+> chcemy tego najmniej.
+
+**Pozostałe decyzje z tego szczebla:** 4 pary duplikatów w archiwum zostają (decyzja
+Artura). 9 figurek w archiwum bez zgłaszającego przypisanych do administratora.
+
+### Kopia zapasowa — poprawiona i wykonana
+
+`npm run kopia` **od początku kopiował bazę**, nie tylko pliki projektu — wpis w TODO.md
+mówiący inaczej był nieprawdziwy. Miał za to dwie luki, obie załatane:
+
+- nie zapisywał tabeli **`characters`**, czyli od 04.08 wszystkich nazw japońskich.
+  Kopia bez niej oddałaby figurki bez nazw — dokładnie to, nad czym pracowaliśmy cały dzień
+- nazwa pliku była nieczytelna (`figurefame_backup_280720260227.zip`). Teraz
+  `FigureFame_backup_2026-08-04_0149.zip` — rok-miesiąc-dzień, więc alfabetycznie układa się
+  chronologicznie
+
+Kopia z 04.08 leży w `kopie/` **i na Dysku Google**: 26 figurek, 17 postaci, 5 profili,
+37 zdjęć, 0,88 MB.
+
 ### Co zostało
 
 | etap | zakres |
 |---|---|
 | **D5** | Super Sonico w Gablocie trzyma zdjęcie z zasiewu (`sonico_figure`) zamiast pliku w magazynie. Katalog zdjęcia nie dał |
-| **D6** | Asuka: Alter czy Good Smile — jedno kliknięcie w MFC (link wyżej) |
+| **D6** | Asuka: Alter czy Good Smile — jedno kliknięcie w MFC (link wyżej). **Odłożone decyzją Artura** |
 | **D8** | Zdjęcia Sakury i Asuki. Katalog ich nie dał, bo trafiał w inne produkty — trzeba podać numer pozycji MFC albo dodać zdjęcie ręcznie |
+| **F** | To, co widzi odwiedzający: kumulowanie wyników wyszukiwania, strona postaci, poprawka czatu, kafelki w Gablocie |

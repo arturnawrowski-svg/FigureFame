@@ -37,19 +37,25 @@ const KUBELEK = "figure-images";
 
 // Kopiujemy to, czego NIE DA SIĘ odtworzyć. `lookup_cache` i `lookup_queue`
 // pomijamy świadomie — to wynik pracy, którą można powtórzyć.
-const TABELE = ["figures", "profiles"];
+//
+// ⚠️ `characters` dopisane 04.08 i to nie jest drobiazg: po rozdzieleniu postaci
+// od produktu (`npm run postacie`) TAM mieszkają wszystkie nazwy japońskie.
+// Kopia bez tej tabeli oddałaby figurki bez nazw — czyli dokładnie to, nad czym
+// pracowaliśmy cały dzień. Nowa tabela z danymi = nowy wpis na tej liście.
+const TABELE = ["figures", "characters", "profiles", "user_collections"];
 
 const dwie = (n) => String(n).padStart(2, "0");
 
-// figurefame_backup_280720260227.zip — dzień, miesiąc, rok, godzina, minuta.
+// FigureFame_backup_2026-08-04_0146.zip
+//
+// Rok-miesiąc-dzień, bo tak posortowane alfabetycznie układają się same
+// chronologicznie. Poprzedni format („280720260227") sklejał wszystko w jeden
+// ciąg cyfr i nie dało się go przeczytać ani posortować.
 function nazwaPliku(teraz) {
   return (
-    "figurefame_backup_" +
-    dwie(teraz.getDate()) +
-    dwie(teraz.getMonth() + 1) +
-    teraz.getFullYear() +
-    dwie(teraz.getHours()) +
-    dwie(teraz.getMinutes()) +
+    "FigureFame_backup_" +
+    teraz.getFullYear() + "-" + dwie(teraz.getMonth() + 1) + "-" + dwie(teraz.getDate()) +
+    "_" + dwie(teraz.getHours()) + dwie(teraz.getMinutes()) +
     ".zip"
   );
 }
