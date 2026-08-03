@@ -758,15 +758,57 @@ Shikinami Asuka Langley, Zero Two) — te wymagają już włączonego Studia.
 
 **Stan po D3** (bez archiwum, 17 figurek): `13 bez zarzutu · 4 braki · 0 błędów`.
 
-### Co zostało w etapie D
-
-| etap | zakres | ile pracy |
-|---|---|---|
-| **D4** | 3 zdjęcia do pobrania z katalogu (Sakura, Asuka, Zero Two). **Wymaga włączonego Studia** | figurka po figurce |
-| **D5** | Super Sonico w Gablocie trzyma zdjęcie z zasiewu (`sonico_figure`) zamiast pliku w magazynie | drobne |
-| **D6** | Rozbieżność „Asuka Jersey Ver.": baza mówi Alter, wszystkie modele AI mówią Good Smile | jedno sprawdzenie |
-| **D7** | Nazwa japońska Taihou (2 wiersze w archiwum) — z katalogu, przy okazji innej pracy Studia | drobne |
-
 > „Usuń tło" (Studio zdjęcia, sekcja 15) **nie blokuje żadnego z tych etapów** — to
 > narzędzie do obróbki zdjęcia, które już mamy, a nie do jego zdobycia. Zostaje osobnym
 > zadaniem.
+
+## 23. Etap D4–D7 — pierwszy przebieg przez Studio (04.08)
+
+Pięć zleceń w `lookup_queue`, jeden przebieg Studia, ~8 minut. **Wszystkie nazwy japońskie
+są komplet — zero braków w całej bazie, razem z archiwum.**
+
+| figurka | co dał katalog | co zrobiliśmy |
+|---|---|---|
+| Zero Two | Good Smile Company ✓, `ゼロツー` ✓, **zdjęcie** | zdjęcie podpięte |
+| Taihou | MiniM Studio ✗, **`大鳳`** | wzięliśmy samą nazwę japońską |
+| Kinomoto Sakura | Pop Mart ✗, `木之本 桜` | nic — mamy już tę nazwę |
+| Shikinami Asuka | Good Smile Arts ✗, `惣流・アスカ・ラングレー` ✗ | **nic** |
+| Super Sonico | Amakuni ✗, `そに子` (forma skrócona) | nic — mamy pełną |
+
+### ⚠️ Najważniejszy wniosek: katalog trafia w INNĄ figurkę częściej, niż się wydaje
+
+Cztery z pięciu zapytań przyniosły dane **innego produktu tej samej postaci** — Pop Mart
+zamiast Good Smile, Amakuni zamiast Altera, MiniM Studio zamiast FuRyu. Gdyby te wyniki
+wjechały do bazy automatem, w pięć minut zepsulibyśmy producentów przy czterech figurkach.
+
+Ratuje nas rozróżnienie, które warto zapamiętać:
+
+- **Fakt o POSTACI przeżywa złe trafienie.** `大鳳` to nazwa Taihou z Azur Lane niezależnie
+  od tego, czyja to figurka — dlatego ją wzięliśmy.
+- **Fakt o PRODUKCIE nie przeżywa.** Producent, skala i zdjęcie odnoszą się do tej konkretnej
+  figurki — jeśli katalog trafił w inną, są bezwartościowe.
+
+To jest dokładnie ten podział, na którym stoi rozdzielenie `characters` od `figures`.
+Pierwszy przebieg przez Studio potwierdził go na żywych danych.
+
+### Asuka — spór o producenta NIEROZSTRZYGNIĘTY
+
+Katalog oddał `惣流・アスカ・ラングレー`, a nasza figurka to `式波・アスカ・ラングレー`.
+To **dwie różne wersje tej samej postaci**: 惣流 (Souryuu) jest z oryginalnego serialu,
+式波 (Shikinami) z filmów „Rebuild" — a nasza figurka jest z „Evangelion: 3.0".
+Katalog trafił więc w inną figurkę i jego odpowiedź „Good Smile" **nic nie mówi** o naszej.
+
+Zostaje jedno kliknięcie człowieka:
+[szukaj w MyFigureCollection](https://myfigurecollection.net/?_tb=item&keywords=Shikinami+Asuka+Langley+Jersey)
+— sprawdzić, czy 1/7 „Jersey Ver." jest od Altera czy od Good Smile.
+
+**Stan po D4–D7** (bez archiwum, 17 figurek): `14 bez zarzutu · 3 braki · 0 błędów`.
+Braki to trzy zdjęcia: Kinomoto Sakura, Shikinami Asuka, Super Sonico.
+
+### Co zostało
+
+| etap | zakres |
+|---|---|
+| **D5** | Super Sonico w Gablocie trzyma zdjęcie z zasiewu (`sonico_figure`) zamiast pliku w magazynie. Katalog zdjęcia nie dał |
+| **D6** | Asuka: Alter czy Good Smile — jedno kliknięcie w MFC (link wyżej) |
+| **D8** | Zdjęcia Sakury i Asuki. Katalog ich nie dał, bo trafiał w inne produkty — trzeba podać numer pozycji MFC albo dodać zdjęcie ręcznie |
