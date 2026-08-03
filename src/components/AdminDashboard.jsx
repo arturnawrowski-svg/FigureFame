@@ -10,6 +10,7 @@ import { PRESETS, ACCENTS, MUSIC_TRACKS, RESOLUTIONS, LANGS, defaultShortOptions
 import { generateGlowColor } from '../lib/glowColor';
 import { streamLookup, mergeLookupIntoForm } from '../lib/figureLookup';
 import { authFetch } from '../lib/authFetch';
+import { zapiszZTozsamoscia } from '../lib/nadajTozsamosc';
 
 // Każda zmiana `video_status` niesie ze sobą czas zmiany. To nie statystyka:
 // stan 'rendering' pełni rolę blokady, a worker/renderQueue.mjs zwalnia blokady
@@ -459,13 +460,27 @@ export default function AdminDashboard() {
 
       dataToSave = await processImageIfNeeded(dataToSave);
 
-      const { error } = await supabase
-        .from('figures')
-        .update(dataToSave)
-        .eq('id', id);
+      // Tożsamość przelicza się przy KAŻDYM zapisie. `identity_key` musi
+      // nadążać za poprawkami moderatora (zmiana producenta zmienia produkt),
+      // ale `slug` i `short_code` zostają nietknięte, jeśli już są — adres
+      // bywa wypalony w opublikowanym filmie. Rozstrzyga to tozsamoscDlaZapisu.
+      const obecna = figures.find((f) => f.id === id) || {};
 
+      const { error } = await zapiszZTozsamoscia(
+        (tozsamosc) => supabase
+          .from('figures')
+          .update({ ...dataToSave, ...tozsamosc })
+          .eq('id', id),
+        dataToSave,
+        obecna
+      );
+
+      if (error?.code === '23505') {
+        showToast('W bazie jest już figurka o tej samej postaci, producencie i skali.');
+        return;
+      }
       if (error) throw error;
-      
+
       showToast('Zapisano edycję pomyślnie!');
       setEditingId(null);
       fetchFigures();

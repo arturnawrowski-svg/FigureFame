@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
+import { zapiszZTozsamoscia } from '../lib/nadajTozsamosc';
 
 export default function AddFigure() {
   const { user } = useAuth();
@@ -28,21 +29,34 @@ export default function AddFigure() {
     
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from('figures').insert({
-        name: formData.name,
-        series: formData.series || null,
-        manufacturer: formData.manufacturer || null,
-        scale: formData.scale || null,
-        type: formData.type || null,
-        release_date: formData.releaseDate || null,
-        status: 'PENDING',
-        submitted_by: user?.id || null,
-        additional_info: formData.additionalInfo ? formData.additionalInfo.split('\n').filter(s => s.trim() !== '') : null,
-        where_to_search: formData.whereToSearch ? formData.whereToSearch.split('\n').filter(s => s.trim() !== '') : null,
-        strategy: formData.strategy ? formData.strategy.split('\n').filter(s => s.trim() !== '') : null,
-        market_value: formData.marketValueAverage ? { average: formData.marketValueAverage } : null
-      });
+      // Tożsamość nadajemy JUŻ TERAZ, a nie ręcznym skryptem „kiedyś".
+      // Bez niej indeks unikalności (obejmujący tylko wartości niepuste)
+      // nie ma czego pilnować i duplikat wjeżdża do bazy bez ostrzeżenia.
+      const { error } = await zapiszZTozsamoscia(
+        (tozsamosc) => supabase.from('figures').insert({
+          name: formData.name,
+          series: formData.series || null,
+          manufacturer: formData.manufacturer || null,
+          scale: formData.scale || null,
+          type: formData.type || null,
+          release_date: formData.releaseDate || null,
+          status: 'PENDING',
+          submitted_by: user?.id || null,
+          additional_info: formData.additionalInfo ? formData.additionalInfo.split('\n').filter(s => s.trim() !== '') : null,
+          where_to_search: formData.whereToSearch ? formData.whereToSearch.split('\n').filter(s => s.trim() !== '') : null,
+          strategy: formData.strategy ? formData.strategy.split('\n').filter(s => s.trim() !== '') : null,
+          market_value: formData.marketValueAverage ? { average: formData.marketValueAverage } : null,
+          ...tozsamosc,
+        }),
+        formData
+      );
 
+      // Duplikat wyłapany przez indeks — mówimy o tym wprost, zamiast
+      // pokazywać zgłaszającemu surowy komunikat bazy danych.
+      if (error?.code === '23505') {
+        alert('Taka figurka jest już w bazie — ta sama postać, producent i skala. Sprawdź Gablotę.');
+        return;
+      }
       if (error) throw error;
 
       alert(`Dziękujemy! Figurka "${formData.name}" została wysłana i oczekuje na zatwierdzenie (PENDING). Backend automatycznie uzupełni resztę danych i zdjęcia!`);
