@@ -353,3 +353,141 @@ z tych poleceń.
 > `update … set status='working' where id in (select … where status='pending'
 > for update skip locked) returning *`. `SKIP LOCKED` sprawia, że druga stacja pomija
 > zajęte wiersze zamiast na nie czekać.
+
+---
+
+## 12. Postać ≠ produkt — przebudowa z 03.08
+
+**Choroba, z której brały się prawie wszystkie objawy w bazie:** serwis nie odróżniał
+POSTACI od PRODUKTU. „Super Sonico" to postać, ale jej figurek jest wiele — różni
+producenci, skale, wersje. Cała maszyneria (pamięć podręczna, kolejka, potwierdzanie
+zdjęcia, wykrywanie duplikatów) opierała się na nazwie postaci, więc wszystkie wersje
+zlewały się w jedno i **nadpisywały nawzajem**.
+
+Dowód: klucz pamięci brzmiał `tryb|nazwa|seria`, a w `lookup_queue` widać trzy pobrania
+HMX-17c Silfa piszące pod **jeden** klucz — stąd „dane Silfy to Alter 1/8 zamiast
+Kotobukiya 1/6".
+
+Drugi objaw: kolumna `japanese_name` trzymała **dwa różne fakty** — raz nazwę postaci
+(`すーぱーそに子`), raz tytuł produktu (`木之本桜 Stars Bless You`). Pole bez stałego
+znaczenia nie da się ani pobrać, ani sprawdzić. Stąd „znowu nie uzupełnia nazw japońskich".
+
+### Co stoi po zmianie
+
+| element | rola |
+|---|---|
+| `characters` | postać: nazwa, nazwa japońska, seria. Ustalana **raz**, wspólna dla wszystkich jej figurek |
+| `figures` | **produkt**: producent, skala, `version` („Tiger Hoodie Ver."), `character_id` |
+| `figures_full` | widok łączący oba pod DZISIEJSZYMI nazwami kolumn |
+
+> ⚠️ Widok ma `security_invoker = on` i **to jest wymóg bezpieczeństwa**, nie ozdoba.
+> Bez tego omija RLS tabeli `figures` i pokazuje światu zgłoszenia PENDING.
+
+**Migracja niczego nie przeniosła** — `character_id` jest wszędzie puste, widok zwraca
+stare kolumny (sprawdzone: 0 rozbieżności na 26 rekordach). Rozdzielenie danych to
+osobny przebieg, **jeszcze nienapisany**.
+
+### Pamięć podręczna ma dwa poziomy
+
+| poziom | klucz | co trzyma |
+|---|---|---|
+| postać | `char\|nazwa\|seria` | nazwa japońska i tytuł serii |
+| produkt | `prod\|tryb\|nazwa\|seria\|producent\|skala\|wersja` | cena, zdjęcie, wartość rynkowa |
+
+Klucz postaci **nie ma trybu** — nazwa postaci nie robi się prawdziwsza od dokładniejszego
+szukania, a wspólny wpis podwaja trafialność.
+
+### Zasada, na której stoi całe rozdzielenie
+
+`identityKey` i `makeSlug` dają **identyczny** wynik dla nazwy złączonej
+(„Zero Two: For My Darling") i rozdzielonej („Zero Two" + „For My Darling").
+Bez tego przebieg rozdzielający uznałby przerobione rekordy za NOWE figurki i **zmienił
+adresy wypalone w opublikowanych filmach**. Są na to dwa testy — nie usuwać.
+
+### Tożsamość nadawana przy zapisie
+
+`identity_key` / `slug` / `short_code` nadaje teraz `src/lib/nadajTozsamosc.js` przy
+KAŻDYM zapisie, w obu ścieżkach (zgłoszenie użytkownika i edycja moderatora). Wcześniej
+robił to wyłącznie ręczny `npm run adresy`, którego nikt nie uruchamiał — a indeks
+unikalności obejmuje tylko wartości niepuste, więc **wykrywanie duplikatów było martwe**.
+
+Dwie różne zasady: `slug` i `short_code` raz nadane **nie zmieniają się nigdy**,
+`identity_key` **przelicza się** przy każdym zapisie (to odcisk, nie adres).
+
+---
+
+## 13. Jeden przycisk szukania — „Zleć FigureFame szukanie danych"
+
+Zastąpił dwa („Szukaj Danych" i „⭐ TOP"), przy których trzeba było wiedzieć, którego użyć,
+a żaden nie dowoził kompletu. Teraz jedno kliknięcie pilnuje sprawy **do trzech minut**:
+pyta katalogi, czeka na Studio, dopytuje i kończy, gdy komplet jest na stole albo minie czas.
+
+**Komplet** = nazwa japońska + producent + skala + zdjęcie **w naszym magazynie**.
+Adres na cudzym serwerze nie liczy się jako zdjęcie.
+
+### Cztery rzeczy, których nie wolno ruszyć bez zrozumienia
+
+1. **Czekanie jest w PRZEGLĄDARCE, nie na serwerze.** Funkcje Vercela mają twardy limit
+   60 s (`vercel.json`) — trzyminutowe oczekiwanie po stronie serwera zostałoby ucięte.
+2. **`refresh` dokładnie RAZ i nie za pierwszym razem.** Podejście 1 czyta pamięć (komplet
+   bywa gotowy w ułamku sekundy, za darmo), podejście 2 wymusza świeże pobranie, kolejne
+   znów CZYTAJĄ — bo to w pamięci Studio zostawia wynik.
+3. **Od podejścia 3 leci `czekam=1` — tryb tylko-pamięć.** Bez tego każde zaglądanie
+   uruchamiało PEŁNE wyszukiwanie: ~30 przebiegów przez katalogi i AI na jedną figurkę.
+4. **Warunek końca patrzy na FORMULARZ, nie na odpowiedź serwera.** Producent i skala
+   przychodzą ze zgłoszenia i już w formularzu siedzą; odpowiedź z pamięci ich nie zawiera.
+
+---
+
+## 14. Pułapki z 03.08 (dopisek do sekcji 9)
+
+**Worker na starym kodzie pisze pod kluczem, którego nikt nie czyta.** Po zmianie formatu
+kluczy Studio uruchomione WCZEŚNIEJ dalej zapisywało `tryb|nazwa|seria`. Dane były w bazie,
+poprawne i kompletne — tylko panel pytał o nowy klucz. **Po każdej zmianie w `server-lib/`
+albo `worker/` trzeba zrestartować Studio.**
+
+**Chmura utrwalała zgadywanie AI na 30 dni.** Gdy katalogi milczały, zostawał domysł AI
+(„Sega / 190mm"), a `additionalInfo` od AI wystarczało, by uznać wynik za „własną treść"
+i zapisać. Naprawione: gdy żaden katalog nie odpowiedział, a zlecenie poszło do Studia,
+wyniku **nie zapisujemy** — Studio odda za chwilę dane z katalogu.
+
+**Jedno pole z katalogu blokowało CAŁY zapis.** Scrapery zwracają `product_url`, kolumny
+o takiej nazwie nie ma, a formularz szedł do bazy jak leci → `Could not find the
+'product_url' column`. Objaw podły: dane widać, przyciski nie działają. Naprawione białą
+listą `src/lib/kolumnyFigurki.js`. **Nowa kolumna w bazie = nowy wpis w tej liście.**
+
+**`rendering` ustawiają DWA miejsca** — `worker/renderQueue.mjs` i `api/generate-short.js`.
+Znacznik `video_status_at` musi iść razem ze statusem w obu, inaczej mechanizm zwalniania
+porzuconych renderów odebrałby render trwający naprawdę i ta sama figurka renderowałaby się
+dwa razy naraz.
+
+**Seria bywa aliasem, którego katalogi nie znają.** „He's My Master" kontra
+„Kore ga Watashi no Goshujin-sama" to ta sama seria — a dla klucza pamięci i dla MFC to
+dwie różne rzeczy. **Niedokończone**: przy nieudanym pobraniu warto ponowić bez serii.
+
+---
+
+## 15. Co zostało otwarte (stan na 03.08, wieczór)
+
+| temat | stan |
+|---|---|
+| Zapis `provenance` do bazy | **niezrobione**. Dziś „potwierdzone przez katalog" żyje tylko w pamięci przeglądarki i ginie po odświeżeniu |
+| Przebieg naprawczy 26 figurek | **niezrobiony**. Ma iść najpierw w trybie PODGLĄDU, bez zapisu |
+| Studio zdjęcia („Usuń tło") | **nie działa u Artura, przyczyna nieustalona.** Testować na figurce PENDING ze zdjęciem w naszym magazynie (np. Guts), nie na APPROVED |
+| `Hitagi Senjougahara` ma `先代萌絵が原` | **zmyślone przez AI**, poprawnie `戦場ヶ原ひたぎ`. Do poprawy przez przebieg naprawczy |
+| Publikacja na społecznościówki | **świadomie NIE automatem.** Artur przenosi ręcznie albo powstanie osobny skrypt. Dysk to archiwum, nie wyrzutnia |
+| Wydajność panelu (`INP 448 ms`) | odłożone. **Najpierw profiler, potem poprawka** — podejrzany `ChatKatalogu` |
+
+### Decyzje podjęte, nie zmieniać bez rozmowy
+
+- **Rotacja szablonów shortów**: pula 3–4 scenariuszy przydzielanych figurka po figurce,
+  wymiana jednego wariantu co ~100 shortów. Nie bloki po sto.
+- **Remotion**: sensowny, ale **nie teraz**. Moment na decyzję to pisanie DRUGIEGO
+  scenariusza do puli — jeśli w obecnym rendererze (sharp + ffmpeg, `worker/renderShort.mjs`)
+  zajmie wieczór liczenia geometrii, to sygnał do migracji. Uwaga na licencję: darmowa dla
+  osoby prywatnej, płatna dla firm powyżej progu — dotyka zasady FREE-FIRST.
+- **Wycofanie figurki przez zgłaszającego**: PENDING bez opublikowanego shorta — kasuje się
+  do końca. APPROVED albo short w świecie — wpisu skasować NIE MOŻNA (adres wypalony
+  w filmie), zrywamy powiązanie z osobą i zdejmujemy zdjęcie.
+
+> Plan całości naprawy bazy: `C:\Users\artur\.claude\plans\o-ile-d-wygl-da-buzzing-kazoo.md`
