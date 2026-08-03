@@ -43,9 +43,9 @@ dist-ssr
 # Kopie zapasowe — lokalne archiwa, nie do repozytorium
 kopie/
 
-# Podgląd HTML z `node scripts/media-pdf.mjs --html` — pomoc przy poprawianiu
-# wyglądu wydruku, nie treść. Źródłem jest media.md, wynikiem media.pdf.
-media-podglad.html
+# Podgląd HTML z `node scripts/md-pdf.mjs <nazwa> --html` — pomoc przy poprawianiu
+# wyglądu wydruku, nie treść. Źródłem jest plik .md, wynikiem .pdf.
+*-podglad.html
 
 # Katalogi robocze narzędzi (zapisy sesji, historia asystentów).
 # Bez tego `git add -A` wciąga je do repozytorium przy pierwszej okazji.

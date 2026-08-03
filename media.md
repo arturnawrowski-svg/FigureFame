@@ -1,6 +1,8 @@
 # FigureFame — konta w mediach społecznościowych
 
 > Instrukcja zakładania. Stan na **03.08.2026**.
+> Wersja do druku: [media.pdf](media.pdf) — powstaje z tego pliku poleceniem
+> `node scripts/md-pdf.mjs media`.
 > Po założeniu konta wklej jego adres do [src/lib/social.js](src/lib/social.js) — ikona w stopce
 > zapali się sama i stanie się klikalna.
 
