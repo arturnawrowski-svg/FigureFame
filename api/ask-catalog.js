@@ -102,6 +102,19 @@ async function znajdzFigurki(supabase, pytanie, figureId) {
   return { figurki: wybrane.slice(0, ILE_FIGUREK), trafienie: true };
 }
 
+// Adres serwisu. Bez niego asystent nie ma z czego zbudować odnośnika —
+// dostawał `slug`, ale nikt mu nie powiedział, co z nim zrobić. Efekt był
+// gorszy niż brak linku: pisał „oto link do figurki" i nie podawał żadnego.
+const ADRES = (process.env.SITE_URL || "https://figurefame.com").replace(/\/+$/, "");
+
+// Do promptu wchodzi GOTOWY adres, a nie sam slug. Składanie adresu to zadanie
+// dla kodu, nie dla modelu — model potrafi się w tym pomylić, a błędny link
+// jest gorszy od żadnego, bo prowadzi na stronę „nie znaleziono".
+function zAdresem(figurka) {
+  const { slug, ...reszta } = figurka;
+  return { ...reszta, link: slug ? `${ADRES}/f/${slug}` : null };
+}
+
 function budujPrompt(figurki, trafienie, pytanie, historia) {
   const hist = Array.isArray(historia) && historia.length
     ? "\nWcześniejsza rozmowa:\n" + historia.slice(-6)
@@ -109,7 +122,7 @@ function budujPrompt(figurki, trafienie, pytanie, historia) {
     : "";
 
   const katalog = figurki.length
-    ? JSON.stringify(figurki, null, 2)
+    ? JSON.stringify(figurki.map(zAdresem), null, 2)
     : "(katalog jest na razie pusty)";
 
   return `Jesteś asystentem kolekcjonera na portalu FigureFame — polskiej bazie japońskich
@@ -124,6 +137,11 @@ ${trafienie
   : "UWAGA: żadna figurka w naszym katalogu nie pasuje do pytania. Powyżej jest tylko przekrój tego, co mamy."}
 
 Zasady — trzymaj się ich bezwzględnie:
+- KAŻDA figurka powyżej ma pole "link". Gdy o niej mówisz, PODAJ ten adres
+  w całości, dokładnie tak, jak stoi w danych. Nie skracaj go, nie zmieniaj
+  i NIE WYMYŚLAJ własnych adresów. Gdy ktoś prosi o odnośnik — wklej "link".
+- Nigdy nie pisz „oto link", nie podając adresu. Jeśli figurka ma "link": null,
+  powiedz wprost, że nie ma jeszcze własnej strony.
 - Mówiąc o figurce Z KATALOGU, opieraj się wyłącznie na danych powyżej.
 - Jeśli pytają o figurkę, której NIE MA powyżej, powiedz wprost: „Nie mam jej
   jeszcze w bazie FigureFame". Możesz potem dodać ogólną wiedzę, ale wyraźnie

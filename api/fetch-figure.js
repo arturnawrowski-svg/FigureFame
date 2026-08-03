@@ -544,7 +544,24 @@ export default async function handler(req, res) {
       figureData.additionalInfo ||
       figureData.whereToSearch
     );
-    if (cokolwiekOdpowiedzialo || mamyWlasnaTresc) {
+    // ⚠️ DRUGI WARUNEK, RÓWNIE WAŻNY: nie utrwalaj zgadywania, skoro robota
+    // poszła do Studia.
+    //
+    // Gdy żaden katalog nie odpowiedział, a zlecenie trafiło do Studia, jedyne,
+    // co mamy, to domysł AI — i on ma trafić do formularza jako propozycja
+    // do rozstrzygnięcia, ale NIE do pamięci na trzydzieści dni. Studio odda
+    // za chwilę dane z katalogu, czyli twardsze, i to one mają zająć ten klucz.
+    //
+    // Zdarzyło się naprawdę (03.08, Sawatari Izumi): chmura nie dosięgła MFC,
+    // AI zgadła „Sega / 190mm", a `additionalInfo` od AI wystarczyło, żeby
+    // uznać to za „własną treść" i zapisać. Studio znalazło w tym samym czasie
+    // „Enterbrain / 1/7", nazwę japońską i zdjęcie — ale panel czytał już
+    // zapamiętaną zgadywankę.
+    const czekamyNaStudio = Boolean(figureData._queued);
+
+    if (!cokolwiekOdpowiedzialo && czekamyNaStudio) {
+      console.log(`Cache POMINIĘTY (${key}) — zero katalogów, zlecono Studiu. Nie utrwalamy domysłu AI.`);
+    } else if (cokolwiekOdpowiedzialo || mamyWlasnaTresc) {
       await writeCache(key, mode, figureData);
 
       // Osobno to, co należy do POSTACI. Dzięki temu następna figurka tej samej
