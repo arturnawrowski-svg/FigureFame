@@ -734,11 +734,39 @@ powstało zmyślenie przy Hitagi.
 **Stan po D2** (bez archiwum, 17 figurek): `10 bez zarzutu · 7 braków · 0 błędów`.
 Wszystkie 7 braków to **brakujące zdjęcia**.
 
+## 22. Etap D3 — zdjęcia, które od dawna u nas leżały (04.08)
+
+Ta sama historia co przy nazwach japońskich, tylko ze zdjęciami. **Trzy z sześciu
+brakujących zdjęć były już w naszym magazynie** — pobrane przy wcześniejszych
+wyszukiwaniach, zapisane w `lookup_cache` i **nigdy niepodpięte do figurki**.
+Zdjęcie Konaty leżało tam od 27 lipca.
+
+Podpięte: HMX-17c Silfa, Sawatari Izumi, Konata Izumi. Każde sprawdzone zapytaniem
+`HEAD` przed zapisem — plik odpowiada 200 i ma sensowny rozmiar. Pochodzenie: **z katalogu**.
+
+> **Skąd bierze się ta luka.** Wyszukiwanie odkłada wynik do pamięci podręcznej
+> natychmiast, ale do wiersza figurki wynik trafia dopiero wtedy, gdy moderator kliknie
+> „Zapisz Edycję". Kto zamknie panel bez zapisu — a przy trzyminutowym szukaniu to naturalne
+> — zostawia gotowe dane w pamięci i pustkę w bazie. **Przed każdym pobieraniem czegokolwiek
+> z internetu sprawdzamy najpierw `lookup_cache`.**
+
+Trzy figurki bez zdjęcia zostały do pobrania z katalogu (Kinomoto Sakura,
+Shikinami Asuka Langley, Zero Two) — te wymagają już włączonego Studia.
+
+> ⚠️ Podpięte zdjęcia są przy figurkach **PENDING**, więc i tak przechodzą przez Twoje oko
+> przed wejściem do Gabloty. Rzuć na nie okiem w panelu: czy to na pewno ta wersja figurki.
+
+**Stan po D3** (bez archiwum, 17 figurek): `13 bez zarzutu · 4 braki · 0 błędów`.
+
 ### Co zostało w etapie D
 
 | etap | zakres | ile pracy |
 |---|---|---|
-| **D3** | 7 figurek bez zdjęcia. **Najpierw ustalić, dlaczego „Usuń tło" nie działa** (sekcja 15) | średnio |
-| **D4** | Rozbieżność „Asuka Jersey Ver.": baza mówi Alter, wszystkie modele AI mówią Good Smile | jedno sprawdzenie |
-| **D5** | 8 figurek trzyma zdjęcie z zasiewu w `/public/images` zamiast w naszym magazynie | średnio |
-| **D6** | Nazwa japońska Taihou (2 wiersze w archiwum) — z katalogu, przy okazji innej pracy Studia | drobne |
+| **D4** | 3 zdjęcia do pobrania z katalogu (Sakura, Asuka, Zero Two). **Wymaga włączonego Studia** | figurka po figurce |
+| **D5** | Super Sonico w Gablocie trzyma zdjęcie z zasiewu (`sonico_figure`) zamiast pliku w magazynie | drobne |
+| **D6** | Rozbieżność „Asuka Jersey Ver.": baza mówi Alter, wszystkie modele AI mówią Good Smile | jedno sprawdzenie |
+| **D7** | Nazwa japońska Taihou (2 wiersze w archiwum) — z katalogu, przy okazji innej pracy Studia | drobne |
+
+> „Usuń tło" (Studio zdjęcia, sekcja 15) **nie blokuje żadnego z tych etapów** — to
+> narzędzie do obróbki zdjęcia, które już mamy, a nie do jego zdobycia. Zostaje osobnym
+> zadaniem.
