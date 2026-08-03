@@ -703,11 +703,42 @@ ma ani w naszym magazynie, ani w `/public/images` — Gablota pokazywała dziur�
 nie mówiła. Pole jest teraz puste, czyli uczciwie mówi „nie mamy zdjęcia". Wiersze są
 w archiwum, a stara wartość leży w kopii z `kopie/`.
 
-### Co zostało w etapie D (kolejność od najmniejszego)
+## 21. Etap D2 — nazwy japońskie uzupełnione (04.08)
+
+**Wszystkie widoczne figurki mają nazwę japońską.** Brakuje jej tylko dwóm wierszom
+Taihou w archiwum. Nie kosztowało to ani jednego zapytania na zewnątrz — **wszystko już
+było u nas**, tylko nie tam, gdzie trzeba.
+
+| skąd | ile | co |
+|---|---|---|
+| pamięć podręczna (`char\|…`) | 3 | `HMX-17c シルファ`, `泉 こなた`, `沢渡 いずみ` — pobrane kiedyś z katalogu i nigdy niewykorzystane |
+| odcięcie nazwy wersji | 5 | `ゼロツー` z „ゼロツー For My Darling", `リヴァイ` z „ARTFX J リヴァイ Fortitude ver." itd. |
+| notatka w tym podręczniku | 1 | `戦場ヶ原ひたぎ` przy Hitagi, zamiast zmyślonego `先代萌絵が原` |
+
+**Lekcja, która się powtórzy:** zanim cokolwiek pobierzemy z internetu, sprawdzamy, czy
+tego nie mamy. Trzy nazwy leżały w `lookup_cache` od dni — tam, gdzie ich nikt nie szukał.
+
+> ⚠️ **Kształt wartości nie mówi, czy jest prawdziwa — mówi to jej POCHODZENIE.**
+> `泉 こなた` i `HMX-17c シルファ` odbiłyby się od reguł przebiegu C (odstęp w środku,
+> litery łacińskie), a są poprawne, bo przyszły z katalogu. Te same reguły słusznie
+> odrzuciły `ハルモニアハミング レム`, bo tam pochodzenie było nieznane. Reguła kształtu
+> jest dobra tylko dla danych, o których nie wiemy nic.
+
+Pięć nazw z odcięcia i Hitagi mają podpis **„wpisane ręcznie"** (🖊) — widać, że nie
+potwierdził ich katalog. Trzy z pamięci mają podpis **„z katalogu"** (✅).
+
+**Taihou zostaje na katalog.** W jej wierszach nie ma ani jednego japońskiego znaku, więc
+nie było czego odcinać — a wpisanie nazwy z pamięci modelu to dokładnie ten sposób, w jaki
+powstało zmyślenie przy Hitagi.
+
+**Stan po D2** (bez archiwum, 17 figurek): `10 bez zarzutu · 7 braków · 0 błędów`.
+Wszystkie 7 braków to **brakujące zdjęcia**.
+
+### Co zostało w etapie D
 
 | etap | zakres | ile pracy |
 |---|---|---|
-| **D2** | 10 postaci bez nazwy japońskiej — dociągnąć z katalogu. Wymaga włączonego Studia | figurka po figurce |
 | **D3** | 7 figurek bez zdjęcia. **Najpierw ustalić, dlaczego „Usuń tło" nie działa** (sekcja 15) | średnio |
 | **D4** | Rozbieżność „Asuka Jersey Ver.": baza mówi Alter, wszystkie modele AI mówią Good Smile | jedno sprawdzenie |
 | **D5** | 8 figurek trzyma zdjęcie z zasiewu w `/public/images` zamiast w naszym magazynie | średnio |
+| **D6** | Nazwa japońska Taihou (2 wiersze w archiwum) — z katalogu, przy okazji innej pracy Studia | drobne |
