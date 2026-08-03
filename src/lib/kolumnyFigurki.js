@@ -18,6 +18,8 @@
 // kolejności co tabela, żeby dało się ją porównać jednym spojrzeniem.
 // ============================================================================
 
+import { POLA_JEDNOWIERSZOWE, stanZdjecia } from './kompletnosc';
+
 export const KOLUMNY_FIGURKI = [
   'name', 'japanese_name', 'series', 'japanese_series',
   'manufacturer', 'scale', 'type', 'status',
@@ -36,6 +38,35 @@ export const KOLUMNY_FIGURKI = [
 
 const DOZWOLONE = new Set(KOLUMNY_FIGURKI);
 
+// Nazwy pól po polsku. Panel pokazuje rozbieżności moderatorowi, a `japanese_name`
+// obok `official_image_url` w komunikacie po polsku czyta się jak zrzut z bazy,
+// nie jak pytanie do człowieka.
+export const ETYKIETY_POL = {
+  name: 'nazwa postaci',
+  japanese_name: 'nazwa japońska',
+  series: 'seria',
+  japanese_series: 'seria po japońsku',
+  manufacturer: 'producent',
+  scale: 'skala',
+  version: 'wersja',
+  japanese_version: 'wersja po japońsku',
+  type: 'typ',
+  original_price: 'cena pierwotna',
+  release_date: 'data premiery',
+  official_image_url: 'zdjęcie',
+  image_credit: 'podpis zdjęcia',
+  source_url: 'adres źródła',
+  market_value: 'wartość rynkowa',
+  additional_info: 'dodatkowe informacje',
+  where_to_search: 'gdzie szukać',
+  strategy: 'strategia',
+};
+
+/** Nazwa pola po polsku; gdy jej nie znamy, oddajemy nazwę kolumny bez udawania. */
+export function etykietaPola(pole) {
+  return ETYKIETY_POL[pole] || pole;
+}
+
 /**
  * Zostawia wyłącznie to, co baza potrafi przyjąć.
  *
@@ -49,4 +80,67 @@ export function tylkoKolumny(obiekt) {
     if (DOZWOLONE.has(klucz)) out[klucz] = obiekt[klucz];
   }
   return out;
+}
+
+// ============================================================================
+// BRAMA ZAPISU — ostatnie miejsce, w którym da się nie wpuścić śmiecia.
+// ----------------------------------------------------------------------------
+// `tylkoKolumny` pilnowało dotąd jednej rzeczy: czy kolumna istnieje. Nie
+// pilnowało, czy WARTOŚĆ ma sens — i baza to pokazuje (zmierzone 03.08):
+//
+//   • `manufacturer` = „Kotobukiya " ze spacją na końcu. Producent wchodzi do
+//     klucza tożsamości i do klucza pamięci podręcznej, więc ta spacja to
+//     chybienie w zapisany wpis i drugie, gorsze pobranie tej samej figurki.
+//   • brak zapisany na dwa sposoby: 3 wiersze `NULL`, 3 pusty napis. Każdy
+//     warunek `is null` mija wtedy połowę braków.
+//   • `original_price` = „¥440\nEach" — złamanie linii, które leci wprost
+//     na kartę figurki i w napisy shorta.
+//
+// Naprawianie tego przebiegiem po bazie bez zamknięcia tej bramy byłoby
+// czerpaniem wody z łodzi z dziurą.
+// ============================================================================
+
+/**
+ * Przygotowuje dane do zapisu: przepuszcza tylko istniejące kolumny, porządkuje
+ * napisy i nie wpuszcza zdjęcia z cudzego serwera.
+ *
+ * ⚠️ Zdjęcia z cudzego serwera NIE zerujemy i NIE blokujemy nim zapisu —
+ * usuwamy KLUCZ z zapisu i mówimy o tym wprost. Zerowanie skasowałoby dobre
+ * zdjęcie, które już jest w bazie, a blokada zapisu odebrałaby moderatorowi
+ * możliwość zapisania pozostałych poprawek. Adres zostaje w formularzu na
+ * ekranie, więc da się go pobrać jeszcze raz — a do bazy nie wchodzi, bo pole
+ * wyglądałoby na wypełnione, gdy właściciel serwera odetnie plik.
+ *
+ * @returns {{pola: object, ostrzezenia: string[]}}
+ */
+export function przygotujDoZapisu(obiekt) {
+  const pola = tylkoKolumny(obiekt);
+  const ostrzezenia = [];
+
+  for (const klucz of POLA_JEDNOWIERSZOWE) {
+    if (!(klucz in pola)) continue;
+    const v = pola[klucz];
+    if (typeof v !== 'string') continue;
+    // Złamania linii i wielokrotne odstępy schodzą do jednej spacji, brzegi
+    // obcinamy, a puste pole zapisujemy JEDNYM sposobem: jako NULL.
+    const czysty = v.replace(/\s+/g, ' ').trim();
+    pola[klucz] = czysty === '' ? null : czysty;
+  }
+
+  if (typeof pola.official_image_url === 'string' && !stanZdjeciaOk(pola.official_image_url)) {
+    delete pola.official_image_url;
+    ostrzezenia.push(
+      'Zdjęcie NIE zostało zapisane: adres wskazuje na cudzy serwer, a tam plik może zniknąć. ' +
+      'Pobierz je do naszego magazynu („Studio zdjęcia") i zapisz jeszcze raz.'
+    );
+  }
+
+  return { pola, ostrzezenia };
+}
+
+// Do zapisu wpuszczamy wszystko poza adresem na cudzym serwerze: nasz magazyn,
+// plik roboczy (finalizacja domknie go przy wejściu do Gabloty), nazwę pliku
+// z /public/images (zasiew) i pustkę.
+function stanZdjeciaOk(raw) {
+  return stanZdjecia(raw).stan !== 'obcy';
 }

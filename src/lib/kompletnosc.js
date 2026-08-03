@@ -166,11 +166,18 @@ export function jestPewny(dane) {
 // reguła projektu"; `'uwaga'` znaczy „stan pośredni, do domknięcia dalej".
 // ============================================================================
 
-// Kolumny tekstowe, w których biały znak na brzegu i pusty napis są usterką.
+// Kolumny tekstowe JEDNOWIERSZOWE — biały znak na brzegu, pusty napis
+// i złamanie linii są w nich usterką.
+//
 // `manufacturer` wchodzi do klucza tożsamości i do klucza pamięci podręcznej,
 // więc „Kotobukiya " ze spacją na końcu to nie kosmetyka: to chybienie
 // w pamięć i drugie, gorsze pobranie tej samej figurki.
-const POLA_TEKSTOWE = [
+//
+// Ta sama lista pilnuje wejścia do bazy (`przygotujDoZapisu` w kolumnyFigurki.js)
+// i wyjścia z audytu — celowo jedna, bo dwie rozjechałyby się przy pierwszej
+// nowej kolumnie. NIE ma tu pól listowych (`additional_info`, `strategy`…):
+// w nich złamanie linii jest treścią, nie usterką.
+export const POLA_JEDNOWIERSZOWE = [
   'name', 'japanese_name', 'series', 'japanese_series',
   'manufacturer', 'scale', 'version', 'japanese_version',
   'official_image_url', 'image_credit', 'source_url',
@@ -192,7 +199,7 @@ export function uwagiDoFigurki(fig) {
   const dodaj = (kod, opis, waga = 'uwaga') => out.push({ kod, opis, waga });
 
   // --- higiena napisów ---
-  for (const pole of POLA_TEKSTOWE) {
+  for (const pole of POLA_JEDNOWIERSZOWE) {
     const v = fig[pole];
     if (typeof v !== 'string') continue;
     if (v === '') dodaj('pusty-napis', `${pole}: pusty napis zamiast NULL`, 'blad');

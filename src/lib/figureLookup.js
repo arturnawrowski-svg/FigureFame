@@ -161,8 +161,26 @@ export function mergeLookupIntoForm(form, data, opts = {}) {
     }
 
     // Pozostałe przypadki: zostawiamy to, co jest, i meldujemy różnicę.
-    if (IDENTITY_FIELDS.includes(key)) {
-      conflicts.push({ field: key, current: String(current), found: String(next), source: provenance[key] || 'ai' });
+    //
+    // ⚠️ MELDUJEMY KAŻDE POLE. Do 03.08 rozbieżność zgłaszały tylko pola
+    // z `IDENTITY_FIELDS`, a wszystkie pozostałe — w tym `japanese_name`
+    // i `japanese_series` — były po cichu WYRZUCANE: znaleziona wartość nie
+    // wchodziła do formularza i nigdzie się nie pokazywała. Stąd brało się
+    // „znowu nie uzupełnia nazw japońskich": wartość bywała znaleziona, tylko
+    // nikt jej nie widział. Cicha strata jest gorsza od pytania.
+    //
+    // Wartości złożone (obiekty) pomijamy — nie da się ich uczciwie pokazać
+    // w dwóch kolumnach, a `external_ids` i tak dokłada się, nie zastępuje.
+    if (typeof next !== 'object' && typeof current !== 'object') {
+      conflicts.push({
+        field: key,
+        current: String(current),
+        found: String(next),
+        source: provenance[key] || 'ai',
+        // Pola tożsamości idą na górę listy: przy nich pomyłka nie jest
+        // literówką, tylko inną figurką.
+        wazne: IDENTITY_FIELDS.includes(key),
+      });
     }
   };
 

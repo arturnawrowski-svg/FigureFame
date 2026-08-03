@@ -12,7 +12,7 @@ import { streamLookup, mergeLookupIntoForm } from '../lib/figureLookup';
 import { czegoBrakuje, podsumujUwagi } from '../lib/kompletnosc';
 import { authFetch } from '../lib/authFetch';
 import { zapiszZTozsamoscia } from '../lib/nadajTozsamosc';
-import { tylkoKolumny } from '../lib/kolumnyFigurki';
+import { przygotujDoZapisu, etykietaPola } from '../lib/kolumnyFigurki';
 
 // Każda zmiana `video_status` niesie ze sobą czas zmiany. To nie statystyka:
 // stan 'rendering' pełni rolę blokady, a worker/renderQueue.mjs zwalnia blokady
@@ -30,22 +30,30 @@ const teraz = () => new Date().toISOString();
 // odświeża go, tylko rozbiera i buduje od zera — a tych znaczników jest
 // kilkanaście i przebudowywały się przy każdym naciśnięciu klawisza.
 // ============================================================================
+// Trzy pochodzenia, nie dwa. Do 03.08 wszystko, co nie było z katalogu,
+// dostawało podpis „uzupełnione przez AI" — czyli dane wpisane ręcznie przez
+// zgłaszającego wyglądały na domysł modelu. To ten sam rodzaj cichego fałszu,
+// przed którym ma chronić cała ta kolumna.
+const POCHODZENIA = {
+  catalog: ['✅', '#2ed573', 'Potwierdzone przez katalog figurek — dane pewne'],
+  zgloszenie: ['🖊', '#a0aab2', 'Wpisane ręcznie przy zgłoszeniu — niepotwierdzone, ale nie zmyślone'],
+  ai: ['⚠️', '#ffa502', 'Uzupełnione przez AI — sprawdź przed dodaniem do Gabloty'],
+};
+
 const FieldMark = memo(function FieldMark({ src }) {
   if (!src) return null;
-  const catalog = src === 'catalog';
+  const [znak, kolor, opis] = POCHODZENIA[src] || POCHODZENIA.ai;
   return (
     <span
-      title={catalog
-        ? 'Potwierdzone przez katalog figurek — dane pewne'
-        : 'Uzupełnione przez AI — sprawdź przed dodaniem do Gabloty'}
+      title={opis}
       style={{
         marginLeft: '6px',
         fontSize: '0.78rem',
-        color: catalog ? '#2ed573' : '#ffa502',
+        color: kolor,
         cursor: 'help',
       }}
     >
-      {catalog ? '✅' : '⚠️'}
+      {znak}
     </span>
   );
 });
@@ -155,8 +163,17 @@ export default function AdminDashboard() {
   const [lastLookup, setLastLookup] = useState(null);
   // Postęp wyszukiwania: { percent, label, log[] } albo null gdy nic nie trwa.
   const [progress, setProgress] = useState(null);
-  // Pochodzenie pól z ostatniego wyszukiwania: { pole: 'catalog' | 'ai' }.
+  // Pochodzenie pól: { pole: 'catalog' | 'ai' }. Czytane z bazy przy wejściu
+  // w edycję i zapisywane z powrotem — do 03.08 żyło tylko w Reakcie i ginęło
+  // przy odświeżeniu strony, więc znaczki ✅/⚠️ znikały razem z wiedzą o tym,
+  // co jest pewne, a co domysłem modelu.
   const [provenance, setProvenance] = useState({});
+  // Wartości, PRZY KTÓRYCH pochodzenie zostało ustalone.
+  //
+  // Bez tego pochodzenie zaczęłoby kłamać: moderator poprawia ręcznie pole
+  // podpisane „potwierdzone przez katalog", a podpis zostaje przy nowej,
+  // niepotwierdzonej wartości. Przy zapisie porównujemy i taki podpis zdejmujemy.
+  const provenancePrzyRef = useRef({});
   // Rozbieżności zgłoszenie ↔ katalog. Nic nie podmieniamy sami — pokazujemy
   // obie wersje i to moderator decyduje, która jest prawdziwa.
   const [conflicts, setConflicts] = useState([]);
@@ -267,7 +284,15 @@ export default function AdminDashboard() {
       delete merged._conflicts; // to komunikat, nie kolumna w bazie
       setEditForm(merged);
       setConflicts(found);
-      setProvenance(data._provenance || {});
+      // SCALAMY, nie podmieniamy. Podejścia od trzeciego zaglądają tylko do
+      // pamięci i zwracają wyłącznie to, co znalazły katalogi — podmiana
+      // zdejmowałaby ptaszki z pól potwierdzonych w podejściu wcześniejszym.
+      const swieze = data._provenance || {};
+      setProvenance(prev => ({ ...prev, ...swieze }));
+      // Podpisy dotyczą wartości, jakie właśnie weszły do formularza.
+      for (const pole of Object.keys(swieze)) {
+        provenancePrzyRef.current[pole] = merged[pole];
+      }
       setLastLookup({
         sources: data._sources || null,
         bootleg: data._bootlegWarning || null,
@@ -515,11 +540,17 @@ export default function AdminDashboard() {
 
   const handleEditClick = (fig) => {
     setEditingId(fig.id);
-    // Ślady po poprzedniej figurce nie mogą przejść na następną — inaczej
-    // moderator widziałby ptaszki i rozbieżności z cudzego zgłoszenia.
-    setProvenance({});
+    // Rozbieżności i ślady po ostatnim wyszukiwaniu nie mogą przejść na następną
+    // figurkę — inaczej moderator widziałby je przy cudzym zgłoszeniu.
     setConflicts([]);
     setLastLookup(null);
+    // Pochodzenie natomiast NALEŻY do tej figurki i leży w bazie. Wcześniej było
+    // tu czyszczone do zera, więc każde wejście w edycję gubiło wiedzę o tym,
+    // co potwierdził katalog — i wystarczyło odświeżyć stronę, żeby wszystkie
+    // pola znów wyglądały jednakowo pewnie.
+    setProvenance(fig.provenance || {});
+    // Podpisy odnoszą się do wartości, które są w bazie TERAZ.
+    provenancePrzyRef.current = { ...fig };
     setEditForm({
       name: fig.name || '',
       japanese_name: fig.japanese_name || '',
@@ -626,12 +657,19 @@ export default function AdminDashboard() {
         }
       }
 
-      // Ta sama bramka co przy „Zapisz Edycję": do bazy idzie tylko to, co ma
-      // kolumnę. Przy edycji `updates` niesie CAŁY formularz, więc jedno pole
-      // z katalogu bez własnej kolumny zablokowałoby dodanie do Gabloty.
+      // Ta sama brama co przy „Zapisz Edycję": do bazy idzie tylko to, co ma
+      // kolumnę, i tylko uporządkowane. Przy edycji `updates` niesie CAŁY
+      // formularz, więc jedno pole z katalogu bez własnej kolumny
+      // zablokowałoby dodanie do Gabloty.
+      if (editing) {
+        updates.provenance = pochodzenieDoZapisu(updates, fig);
+      }
+      const { pola, ostrzezenia } = przygotujDoZapisu(updates);
+      for (const o of ostrzezenia) showToast(o);
+
       const { error } = await supabase
         .from('figures')
-        .update(tylkoKolumny(updates))
+        .update(pola)
         .eq('id', id);
 
       if (error) throw error;
@@ -647,6 +685,32 @@ export default function AdminDashboard() {
     }
   };
 
+  // ==========================================================================
+  // Pochodzenie do zapisu.
+  //
+  // Scala to, co już jest w bazie, z tym, co przyniosło wyszukiwanie — a potem
+  // ZDEJMUJE podpis z każdego pola, które moderator zmienił ręcznie. Bez tego
+  // ostatniego kroku `provenance` zaczęłoby kłamać w najgorszy możliwy sposób:
+  // pole poprawione z palca nosiłoby ✅ „potwierdzone przez katalog", czyli
+  // dokładnie ten podpis, po którym przebieg naprawczy rozpozna dane
+  // nietykalne. Cichy fałsz w kolumnie, która ma służyć do odsiewania fałszu.
+  // ==========================================================================
+  const pochodzenieDoZapisu = (dane, obecne = {}) => {
+    const scalone = { ...(obecne.provenance || {}), ...provenance };
+    const jak = (v) => {
+      if (v === null || v === undefined) return '';
+      if (typeof v === 'object') return JSON.stringify(v);
+      return String(v).trim();
+    };
+    for (const pole of Object.keys(scalone)) {
+      // Pola, których ten zapis nie dotyczy, zostawiamy w spokoju — brak
+      // w formularzu nie znaczy „zmienione".
+      if (!(pole in dane)) continue;
+      if (jak(dane[pole]) !== jak(provenancePrzyRef.current[pole])) delete scalone[pole];
+    }
+    return scalone;
+  };
+
   const handleSaveEdits = async (id) => {
     try {
       let dataToSave = { ...editForm };
@@ -660,15 +724,26 @@ export default function AdminDashboard() {
       // bywa wypalony w opublikowanym filmie. Rozstrzyga to tozsamoscDlaZapisu.
       const obecna = figures.find((f) => f.id === id) || {};
 
-      // ⚠️ Do bazy idzie WYŁĄCZNIE to, co ma swoją kolumnę. Katalogi dorzucają
-      // do formularza pola, których u nas nie ma (np. `product_url` z MFC),
-      // a jedno takie pole wywala CAŁY zapis komunikatem o „schema cache".
+      // Pochodzenie idzie do bazy razem z danymi — inaczej ginie przy odświeżeniu.
+      dataToSave.provenance = pochodzenieDoZapisu(dataToSave, obecna);
+
+      // ⚠️ Do bazy idzie WYŁĄCZNIE to, co ma swoją kolumnę, i wyłącznie
+      // w uporządkowanej postaci. Katalogi dorzucają do formularza pola,
+      // których u nas nie ma (np. `product_url` z MFC) — jedno takie pole
+      // wywala CAŁY zapis komunikatem o „schema cache". Brama porządkuje przy
+      // okazji napisy („Kotobukiya " → „Kotobukiya", pusty napis → NULL)
+      // i nie wpuszcza adresu zdjęcia z cudzego serwera.
+      const { pola, ostrzezenia } = przygotujDoZapisu(dataToSave);
+      for (const o of ostrzezenia) showToast(o);
+
+      // Tożsamość liczymy z danych JUŻ uporządkowanych — inaczej adres figurki
+      // powstawałby z wartości ze spacją na końcu.
       const { error } = await zapiszZTozsamoscia(
         (tozsamosc) => supabase
           .from('figures')
-          .update(tylkoKolumny({ ...dataToSave, ...tozsamosc }))
+          .update({ ...pola, ...tozsamosc })
           .eq('id', id),
-        dataToSave,
+        pola,
         obecna
       );
 
@@ -1238,27 +1313,71 @@ export default function AdminDashboard() {
                       to moderator decyduje, co jest prawdą. */}
                   {conflicts.length > 0 && (
                     <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(255,165,2,0.08)', border: '1px solid rgba(255,165,2,0.35)', fontSize: '0.82rem' }}>
-                      <div style={{ color: '#ffa502', fontWeight: 600, marginBottom: '0.6rem' }}>
-                        ⚠️ Katalog podaje co innego niż zgłoszenie — zostawiłem Twoje dane
+                      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem', marginBottom: '0.7rem' }}>
+                        <div style={{ color: '#ffa502', fontWeight: 600, flex: 1, minWidth: '240px' }}>
+                          ⚠️ Znalezione dane różnią się od tego, co jest w formularzu — zostawiłem Twoje
+                        </div>
+                        {/* Jeden przycisk na wszystko z katalogu. Przy piętnastu polach
+                            klikanie „Użyj tej wersji" po kolei jest pracą, której
+                            moderator nie wykona — a wtedy dane z katalogu przepadają
+                            razem z sesją. Dotyczy WYŁĄCZNIE pól z katalogu:
+                            domysłów AI nie przyjmujemy hurtem. */}
+                        {conflicts.some((c) => c.source === 'catalog') && (
+                          <button
+                            type="button"
+                            className="btn-primary"
+                            style={{ padding: '4px 12px', fontSize: '0.78rem', background: '#2ed573', border: 'none' }}
+                            onClick={() => {
+                              const zKatalogu = conflicts.filter((c) => c.source === 'catalog');
+                              setEditForm(prev => {
+                                const next = { ...prev };
+                                for (const c of zKatalogu) next[c.field] = c.found;
+                                return next;
+                              });
+                              // Podpisujemy je pochodzeniem, bo od tej chwili
+                              // naprawdę są z katalogu — i tak trafią do bazy.
+                              setProvenance(prev => {
+                                const next = { ...prev };
+                                for (const c of zKatalogu) {
+                                  next[c.field] = 'catalog';
+                                  provenancePrzyRef.current[c.field] = c.found;
+                                }
+                                return next;
+                              });
+                              setConflicts(prev => prev.filter((c) => c.source !== 'catalog'));
+                              showToast(`Przyjęto ${zKatalogu.length} pól z katalogu.`);
+                            }}
+                          >
+                            ✓ Przyjmij wszystko z katalogu
+                          </button>
+                        )}
                       </div>
-                      {conflicts.map((c) => (
-                        <div key={c.field} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                          <strong style={{ minWidth: '110px' }}>{c.field}</strong>
-                          <span style={{ color: '#2ed573' }}>w zgłoszeniu: {c.current}</span>
-                          <span style={{ opacity: 0.5 }}>·</span>
-                          <span style={{ color: '#ffa502' }}>
-                            {c.source === 'catalog' ? 'katalog' : 'AI'}: {c.found}
+                      {/* Pola tożsamości na górze: przy nich pomyłka nie jest
+                          literówką, tylko inną figurką. */}
+                      {[...conflicts].sort((a, b) => (b.wazne ? 1 : 0) - (a.wazne ? 1 : 0)).map((c) => (
+                        <div key={c.field} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 1fr) minmax(120px, 2fr) minmax(120px, 2fr) auto', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
+                          <strong>
+                            {etykietaPola(c.field)}
+                            {c.wazne && <span title="Pole tożsamości figurki" style={{ marginLeft: '4px', color: '#ff6b81' }}>•</span>}
+                          </strong>
+                          <span style={{ color: '#2ed573', wordBreak: 'break-word' }}>
+                            <span style={{ opacity: 0.6 }}>w formularzu: </span>{c.current}
+                          </span>
+                          <span style={{ color: c.source === 'catalog' ? '#3498db' : '#ffa502', wordBreak: 'break-word' }}>
+                            <span style={{ opacity: 0.6 }}>{c.source === 'catalog' ? 'katalog mówi: ' : 'AI zgaduje: '}</span>{c.found}
                           </span>
                           <button
                             type="button"
                             className="btn-secondary"
-                            style={{ padding: '2px 10px', fontSize: '0.76rem' }}
+                            style={{ padding: '2px 10px', fontSize: '0.76rem', whiteSpace: 'nowrap' }}
                             onClick={() => {
                               setEditForm(prev => ({ ...prev, [c.field]: c.found }));
+                              setProvenance(prev => ({ ...prev, [c.field]: c.source }));
+                              provenancePrzyRef.current[c.field] = c.found;
                               setConflicts(prev => prev.filter(x => x.field !== c.field));
                             }}
                           >
-                            Użyj tej wersji
+                            Użyj tej
                           </button>
                         </div>
                       ))}

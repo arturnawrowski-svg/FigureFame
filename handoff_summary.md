@@ -510,7 +510,7 @@ zależnościami: każdy jest warunkiem następnego i nie da się ich przestawić
 | szczebel | zakres | stan |
 |---|---|---|
 | **A** | **Miernik.** Jedna definicja kompletu w kodzie + `npm run audyt-bazy` + testy alfabetu i magazynu | **zrobione 03.08** |
-| **B** | **Zakręcić wloty śmiecia.** `provenance` do bazy, normalizacja przy zapisie, panel pokazuje rozbieżność KAŻDEGO pola | w toku |
+| **B** | **Zakręcić wloty śmiecia.** `provenance` do bazy, normalizacja przy zapisie, panel pokazuje rozbieżność KAŻDEGO pola | **zrobione 04.08** |
 | **C** | **Rozdzielić postać od produktu na danych.** Przebieg naprawczy, najpierw bez `--zapisz` | — |
 | **D** | **Dociągnąć komplet.** Nazwy japońskie, zdjęcia, podpisy praw | — |
 | **E** | **Twarde reguły w bazie.** `CHECK`/`NOT NULL` na tym, co posprzątane; duplikaty; kopia bazy | — |
@@ -554,3 +554,81 @@ przed finalizacją.
 **Punkt odniesienia z 03.08** (`npm run audyt-bazy`, bez archiwum, 17 figurek):
 `0 bez zarzutu · 10 braków · 27 błędów`. Kod wyjścia 1 znaczy „są błędy w wierszach, nad
 którymi pracujemy" — archiwum nie blokuje, bo część usterek jest tam zamierzona.
+
+## 18. Brama zapisu i pochodzenie danych (szczebel B, 04.08)
+
+Cztery wloty, którymi śmieć wpływał do bazy, są zamknięte. Naprawianie bazy bez tego było
+czerpaniem wody z łodzi z dziurą.
+
+### „Z katalogu" nie znaczy „prawdziwe"
+
+Katalogi oddają w rubryce **nazwa japońska** także łaciński tytuł produktu — `Taihou`,
+`Miku Expo 2025`, `Sonico Tiger Hoodie`. Sześć wierszy w bazie tak dziś wygląda: pole
+wypełnione, wartość nie jest nazwą japońską, zero sygnału. Filtr `tylkoJesliJaponskie`
+([server-lib/lookupShared.js](server-lib/lookupShared.js)) stoi teraz na OBU ścieżkach —
+w chmurze i w Studiu — **przed** nadaniem ptaszka „potwierdzone" i przed wpisem postaci,
+żeby taka wartość nie rozeszła się na wszystkie figurki tej postaci.
+
+Ten sam warunek wszedł do `wpisMaTresc`: wpis w pamięci z łacińskim tytułem w tej rubryce
+dawał dotąd Cache HIT i blokował ponowne szukanie przez całe 30 dni.
+
+> Filtr pochodzi z `src/lib/kompletnosc.js` — jednej definicji kompletu. `api/` importuje
+> nadal wyłącznie z `server-lib/`, a `server-lib/lookupShared.js` podaje go dalej.
+> **Sprawdzone tylko w `npm run dev`** (endpoint odpowiada 401, nie 500) — czy Vercel
+> zapakuje ten plik do funkcji, pokaże pierwsze wdrożenie. Patrz sekcja 9: „Middleware
+> Vite to nie Vercel".
+
+### Kotwica do ponownego pobrania
+
+Katalogi od dawna zwracały `product_url`, ale **nic go nie zapisywało** — 25 z 26 figurek
+nie ma ani `source_url`, ani `external_ids`. `odnosnikiZrodel` wyciąga adres pozycji i numer
+MFC; pierwszeństwo ma MyFigureCollection, bo tylko on ma stabilny numer.
+**Numer MFC nie staje się naszym adresem** — to odsyłacz do sprawdzenia.
+
+### Pochodzenie żyje w bazie, nie w przeglądarce
+
+`provenance` czyta się przy wejściu w edycję i zapisuje razem z danymi. Trzy wartości,
+nie dwie: `catalog` ✅, `zgloszenie` 🖊, `ai` ⚠️ — wcześniej wszystko, co nie było z katalogu,
+dostawało podpis „uzupełnione przez AI", więc dane wpisane ręcznie przez zgłaszającego
+wyglądały na domysł modelu.
+
+> ⚠️ **Podpis zdejmuje się z pola zmienionego ręcznie.** `provenancePrzyRef` pamięta
+> wartość, PRZY której podpis nadano, i przy zapisie porównuje. Bez tego kroku pole
+> poprawione z palca nosiłoby ✅ „potwierdzone przez katalog" — czyli dokładnie ten podpis,
+> po którym przebieg naprawczy rozpozna dane nietykalne. Cichy fałsz w kolumnie, która ma
+> służyć do odsiewania fałszu.
+
+### Brama zapisu — `przygotujDoZapisu`
+
+Jedna dla obu ścieżek (zgłoszenie użytkownika i edycja moderatora),
+w [src/lib/kolumnyFigurki.js](src/lib/kolumnyFigurki.js). Obcina białe znaki, składa
+złamania linii (`¥440\nEach`), zapisuje brak **jednym** sposobem jako `NULL`, i nie
+wpuszcza adresu zdjęcia z cudzego serwera.
+
+> ⚠️ Zdjęcia z cudzego serwera **nie zerujemy i nie blokujemy nim zapisu** — usuwamy klucz
+> z zapisu i mówimy o tym wprost. Zerowanie skasowałoby dobre zdjęcie, które już jest
+> w bazie; blokada odebrałaby moderatorowi możliwość zapisania pozostałych poprawek.
+> Adres zostaje w formularzu, więc da się go pobrać jeszcze raz.
+
+Tożsamość liczy się teraz z danych **już uporządkowanych** — inaczej adres figurki
+powstawałby z wartości ze spacją na końcu.
+
+### Panel melduje rozbieżność KAŻDEGO pola
+
+Do 03.08 zgłaszał ją tylko dla pięciu pól z `IDENTITY_FIELDS`; dla wszystkich pozostałych —
+w tym `japanese_name` i `japanese_series` — znaleziona wartość była **po cichu wyrzucana
+i nigdzie nie pokazana**. Stąd brało się „znowu nie uzupełnia nazw japońskich": wartość
+bywała znaleziona, tylko nikt jej nie widział.
+
+Widok jest trzykolumnowy („w formularzu" | „katalog mówi" / „AI zgaduje" | przycisk), pola
+tożsamości idą na górę z kropką, a na górze stoi **„Przyjmij wszystko z katalogu"** —
+dotyczy wyłącznie pól z katalogu, domysłów AI nie przyjmujemy hurtem.
+
+### Czego NIE sprawdzono
+
+Panelu nie widziałem na żywo (wymaga zalogowania jako moderator), więc obieg
+„zapisz → odśwież → ptaszki są na miejscu" czeka na sprawdzenie na figurefame.com.
+`npm test` (132 testy) i `npm run build` przechodzą.
+
+> **Po tej zmianie trzeba zrestartować Studio** — ruszone zostały `server-lib/` i `worker/`.
+> Patrz sekcja 14: worker na starym kodzie pisze pod kluczem, którego nikt nie czyta.

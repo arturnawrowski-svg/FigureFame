@@ -2,7 +2,7 @@ import { callAIJson } from "../server-lib/aiClient.js";
 import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 import { gatherFromSources } from "../server-lib/figureSources.js";
 import { rehostImage, crossCheckImage } from "../server-lib/figureImage.js";
-import { kluczPostaci, kluczProduktu, hasLocalBrowser } from "../server-lib/lookupShared.js";
+import { kluczPostaci, kluczProduktu, hasLocalBrowser, maZnakJaponski, tylkoJesliJaponskie, odnosnikiZrodel } from "../server-lib/lookupShared.js";
 import { wymagajModeratora } from "../server-lib/wymagajModeratora.js";
 
 // Pamięć podręczna wyszukiwań — chroni mały limit pośrednika (patrz migracje-cache.sql).
@@ -19,6 +19,10 @@ const CACHE_DAYS = 30;
 //
 // Zdjęcie z cudzego serwera nie liczy się jako treść — i tak wytnie je
 // oczyscZdjecie() niżej, więc wpis z samym takim adresem jest pusty.
+//
+// Nazwa japońska liczy się tylko wtedy, gdy JEST japońska. W pamięci leżą wpisy
+// z łacińskim tytułem w tej rubryce („Taihou"); bez tego warunku taki wpis
+// dawał Cache HIT i blokował ponowne szukanie przez całe CACHE_DAYS.
 function wpisMaTresc(dane) {
   if (!dane) return false;
   const zdjecieUNas =
@@ -26,7 +30,7 @@ function wpisMaTresc(dane) {
     dane.official_image_url.includes('supabase.co');
   return Boolean(
     zdjecieUNas ||
-    dane.japanese_name ||
+    maZnakJaponski(dane.japanese_name) ||
     dane.additionalInfo ||
     dane.whereToSearch ||
     dane.strategy
@@ -478,8 +482,14 @@ export default async function handler(req, res) {
     // Japońskie nazwy przyjmujemy WYŁĄCZNIE z katalogów. Cokolwiek dopisała tu
     // AI, zostaje skasowane: puste pole uczciwie mówi „nie wiemy", a zmyślone
     // znaki wyglądają na zweryfikowane i trafiłyby do bazy jako fałsz.
-    figureData.japanese_name = japaneseFromCatalog.japanese_name || '';
-    figureData.japanese_series = japaneseFromCatalog.japanese_series || '';
+    //
+    // ⚠️ „Z katalogu" nie znaczy „prawdziwe". Katalogi oddają w tej rubryce
+    // także ŁACIŃSKI tytuł produktu — `Taihou`, `Miku Expo 2025`,
+    // `Sonico Tiger Hoodie`. Sześć wierszy w bazie tak dziś wygląda: pole
+    // wypełnione, wartość nie jest nazwą japońską, żadnego sygnału. Puszczamy
+    // dalej wyłącznie to, co ma choć jeden znak japoński.
+    figureData.japanese_name = tylkoJesliJaponskie(japaneseFromCatalog.japanese_name);
+    figureData.japanese_series = tylkoJesliJaponskie(japaneseFromCatalog.japanese_series);
     if (!figureData.japanese_name) delete provenance.japanese_name;
     if (!figureData.japanese_series) delete provenance.japanese_series;
     if (!figureData.japanese_name && !figureData._queued) {
@@ -521,6 +531,19 @@ export default async function handler(req, res) {
           figureData._imageError = 'Nie udało się pobrać zdjęcia ze znalezionego adresu — dodaj je ręcznie.';
         }
       }
+    }
+
+    // Kotwica do ponownego pobrania: adres strony produktu i numer w katalogu.
+    // Zapisujemy je jako dane z katalogu, bo nimi są — a bez nich przebieg
+    // naprawczy nie ma po czym wrócić do tej samej pozycji.
+    const odnosniki = odnosnikiZrodel(records || []);
+    if (odnosniki.source_url && !figureData.source_url) {
+      figureData.source_url = odnosniki.source_url;
+      provenance.source_url = 'catalog';
+    }
+    if (Object.keys(odnosniki.external_ids).length > 0) {
+      figureData.external_ids = { ...(figureData.external_ids || {}), ...odnosniki.external_ids };
+      provenance.external_ids = 'catalog';
     }
 
     figureData._provenance = provenance;

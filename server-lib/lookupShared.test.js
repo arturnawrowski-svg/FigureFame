@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { kluczPostaci, kluczProduktu } from './lookupShared.js';
+import { kluczPostaci, kluczProduktu, tylkoJesliJaponskie, odnosnikiZrodel } from './lookupShared.js';
 
 // Tło normalizacji: wynik wyszukiwania wraca do formularza, więc katalogowa
 // pisownia („Lucky☆Star") zastępuje wpisaną przez zgłaszającego („Lucky Star").
@@ -97,5 +97,60 @@ describe('kluczPostaci — jedna postać, wiele figurek', () => {
 
   it('nie da się pomylić z kluczem produktu', () => {
     expect(kluczPostaci('Miku', 'Vocaloid')).not.toBe(kluczProduktu('Miku', 'Vocaloid'));
+  });
+});
+
+// „Z katalogu" nie znaczy „prawdziwe". W rubryce „nazwa japońska" katalogi
+// oddają czasem łaciński tytuł produktu — sześć wierszy w bazie tak dziś
+// wygląda i przez to wyglądało na komplet.
+describe('tylkoJesliJaponskie — filtr rubryki japońskiej', () => {
+  it('przepuszcza prawdziwą nazwę japońską', () => {
+    expect(tylkoJesliJaponskie('すーぱーそに子')).toBe('すーぱーそに子');
+    expect(tylkoJesliJaponskie('曽根美雪')).toBe('曽根美雪');
+  });
+
+  it('wycina łaciński tytuł produktu', () => {
+    expect(tylkoJesliJaponskie('Taihou')).toBe('');
+    expect(tylkoJesliJaponskie('Miku Expo 2025')).toBe('');
+  });
+
+  it('brak zostaje brakiem', () => {
+    expect(tylkoJesliJaponskie('')).toBe('');
+    expect(tylkoJesliJaponskie(null)).toBe('');
+  });
+});
+
+// 25 z 26 figurek nie ma ani `source_url`, ani `external_ids`, choć katalogi
+// od dawna oddają adres pozycji. Bez tej kotwicy nie ma po czym wrócić do tej
+// samej strony produktu — przebieg naprawczy musiałby zgadywać od nowa.
+describe('odnosnikiZrodel — kotwica do ponownego pobrania', () => {
+  it('wyciąga numer pozycji z adresu MyFigureCollection', () => {
+    const out = odnosnikiZrodel([
+      { _source: 'mfc', product_url: 'https://myfigurecollection.net/item/183666' },
+    ]);
+    expect(out.external_ids).toEqual({ mfc: '183666' });
+    expect(out.source_url).toBe('https://myfigurecollection.net/item/183666');
+  });
+
+  it('MFC bije inne źródła, bo tylko on ma stabilny numer pozycji', () => {
+    const out = odnosnikiZrodel([
+      { _source: 'hobbysearch', product_url: 'https://hobbysearch.co.jp/x' },
+      { _source: 'mfc', product_url: 'https://myfigurecollection.net/item/1' },
+    ]);
+    expect(out.source_url).toBe('https://myfigurecollection.net/item/1');
+  });
+
+  it('bez MFC bierze pierwszy adres, jaki ktokolwiek podał', () => {
+    const out = odnosnikiZrodel([
+      { _source: 'x', product_url: '' },
+      { _source: 'hobbysearch', product_url: 'https://hobbysearch.co.jp/x' },
+    ]);
+    expect(out.source_url).toBe('https://hobbysearch.co.jp/x');
+    expect(out.external_ids).toEqual({});
+  });
+
+  it('brak rekordów to brak kotwicy, a nie wyjątek', () => {
+    expect(odnosnikiZrodel()).toEqual({ source_url: '', external_ids: {} });
+    expect(odnosnikiZrodel([])).toEqual({ source_url: '', external_ids: {} });
   });
 });

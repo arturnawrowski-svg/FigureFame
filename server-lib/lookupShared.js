@@ -13,6 +13,34 @@
 
 import { createRequire } from "node:module";
 
+// ============================================================================
+// Sprawdzian alfabetu przychodzi z `src/lib/kompletnosc.js` — tam stoi JEDNA
+// definicja kompletu, wspólna z panelem i z `npm run audyt-bazy`.
+//
+// Dlaczego przez ten plik, a nie wprost w `api/`: endpointy importują wyłącznie
+// z `server-lib`, i ta granica ma zostać. `kompletnosc.js` nie ma ani jednego
+// importu, więc nadaje się do tego bez skutków ubocznych — patrz komentarz
+// na jego początku.
+//
+// Po co w ogóle: katalog potrafi oddać w rubryce „nazwa japońska" łaciński
+// tytuł produktu („Taihou", „Miku Expo 2025"). Do 03.08 taka wartość wjeżdżała
+// do bazy jako komplet i nie dawała żadnego sygnału — sześć wierszy tak dziś
+// wygląda.
+// ============================================================================
+export { maZnakJaponski } from "../src/lib/kompletnosc.js";
+import { maZnakJaponski as maJP } from "../src/lib/kompletnosc.js";
+
+/**
+ * Przepuszcza wartość tylko wtedy, gdy naprawdę jest japońska.
+ *
+ * Zwraca pusty napis zamiast wartości podejrzanej — puste pole uczciwie mówi
+ * „nie wiemy", a łacińska nazwa w tej rubryce mówi nieprawdę i nie odróżnia się
+ * od faktu.
+ */
+export function tylkoJesliJaponskie(v) {
+  return maJP(v) ? v : "";
+}
+
 // Nagłówek przeglądarki dla żądań wychodzących. Część serwisów odrzuca ruch
 // bez wiarygodnego User-Agenta (albo podaje uboższą wersję strony).
 export const BROWSER_UA =
@@ -99,6 +127,53 @@ export function kluczProduktu(name, series = "", mode = "quick", opcje = {}) {
     norm(scale),
     norm(version),
   ].join("|");
+}
+
+// ============================================================================
+// SKĄD TO WIEMY — adres źródła i numery w katalogach.
+// ----------------------------------------------------------------------------
+// Katalogi od dawna oddają `product_url` (adres strony produktu), ale NIC go nie
+// zapisywało: 25 z 26 figurek nie ma ani `source_url`, ani `external_ids`.
+// Skutkiem nie jest brak ozdoby, tylko brak KOTWICY — nie ma po czym wrócić do
+// tej samej pozycji, żeby dociągnąć brakujące pole albo sprawdzić, czy katalog
+// zmienił zdanie. Bez tego przebieg naprawczy musi zgadywać od nowa.
+//
+// ⚠️ Numer MFC NIE staje się naszym adresem. To odsyłacz do sprawdzenia,
+// nie tożsamość figurki — doktryna z src/lib/figureIdentity.js zostaje w mocy.
+// ============================================================================
+
+/** `https://myfigurecollection.net/item/12345` → `12345` */
+function numerMfc(url) {
+  const m = String(url || "").match(/myfigurecollection\.net\/item\/(\d+)/i);
+  return m ? m[1] : "";
+}
+
+/**
+ * Adres źródła i numery w katalogach, wyciągnięte z rekordów wyszukiwania.
+ *
+ * Pierwszeństwo ma MyFigureCollection — jest najbogatszym źródłem i tylko on
+ * ma stabilny numer pozycji. Gdy go nie ma, bierzemy pierwszy adres, jaki
+ * którekolwiek źródło podało: adres nieidealny jest lepszy niż żaden.
+ *
+ * @returns {{source_url: string, external_ids: object}} puste, gdy nie ma czego wziąć
+ */
+export function odnosnikiZrodel(records = []) {
+  const external_ids = {};
+  let source_url = "";
+
+  for (const rec of records || []) {
+    const url = rec?.product_url;
+    if (!url) continue;
+    const mfc = numerMfc(url);
+    if (mfc) {
+      external_ids.mfc = mfc;
+      source_url = url; // MFC bije wszystko — nadpisujemy, nawet gdy już coś było
+    } else if (!source_url) {
+      source_url = url;
+    }
+  }
+
+  return { source_url, external_ids };
 }
 
 /**

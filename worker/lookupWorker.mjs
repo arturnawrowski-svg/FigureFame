@@ -22,7 +22,7 @@ import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 import { gatherFromSources } from "../server-lib/figureSources.js";
 import { rehostImage, crossCheckImage } from "../server-lib/figureImage.js";
 import { closeBrowser } from "../server-lib/scrapeProviders.js";
-import { kluczPostaci, kluczProduktu } from "../server-lib/lookupShared.js";
+import { kluczPostaci, kluczProduktu, tylkoJesliJaponskie, odnosnikiZrodel } from "../server-lib/lookupShared.js";
 import { startHeartbeat, stationName } from "./lib/heartbeat.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -114,6 +114,24 @@ async function processJob(supabase, job) {
         if (hosted) console.log(`    zdjęcie (${check.reason}): ${check.by.join(" + ")} → nasz Storage`);
         else imageError = "Nie udało się pobrać zdjęcia ze znalezionego adresu.";
       }
+    }
+
+    // POLA JAPOŃSKIE: „z katalogu" nie znaczy „prawdziwe". W rubryce „nazwa
+    // japońska" katalogi oddają czasem łaciński tytuł produktu („Taihou",
+    // „Miku Expo 2025"). Taka wartość jest gorsza niż puste pole, bo wygląda
+    // na potwierdzoną — a stąd bierze się „nazwy japońskie się nie uzupełniają".
+    // Wycinamy ją PRZED pochodzeniem i przed wpisem postaci, żeby nie dostała
+    // ptaszka „potwierdzone" i nie rozeszła się na wszystkie figurki postaci.
+    data.japanese_name = tylkoJesliJaponskie(data.japanese_name);
+    data.japanese_series = tylkoJesliJaponskie(data.japanese_series);
+
+    // Kotwica do ponownego pobrania — adres pozycji i jej numer w katalogu.
+    // Dostaje ptaszek „potwierdzone" razem z resztą, bo pochodzi z tego samego
+    // odczytu strony produktu.
+    const odnosniki = odnosnikiZrodel(records || []);
+    if (odnosniki.source_url) data.source_url = odnosniki.source_url;
+    if (Object.keys(odnosniki.external_ids).length > 0) {
+      data.external_ids = { ...(data.external_ids || {}), ...odnosniki.external_ids };
     }
 
     // Wszystko tutaj pochodzi z katalogów (worker nie woła AI), więc każde

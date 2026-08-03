@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { zapiszZTozsamoscia } from '../lib/nadajTozsamosc';
+import { przygotujDoZapisu } from '../lib/kolumnyFigurki';
 
 export default function AddFigure() {
   const { user } = useAuth();
@@ -29,26 +30,40 @@ export default function AddFigure() {
     
     setIsSubmitting(true);
     try {
+      // Ta sama brama zapisu co w panelu moderatora — jedna dla obu ścieżek.
+      // Porządkuje napisy (spacja na brzegu wchodzi potem do klucza tożsamości
+      // i do klucza pamięci podręcznej) i zapisuje brak JEDNYM sposobem, jako
+      // NULL. Zgłoszenia z formularza to główne źródło „Kotobukiya " w bazie.
+      //
+      // `provenance` wpisujemy wprost: to, co zgłaszający wpisał z palca, nie
+      // jest ani danymi z katalogu, ani domysłem AI. Bez tego podpisu wpis
+      // wyglądałby na „nieznanego pochodzenia", czyli tak samo jak zgadywanie.
+      const { pola } = przygotujDoZapisu({
+        name: formData.name,
+        series: formData.series,
+        manufacturer: formData.manufacturer,
+        scale: formData.scale,
+        type: formData.type,
+        release_date: formData.releaseDate,
+        status: 'PENDING',
+        submitted_by: user?.id || null,
+        additional_info: formData.additionalInfo ? formData.additionalInfo.split('\n').filter(s => s.trim() !== '') : null,
+        where_to_search: formData.whereToSearch ? formData.whereToSearch.split('\n').filter(s => s.trim() !== '') : null,
+        strategy: formData.strategy ? formData.strategy.split('\n').filter(s => s.trim() !== '') : null,
+        market_value: formData.marketValueAverage ? { average: formData.marketValueAverage } : null,
+        provenance: Object.fromEntries(
+          ['name', 'series', 'manufacturer', 'scale', 'type']
+            .filter((p) => formData[p])
+            .map((p) => [p, 'zgloszenie'])
+        ),
+      });
+
       // Tożsamość nadajemy JUŻ TERAZ, a nie ręcznym skryptem „kiedyś".
       // Bez niej indeks unikalności (obejmujący tylko wartości niepuste)
       // nie ma czego pilnować i duplikat wjeżdża do bazy bez ostrzeżenia.
       const { error } = await zapiszZTozsamoscia(
-        (tozsamosc) => supabase.from('figures').insert({
-          name: formData.name,
-          series: formData.series || null,
-          manufacturer: formData.manufacturer || null,
-          scale: formData.scale || null,
-          type: formData.type || null,
-          release_date: formData.releaseDate || null,
-          status: 'PENDING',
-          submitted_by: user?.id || null,
-          additional_info: formData.additionalInfo ? formData.additionalInfo.split('\n').filter(s => s.trim() !== '') : null,
-          where_to_search: formData.whereToSearch ? formData.whereToSearch.split('\n').filter(s => s.trim() !== '') : null,
-          strategy: formData.strategy ? formData.strategy.split('\n').filter(s => s.trim() !== '') : null,
-          market_value: formData.marketValueAverage ? { average: formData.marketValueAverage } : null,
-          ...tozsamosc,
-        }),
-        formData
+        (tozsamosc) => supabase.from('figures').insert({ ...pola, ...tozsamosc }),
+        pola
       );
 
       // Duplikat wyłapany przez indeks — mówimy o tym wprost, zamiast

@@ -155,4 +155,44 @@ describe('mergeLookupIntoForm', () => {
     const out = mergeLookupIntoForm(form, { additional_info: 'Tekst od AI.' });
     expect(out.additional_info).toEqual(['Mój własny opis.']);
   });
+
+  // Do 03.08 rozbieżność zgłaszały TYLKO pola z IDENTITY_FIELDS, a pozostałe —
+  // w tym japońskie — były po cichu wyrzucane. Stąd „znowu nie uzupełnia nazw
+  // japońskich": wartość bywała znaleziona, tylko nikt jej nie widział.
+  it('zgłasza rozbieżność pola SPOZA tożsamości, zamiast ją wyrzucić', () => {
+    const out = mergeLookupIntoForm(
+      { japanese_series: 'ボーカロイド' },
+      { japanese_series: 'VOCALOID', _provenance: { japanese_series: 'catalog' } },
+      { confirmed: new Set(['japanese_series']) }
+    );
+    expect(out.japanese_series).toBe('ボーカロイド'); // potwierdzonego nie ruszamy
+    expect(out._conflicts).toEqual([
+      expect.objectContaining({ field: 'japanese_series', found: 'VOCALOID', wazne: false }),
+    ]);
+  });
+
+  it('pola tożsamości są oznaczone, żeby panel pokazał je na górze', () => {
+    const out = mergeLookupIntoForm(
+      { manufacturer: 'Clayz', release_date: '2008' },
+      {
+        manufacturer: 'Good Smile Company',
+        release_date: '2009',
+        _provenance: { manufacturer: 'catalog', release_date: 'ai' },
+      }
+    );
+    const wg = Object.fromEntries(out._conflicts.map((c) => [c.field, c.wazne]));
+    expect(wg.manufacturer).toBe(true);
+    expect(wg.release_date).toBe(false);
+  });
+
+  it('wartości złożonych nie pokazuje w dwóch kolumnach', () => {
+    // „[object Object]" obok „[object Object]" nie jest pytaniem, na które
+    // da się odpowiedzieć; `external_ids` i tak się dokłada, nie zastępuje.
+    const out = mergeLookupIntoForm(
+      { external_ids: { mfc: '111' } },
+      { external_ids: { mfc: '222' }, _provenance: { external_ids: 'catalog' } },
+      { confirmed: new Set(['external_ids']) }
+    );
+    expect(out._conflicts).toBeUndefined();
+  });
 });
