@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { User, Info, Plus, Sun, Moon, ShieldAlert } from 'lucide-react'
+import { User, Info, Plus, Sun, Moon, ShieldAlert, MessageCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useTranslation, LOCALES } from '../lib/i18n'
@@ -92,6 +92,17 @@ export default function Navbar() {
         </div>
 
         <div className="nav-strefa nav-prawo">
+          {/* Czat siedzi w App.jsx i słucha zdarzenia — nagłówek nie musi
+              o nim nic wiedzieć poza nazwą zdarzenia. */}
+          <button
+            className="nav-btn nav-btn-ikona"
+            onClick={() => window.dispatchEvent(new Event('open-chat'))}
+            aria-label="Zapytaj o figurki z naszej bazy"
+            title="Zapytaj o figurki z naszej bazy"
+          >
+            <MessageCircle size={18} />
+          </button>
+
           {isAdmin && (
             <Link to="/admin" className="nav-btn" style={{ color: '#ff4757', fontWeight: 'bold', textDecoration: 'none' }}>
               <ShieldAlert size={18} /> <span className="nav-napis">{t('nav.admin')}</span>

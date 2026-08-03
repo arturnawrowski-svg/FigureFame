@@ -11,7 +11,7 @@ import UkladDokumentu from './UkladDokumentu';
 // ⚠️ DO UZUPEŁNIENIA po rejestracji działalności: nazwa firmy, adres, NIP.
 // ============================================================================
 
-const DATA = '31 lipca 2026';
+const DATA = '3 sierpnia 2026';
 
 const SPIS = [
   { id: 'p1', etykieta: '1. Kto odpowiada za dane' },
@@ -90,12 +90,19 @@ export default function PolitykaPrywatnosci({ wOknie = false }) {
         potwierdzenie adresu, reset hasła), <strong>Google Drive</strong> (kopie zapasowe projektu).
       </p>
       <p>
-        <strong>Osobno o asystencie AI.</strong> Gdy pytasz asystenta o figurkę, do dostawcy modelu
-        trafia opis figurki i treść Twojego pytania.{' '}
+        <strong>Osobno o asystencie AI.</strong> Gdy pytasz asystenta — czy to o konkretną figurkę,
+        czy o naszą bazę — do dostawcy modelu trafia treść Twojego pytania wraz z opisem figurek,
+        których dotyczy.{' '}
         <strong>Nie wysyłamy tam Twojego adresu e-mail ani identyfikatora konta.</strong>{' '}
         Korzystamy z modeli m.in. Google, Groq, OpenRouter, GitHub, SambaNova i Hugging Face;
         część z nich przetwarza dane poza Europejskim Obszarem Gospodarczym, na standardowych
         klauzulach umownych zatwierdzonych przez Komisję Europejską.
+      </p>
+      <p>
+        <strong>Historia rozmowy z asystentem zostaje w Twojej przeglądarce</strong> (pamięć
+        lokalna urządzenia) i nie trafia na nasze serwery ani do Twojego profilu. Skasujesz ją
+        przyciskiem w oknie czatu albo czyszcząc dane strony w przeglądarce — nie musisz nas
+        o to prosić.
       </p>
 
       <h2 id="p5">5. Jak długo je trzymamy</h2>

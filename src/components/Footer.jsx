@@ -53,6 +53,12 @@ export default function Footer() {
             <Link to="/prywatnosc" state={jakoOkno}>Polityka prywatności</Link>
             <Link to="/regulamin" state={jakoOkno}>Regulamin</Link>
             <Link to="/o-aplikacji" state={jakoOkno}>O aplikacji</Link>
+            {/* Wygląda jak sąsiedzi, ale nie prowadzi pod adres — otwiera czat,
+                który stoi w App.jsx. Dlatego `button`, nie `a`: element bez
+                adresu nie może udawać odnośnika. */}
+            <button type="button" onClick={() => window.dispatchEvent(new Event('open-chat'))}>
+              Zapytaj o figurki
+            </button>
           </nav>
         </div>
 

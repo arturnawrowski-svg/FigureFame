@@ -13,6 +13,7 @@ import Footer from './components/Footer'
 import OknoDokumentu from './components/OknoDokumentu'
 import PolitykaPrywatnosci from './components/PolitykaPrywatnosci'
 import Regulamin from './components/Regulamin'
+import ChatKatalogu from './components/ChatKatalogu'
 
 // Ekrany po zalogowaniu doczytujemy dopiero przy wejściu na nie.
 // Wcześniej KAŻDY odwiedzający (także na telefonie) pobierał cały panel
@@ -98,6 +99,12 @@ function App() {
       </main>
 
       <Footer />
+
+      {/* Czat montowany RAZ, dla całej aplikacji. Przyciski w nagłówku, stopce
+          i przy figurce nie trzymają go u siebie — wywołują zdarzenie
+          `open-chat`, a ono trafia tutaj. Dzięki temu rozmowa nie ginie przy
+          przejściu między stronami. */}
+      <ChatKatalogu />
 
       {/* Warstwa okien. Rysowana TYLKO gdy przyszliśmy z `tlo` — czyli
           kliknięciem wewnątrz serwisu. Zamknięcie to `navigate(-1)`:

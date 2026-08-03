@@ -12,6 +12,7 @@ import processImageHandler from './api/process-image.js'
 import uploadWorkImageHandler from './api/upload-work-image.js'
 import finalizeImageHandler from './api/finalize-image.js'
 import askFigureHandler from './api/ask-figure.js'
+import askCatalogHandler from './api/ask-catalog.js'
 import sitemapHandler from './api/sitemap.js'
 import refreshPricesHandler from './api/refresh-prices.js'
 import generateShortHandler from './api/generate-short.js'
@@ -96,6 +97,13 @@ export default defineConfig({
 
         // Ask AI about this figure — kontekstowy asystent kolekcjonera
         server.middlewares.use('/api/ask-figure', postJsonMiddleware(askFigureHandler))
+
+        // ⚠️ KAŻDY NOWY ENDPOINT MUSI TU TRAFIĆ. Vercel wystawia wszystko
+        // z katalogu api/ sam, ale Vite nie wie o tym katalogu nic. Pominięty
+        // endpoint działa na produkcji, a lokalnie zwraca stronę HTML — czyli
+        // „Unexpected end of JSON input" w przeglądarce, bez śladu w logach
+        // serwera. Ten czat złapał to na sobie.
+        server.middlewares.use('/api/ask-catalog', postJsonMiddleware(askCatalogHandler))
 
         // Dynamiczny sitemap.xml (GET, read-only)
         server.middlewares.use('/api/sitemap', (req, res) => sitemapHandler(req, res))

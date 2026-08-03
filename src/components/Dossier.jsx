@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Tag, Building2, Ruler, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Tag, Building2, Ruler, HelpCircle, MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { getImageUrl } from '../lib/getImageUrl';
 import { prawaDoZdjecia } from '../lib/prawaDoZdjecia';
@@ -209,6 +209,19 @@ export default function Dossier() {
           <BootlegRisk figure={figure} />
 
           <AskAI figure={figure} />
+
+          {/* Drugie wejście: czat o CAŁYM katalogu, otwarty z kontekstem tej
+              figurki. AskAI wyżej zna tylko ją — ten potrafi ją porównać
+              z resztą bazy („czy macie inne wersje tej postaci?").
+              Oba zostają, bo odpowiadają na inne pytania. */}
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => window.dispatchEvent(new CustomEvent('open-chat', { detail: { figureId: figure.id } }))}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '0.75rem' }}
+          >
+            <MessageCircle size={18} /> Porównaj z innymi z naszej bazy
+          </button>
 
           <div className="divider"></div>
 
