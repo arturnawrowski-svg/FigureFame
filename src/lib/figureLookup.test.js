@@ -1,5 +1,49 @@
 import { describe, it, expect } from 'vitest';
-import { mergeLookupIntoForm } from './figureLookup';
+import { mergeLookupIntoForm, czegoBrakuje, jestPewny } from './figureLookup';
+
+// Ta funkcja decyduje, KIEDY szukanie ma przestać. Za łagodna — jedno
+// kliknięcie znów nie dowiezie kompletu i trzeba klikać w kółko. Za surowa —
+// każda figurka mieli pełne trzy minuty bez sensu.
+describe('czegoBrakuje — kiedy wynik jest pewny', () => {
+  const KOMPLETNY = {
+    japanese_name: '沢渡 いずみ',
+    manufacturer: 'Enterbrain',
+    scale: '1/7',
+    official_image_url: 'https://sfxraogvhjhalzxuddgl.supabase.co/storage/v1/object/public/x.png',
+  };
+
+  it('komplet kończy szukanie', () => {
+    expect(czegoBrakuje(KOMPLETNY)).toEqual([]);
+    expect(jestPewny(KOMPLETNY)).toBe(true);
+  });
+
+  it('wymienia po polsku, czego nie ma', () => {
+    expect(czegoBrakuje({ ...KOMPLETNY, japanese_name: '' })).toEqual(['nazwa japońska']);
+    expect(czegoBrakuje({ ...KOMPLETNY, scale: null })).toEqual(['skala']);
+  });
+
+  // Adres na cudzym serwerze właściciel może odciąć w dowolnej chwili,
+  // a wtedy Gablota pokazuje dziurę. api/fetch-figure.js i tak takie pole
+  // czyści, więc uznanie go za „zdjęcie" kończyłoby szukanie za wcześnie.
+  it('zdjęcie z cudzego serwera to BRAK zdjęcia', () => {
+    expect(czegoBrakuje({ ...KOMPLETNY, official_image_url: 'https://myfigurecollection.net/x.jpg' }))
+      .toEqual(['zdjęcie']);
+  });
+
+  it('sam biały znak nie jest wartością', () => {
+    expect(czegoBrakuje({ ...KOMPLETNY, manufacturer: '   ' })).toEqual(['producent']);
+  });
+
+  it('brak odpowiedzi to brak wszystkiego, a nie „gotowe"', () => {
+    expect(czegoBrakuje(null)).toHaveLength(4);
+    expect(jestPewny(null)).toBe(false);
+  });
+
+  it('wymienia wszystkie braki naraz, żeby moderator wiedział, co go czeka', () => {
+    expect(czegoBrakuje({ manufacturer: 'Alter' }))
+      .toEqual(['nazwa japońska', 'skala', 'zdjęcie']);
+  });
+});
 
 describe('mergeLookupIntoForm', () => {
   it('nie nadpisuje istniejących danych pustymi wartościami', () => {

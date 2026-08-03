@@ -151,7 +151,7 @@ function oczyscZdjecie(dane) {
     delete oczyszczone._provenance.official_image_url;
   }
   oczyszczone._imageError =
-    'Zapamiętany wynik zawierał zdjęcie z cudzego serwera — nie wpuszczamy takich do Gabloty. Kliknij „⭐ TOP", żeby pobrać je na nowo do naszego magazynu.';
+    'Zapamiętany wynik zawierał zdjęcie z cudzego serwera — nie wpuszczamy takich do Gabloty. Zleć szukanie jeszcze raz, żeby pobrać je do naszego magazynu.';
   return oczyszczone;
 }
 
@@ -244,7 +244,7 @@ export default async function handler(req, res) {
     const key = kluczProduktu(name, series, mode, { manufacturer, scale, version });
     const keyPostaci = kluczPostaci(name, series);
 
-    // Wpis postaci czytamy ZAWSZE, także przy „⭐ TOP". Nazwa japońska nie
+    // Wpis postaci czytamy ZAWSZE, także przy świeżym pobraniu. Nazwa japońska nie
     // robi się prawdziwsza od ponownego pobrania, a bez niej pole zostaje
     // puste — dokładnie ten objaw naprawiamy.
     const postac = await readCachePostaci(keyPostaci);
@@ -349,7 +349,7 @@ export default async function handler(req, res) {
       // ⚠️ Chmura nie dosięgnie MFC — Cloudflare przepuszcza tylko prawdziwą
       // przeglądarkę. Jeśli worker kiedyś przyniósł dane, są one Z KATALOGU,
       // a więc twardsze od wszystkiego, co dopisze tu AI. Zwracamy je zamiast
-      // zgadywanki — także przy „⭐ TOP".
+      // zgadywanki — także przy świeżym pobraniu.
       //
       // Bez tego TOP działał wprost przeciwnie do swojej nazwy: pomijał pamięć
       // podręczną (czyli dorobek workera), pytał chmurę, dostawał zero
@@ -480,7 +480,7 @@ export default async function handler(req, res) {
         figureData.official_image_url = '';
         delete provenance.official_image_url;
         figureData._imageError = fromCatalog
-          ? 'Zdjęcie podało tylko jedno źródło — za mało, żeby mieć pewność, że to ta wersja figurki. Dodaj je ręcznie albo użyj „⭐ TOP".'
+          ? 'Zdjęcie podało tylko jedno źródło — za mało, żeby mieć pewność, że to ta wersja figurki. Dodaj je ręcznie albo zleć szukanie jeszcze raz.'
           : 'Adres zdjęcia pochodzi wyłącznie od AI i nie potwierdza go żaden katalog — dodaj zdjęcie ręcznie.';
       } else {
         console.log(`Zdjęcie potwierdzone (${check.reason}) przez: ${check.by.join(' + ')}`);

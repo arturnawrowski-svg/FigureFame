@@ -70,6 +70,41 @@ export async function streamLookup(name, series, onProgress, opts = {}) {
   return result;
 }
 
+// ============================================================================
+// KIEDY WYNIK JEST „PEWNY"
+// ----------------------------------------------------------------------------
+// Jedno kliknięcie ma dowieźć komplet, a nie „coś". Dlatego szukanie nie kończy
+// się po pierwszej odpowiedzi, tylko dopiero wtedy, gdy komplet jest na stole
+// albo skończy się czas. Ta lista mówi, czego pilnujemy.
+//
+// Zdjęcie liczy się WYŁĄCZNIE wtedy, gdy leży w naszym magazynie. Adres
+// z cudzego serwera właściciel może odciąć w dowolnej chwili, a wtedy Gablota
+// pokazuje dziurę — dlatego api/fetch-figure.js i tak takie pole czyści.
+// ============================================================================
+const KOMPLET = [
+  ['japanese_name', 'nazwa japońska'],
+  ['manufacturer', 'producent'],
+  ['scale', 'skala'],
+  ['official_image_url', 'zdjęcie'],
+];
+
+/** Czego jeszcze brakuje do kompletu — nazwami do pokazania moderatorowi. */
+export function czegoBrakuje(dane) {
+  if (!dane) return KOMPLET.map(([, etykieta]) => etykieta);
+  return KOMPLET.filter(([pole]) => {
+    const v = dane[pole];
+    if (!v || String(v).trim() === '') return true;
+    // Zdjęcie spoza naszego magazynu to brak zdjęcia.
+    if (pole === 'official_image_url') return !String(v).includes('supabase.co');
+    return false;
+  }).map(([, etykieta]) => etykieta);
+}
+
+/** Czy można przestać szukać. */
+export function jestPewny(dane) {
+  return czegoBrakuje(dane).length === 0;
+}
+
 // Pola, przy których cicha podmiana boli najbardziej — bo wyglądają na
 // zweryfikowane, a decydują o tożsamości figurki.
 const IDENTITY_FIELDS = ['name', 'series', 'manufacturer', 'scale', 'original_price'];

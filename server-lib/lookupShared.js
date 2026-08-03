@@ -72,7 +72,7 @@ const norm = (s) =>
  * Bez `mode`: tryb dokładny nie sprawia, że nazwa postaci robi się prawdziwsza
  * — to ta sama rubryka w tym samym katalogu. Wspólny wpis dla obu trybów
  * podwaja trafialność. Przed zapisem pustki chroni `wpisMaTresc` po stronie
- * wywołującego, a „⭐ TOP" i tak omija odczyt (`refresh=1`).
+ * wywołującego, a świeże pobranie i tak omija odczyt (`refresh=1`).
  */
 export function kluczPostaci(name, series = "") {
   return `char|${norm(name)}|${norm(series)}`;

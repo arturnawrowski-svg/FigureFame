@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useDeferredValue, memo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useDeferredValue, useRef, memo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Check, Trash2, Clock, AlertCircle, Edit3, X, Lock, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -8,7 +8,7 @@ import ImageUploader from './ImageUploader';
 import ImageStudio from './ImageStudio';
 import { PRESETS, ACCENTS, MUSIC_TRACKS, RESOLUTIONS, LANGS, defaultShortOptions, QUEUE_MAX, BUFFER_WARN } from '../lib/shortOptions';
 import { generateGlowColor } from '../lib/glowColor';
-import { streamLookup, mergeLookupIntoForm } from '../lib/figureLookup';
+import { streamLookup, mergeLookupIntoForm, czegoBrakuje } from '../lib/figureLookup';
 import { authFetch } from '../lib/authFetch';
 import { zapiszZTozsamoscia } from '../lib/nadajTozsamosc';
 
@@ -129,14 +129,48 @@ export default function AdminDashboard() {
   const editFormPodglad = useDeferredValue(editForm);
   const searchDeferred = useDeferredValue(searchQuery);
 
+  // Szukanie trwa do trzech minut i przechodzi przez kilka podejść, więc
+  // potrzebuje dwóch rzeczy poza stanem Reacta:
+  //   przerwijRef   — moderator może je zatrzymać, nie czekając do końca,
+  //   editFormRef   — formularz zmienia się MIĘDZY podejściami, a `editForm`
+  //                   z domknięcia zostałby ten sprzed pierwszego obiegu
+  //                   i drugie podejście nadpisałoby wynik pierwszego.
+  const przerwijRef = useRef(false);
+  const editFormRef = useRef(editForm);
+  useEffect(() => { editFormRef.current = editForm; }, [editForm]);
+
   const showToast = useCallback((message) => {
     setToastMessage(message);
     setTimeout(() => setToastMessage(null), 3000);
   }, []);
 
-  // Wyszukiwanie danych figurki. opts.deep = tryb TOP (więcej wariantów nazwy,
-  // dłużej i drożej), opts.refresh = pomiń pamięć podręczną i pobierz na nowo.
-  const runLookup = async (fig, opts = {}) => {
+  // ==========================================================================
+  // JEDNO ZLECENIE, JEDEN KOMPLET DANYCH.
+  // --------------------------------------------------------------------------
+  // Wcześniej były dwa przyciski — „Szukaj Danych" i „⭐ TOP" — a moderator
+  // musiał wiedzieć, którego użyć. Do tego żaden z nich nie dowoził kompletu:
+  // gdy chmura nie dosięgła MyFigureCollection (Cloudflare przepuszcza tylko
+  // prawdziwą przeglądarkę), zlecenie szło do Studia, a panel mówił „kliknij
+  // ponownie za chwilę". Trzeba było klikać, aż się uda.
+  //
+  // Teraz jedno kliknięcie pilnuje sprawy do końca: pyta, czeka na Studio,
+  // dopytuje i kończy dopiero wtedy, gdy komplet jest na stole albo minie
+  // wyznaczony czas. Przez cały ten czas widać, co się dzieje.
+  //
+  // ⚠️ CZEKANIE MUSI SIĘ ODBYWAĆ TUTAJ, W PRZEGLĄDARCE. Funkcje na Vercelu mają
+  // twardy limit 60 s (vercel.json), więc trzyminutowego oczekiwania po stronie
+  // serwera nie da się zrobić — zostałoby ucięte w połowie. Przeglądarka pyta
+  // krótko i wielokrotnie; każde zapytanie mieści się w limicie.
+  // ==========================================================================
+  const CZAS_SZUKANIA_MS = 3 * 60 * 1000;
+  const PRZERWA_MS = 6000;
+
+  const czas = (ms) => {
+    const s = Math.max(0, Math.round(ms / 1000));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  };
+
+  const runLookup = async (fig) => {
     // Pytamy o ORYGINALNY rekord ze zgłoszenia, nigdy o zawartość formularza.
     // Powód: wynik wyszukiwania wraca do formularza, więc przy pytaniu „po
     // formularzu" każde kolejne kliknięcie leciało na innych danych niż
@@ -163,57 +197,149 @@ export default function AdminDashboard() {
       Object.entries(provenance).filter(([, src]) => src === 'catalog').map(([k]) => k)
     );
 
+    przerwijRef.current = false;
     setIsSearching(true);
     setConflicts([]);
     setProgress({ percent: 0, label: 'Zaczynam…', log: [] });
+
+    const koniec = Date.now() + CZAS_SZUKANIA_MS;
+    let ostatnie = null;
+    let podejscie = 0;
+
+    // Dziennik przeżywa kolejne podejścia — moderator ma widzieć CAŁĄ historię
+    // trzyminutowego szukania, a nie tylko ostatnie kilka sekund.
+    const dopiszDoDziennika = (tekst) =>
+      setProgress(prev => ({
+        ...(prev || {}),
+        log: [...(prev?.log || []), tekst],
+      }));
+
+    // Pokazuje wynik natychmiast po każdym podejściu — moderator nie ma
+    // patrzeć w pusty formularz przez trzy minuty. Formularz bierzemy z ref,
+    // bo `editForm` z domknięcia byłby po pierwszym obiegu nieaktualny.
+    const zastosuj = (data) => {
+      const merged = mergeLookupIntoForm(editFormRef.current, data, { confirmed });
+      const found = merged._conflicts || [];
+      delete merged._conflicts; // to komunikat, nie kolumna w bazie
+      setEditForm(merged);
+      setConflicts(found);
+      setProvenance(data._provenance || {});
+      setLastLookup({
+        sources: data._sources || null,
+        bootleg: data._bootlegWarning || null,
+        fromCache: !!data._fromCache,
+      });
+      return found;
+    };
+
     try {
-      // Strumień SSE — pasek postępu pokazuje PRAWDZIWE kroki
-      // (każde zdarzenie = faktycznie zakończony etap).
-      const data = await streamLookup(
-        originalName,
-        knownSeries,
-        (p) => {
-          // W panelu pokazujemy dokładne nazwy źródeł; wersja ogólna (p.label)
-          // jest dla odwiedzających stronę.
-          const text = p.adminLabel || p.label;
-          setProgress(prev => ({
-            percent: p.percent,
-            label: text,
-            log: text.startsWith('✓') ? [...(prev?.log || []), text] : (prev?.log || []),
-          }));
-        },
-        { ...opts, manufacturer: knownManufacturer, scale: knownScale, version: knownVersion }
-      );
+      let konflikty = [];
 
-      if (data) {
-        // Scalamy poza funkcją aktualizującą stan: React może ją wywołać
-        // później albo dwukrotnie, więc wyciąganie z niej wyniku bywa zawodne.
-        const merged = mergeLookupIntoForm(editForm, data, { confirmed });
-        const found = merged._conflicts || [];
-        delete merged._conflicts; // to komunikat, nie kolumna w bazie
+      while (!przerwijRef.current) {
+        podejscie++;
 
-        setEditForm(merged);
-        setConflicts(found);
-        setProvenance(data._provenance || {});
-        setLastLookup({
-          sources: data._sources || null,
-          bootleg: data._bootlegWarning || null,
-          fromCache: !!data._fromCache,
-        });
-
-        if (found.length > 0) {
-          showToast(`⚠️ ${found.length} rozbieżność(i) między zgłoszeniem a katalogiem — sprawdź na dole formularza.`);
-        } else if (data._queued) {
-          showToast(`⏳ ${data._queued}`);
-        } else if (data._japaneseMissing) {
-          showToast(`🇯🇵 ${data._japaneseMissing}`);
-        } else if (data._aiError) {
-          showToast(`Uwaga: Wyszukiwarka AI napotkała problem. Szczegóły: ${data._aiError}`);
-        } else if (data._imageError) {
-          showToast(`🖼️ ${data._imageError}`);
+        // Strumień SSE — pasek postępu pokazuje PRAWDZIWE kroki
+        // (każde zdarzenie = faktycznie zakończony etap).
+        //
+        // ⚠️ `refresh` DOKŁADNIE RAZ, i to nie za pierwszym razem.
+        //
+        // Podejście 1 czyta pamięć podręczną: gdy komplet już tam leży, całość
+        // kończy się w ułamku sekundy i za darmo. Dopiero gdy czegoś brakuje,
+        // podejście 2 wymusza świeże pobranie ze wszystkich źródeł. Kolejne
+        // znów CZYTAJĄ pamięć — bo to w niej Studio zostawia swój wynik,
+        // a ciągłe odświeżanie pomijałoby dokładnie to, na co czekamy.
+        //
+        // Odświeżanie za każdym razem miałoby drugi, gorszy skutek: gdy chmura
+        // nie dosięga katalogów, świeże pobranie wraca uboższe niż zapisane
+        // i mogłoby podmienić dobre dane na gorsze (patrz lookupShared.js).
+        //
+        // Pojedyncze podejście może się wywrócić na chwilowym błędzie sieci.
+        // Przy szukaniu trwającym minuty to prawdopodobne — i nie może kłaść
+        // całości, skoro następne za sześć sekund pewnie się uda. Błąd trafia
+        // do dziennika, żeby nie zniknął po cichu.
+        let data = null;
+        try {
+          data = await streamLookup(
+            originalName,
+            knownSeries,
+            (p) => {
+              // W panelu pokazujemy dokładne nazwy źródeł; wersja ogólna
+              // (p.label) jest dla odwiedzających stronę.
+              const text = p.adminLabel || p.label;
+              setProgress(prev => ({
+                percent: p.percent,
+                label: text,
+                log: text.startsWith('✓') ? [...(prev?.log || []), text] : (prev?.log || []),
+              }));
+            },
+            {
+              deep: true,
+              refresh: podejscie === 2,
+              manufacturer: knownManufacturer,
+              scale: knownScale,
+              version: knownVersion,
+            }
+          );
+        } catch (e) {
+          console.error('[szukanie] podejście', podejscie, e);
+          dopiszDoDziennika(`✗ Podejście ${podejscie} nie doszło (${e.message}) — próbuję dalej.`);
+          // Pierwsze podejście padło całkiem — to zwykle brak sesji albo
+          // zerwana zasłona, a nie chwilowy błąd. Nie ma sensu czekać 3 minut.
+          if (podejscie === 1) throw e;
         }
-      } else {
+
+        if (data) {
+          ostatnie = data;
+          konflikty = zastosuj(data);
+        }
+
+        const brakuje = czegoBrakuje(ostatnie);
+        if (brakuje.length === 0) break;                  // komplet — koniec
+        if (przerwijRef.current) break;
+        if (Date.now() >= koniec) break;                  // czas minął
+
+        // Po podejściu z pamięci od razu bierzemy się za świeże pobranie —
+        // czekanie przed nim byłoby sześcioma sekundami zmarnowanymi na nic.
+        if (podejscie === 1) {
+          dopiszDoDziennika(`Brakuje: ${brakuje.join(', ')} — pobieram na nowo ze wszystkich źródeł.`);
+          continue;
+        }
+
+        // Czekamy na Studio. Odliczanie widoczne co sekundę, żeby nie wyglądało
+        // na zawieszenie — trzy minuty ciszy to dla patrzącego awaria.
+        if (podejscie === 2) {
+          dopiszDoDziennika(`⏳ Wciąż brakuje: ${brakuje.join(', ')} — czekam na FigureFame Studio.`);
+          // Czekanie na Studio, którego nie ma, to trzy minuty patrzenia
+          // w pasek postępu. Mówimy o tym od razu, ale NIE przerywamy:
+          // sygnał bywa spóźniony, a Studio mogło właśnie wstać.
+          if (!studio.online) {
+            dopiszDoDziennika('⚠️ Studio nie odpowiada — uruchom FigureFame Studio na swoim komputerze.');
+          }
+        }
+        const doKiedy = Math.min(Date.now() + PRZERWA_MS, koniec);
+        while (Date.now() < doKiedy && !przerwijRef.current) {
+          setProgress(prev => ({
+            ...(prev || {}),
+            percent: Math.min(95, Math.round(((CZAS_SZUKANIA_MS - (koniec - Date.now())) / CZAS_SZUKANIA_MS) * 100)),
+            label: `Studio pobiera dane z katalogów… (pozostało ${czas(koniec - Date.now())})`,
+          }));
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
+
+      // Podsumowanie mówi wprost, co jest, a czego nie ma. „Nie znaleziono
+      // zdjęcia" jest informacją; milczenie po trzech minutach nie jest.
+      const brakuje = czegoBrakuje(ostatnie);
+      if (!ostatnie) {
         showToast('Nie udało się pobrać danych figurki.');
+      } else if (przerwijRef.current) {
+        showToast('Przerwano. To, co zdążyło przyjść, jest już w formularzu.');
+      } else if (brakuje.length === 0) {
+        showToast(konflikty.length > 0
+          ? `✅ Komplet danych. ⚠️ ${konflikty.length} rozbieżność(i) do rozstrzygnięcia — na dole formularza.`
+          : '✅ Komplet danych — sprawdź i zatwierdź do Gabloty.');
+      } else {
+        showToast(`⚠️ Po ${czas(CZAS_SZUKANIA_MS)} wciąż brakuje: ${brakuje.join(', ')}. Resztę uzupełnij ręcznie.`);
       }
     } catch (err) {
       console.error(err);
@@ -946,26 +1072,32 @@ export default function AdminDashboard() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                     <h4 style={{ margin: 0, opacity: 0.8 }}>Weryfikacja i uzupełnianie danych</h4>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      {/* JEDEN przycisk. Wcześniej były dwa („Szukaj Danych"
+                          i „⭐ TOP") i trzeba było wiedzieć, którego użyć —
+                          a żaden nie dowoził kompletu za pierwszym razem.
+                          Ten pilnuje sprawy do skutku, do trzech minut. */}
                       <button
                         className="btn-secondary"
                         disabled={isSearching}
+                        title="Pyta wszystkie katalogi, czeka na FigureFame Studio i dopytuje, aż zbierze komplet. Może potrwać do 3 minut."
                         style={{ border: '1px solid #3b82f6', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '8px' }}
-                        onClick={() => runLookup(fig, {})}
+                        onClick={() => runLookup(fig)}
                       >
-                        {isSearching ? <span className="animate-pulse">FigureFame szuka danych...</span> : '🤖 Szukaj Danych'}
+                        {isSearching
+                          ? <span className="animate-pulse">FigureFame szuka danych…</span>
+                          : '🤖 Zleć FigureFame szukanie danych'}
                       </button>
-                      {/* Tryb dokładny: więcej wariantów nazwy i świeże pobranie
-                          (pomija pamięć podręczną). Wolniejszy i zużywa więcej
-                          zapytań u pośrednika — dlatego to świadomy wybór. */}
-                      <button
-                        className="btn-secondary"
-                        disabled={isSearching}
-                        title="Dokładne szukanie: więcej wariantów nazwy, pomija zapisany wynik. Wolniejsze i zużywa więcej zapytań."
-                        style={{ border: '1px solid #a55eea', color: '#a55eea', display: 'flex', alignItems: 'center', gap: '6px' }}
-                        onClick={() => runLookup(fig, { deep: true, refresh: true })}
-                      >
-                        ⭐ TOP
-                      </button>
+                      {/* Trzy minuty to długo — musi dać się przerwać.
+                          To, co zdążyło przyjść, zostaje w formularzu. */}
+                      {isSearching && (
+                        <button
+                          className="btn-secondary"
+                          style={{ border: '1px solid #ff4757', color: '#ff4757', display: 'flex', alignItems: 'center', gap: '6px' }}
+                          onClick={() => { przerwijRef.current = true; }}
+                        >
+                          <X size={16} /> Przerwij
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1016,7 +1148,7 @@ export default function AdminDashboard() {
                       )}
                       {lastLookup.fromCache && (
                         <div style={{ marginTop: '0.6rem', color: '#3b82f6' }}>
-                          💾 Z naszej bazy (bez odpytywania źródeł). „⭐ TOP" wymusza świeże pobranie.
+                          💾 Z naszej bazy (bez odpytywania źródeł) — komplet był już zebrany wcześniej.
                         </div>
                       )}
                       <div style={{ marginTop: '0.6rem', opacity: 0.7, display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
