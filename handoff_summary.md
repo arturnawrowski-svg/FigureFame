@@ -679,5 +679,35 @@ choć strona wyświetla je poprawnie. **Miernik ma mierzyć to, co widzi odwiedz
 
 **Stan po C** (bez archiwum, 17 figurek): `0 bez zarzutu · 16 braków · 11 błędów`
 (przed C: 10 braków, 27 błędów — braki „wzrosły", bo dopiero teraz widać prawdę o nazwach
-japońskich). Zostały **dwa** rodzaje błędów: brak podpisu „Fot." przy 20 zdjęciach
-i plik `taihou_figure`, którego nie ma nigdzie. Oba to zadania szczebla D.
+japońskich).
+
+## 20. Etap D1 — koniec błędów w bazie (04.08)
+
+**Baza nie ma już ani jednego błędu.** `npm run audyt-bazy` kończy się kodem 0.
+Zostały same braki (czego nie mamy) i uwagi (stany pośrednie) — nic nieprawdziwego.
+
+Dwie rzeczy, obie małe:
+
+**Fałszywy alarm w mierniku — 20 „błędów", których nie było.** Audyt uznawał puste
+`image_credit` za złamanie zobowiązania z regulaminu. Nieprawda: podpis powstaje PRZY
+WYŚWIETLANIU i puste pole zastępuje nazwa producenta
+([prawaDoZdjecia.js](src/lib/prawaDoZdjecia.js)). Wszystkie 26 figurek mają producenta,
+więc każde zdjęcie ma podpis. Reguła pyta teraz o brak JEDNEGO I DRUGIEGO.
+
+> ⚠️ **Fałszywy alarm w mierniku jest groźny podwójnie:** kusi do „naprawiania" czegoś, co
+> działa (wpisałbym 20 wartości do bazy bez potrzeby), i zabiera zaufanie do wszystkich
+> pozostałych liczb. Regułę pisze się PO sprawdzeniu, jak działa strona — nie odwrotnie.
+
+**Dwa martwe zdjęcia Taihou.** Oba wiersze wskazywały na plik `taihou_figure`, którego nie
+ma ani w naszym magazynie, ani w `/public/images` — Gablota pokazywała dziurę i nic o tym
+nie mówiła. Pole jest teraz puste, czyli uczciwie mówi „nie mamy zdjęcia". Wiersze są
+w archiwum, a stara wartość leży w kopii z `kopie/`.
+
+### Co zostało w etapie D (kolejność od najmniejszego)
+
+| etap | zakres | ile pracy |
+|---|---|---|
+| **D2** | 10 postaci bez nazwy japońskiej — dociągnąć z katalogu. Wymaga włączonego Studia | figurka po figurce |
+| **D3** | 7 figurek bez zdjęcia. **Najpierw ustalić, dlaczego „Usuń tło" nie działa** (sekcja 15) | średnio |
+| **D4** | Rozbieżność „Asuka Jersey Ver.": baza mówi Alter, wszystkie modele AI mówią Good Smile | jedno sprawdzenie |
+| **D5** | 8 figurek trzyma zdjęcie z zasiewu w `/public/images` zamiast w naszym magazynie | średnio |

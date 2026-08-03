@@ -176,6 +176,17 @@ describe('uwagiDoFigurki — co JEST, ale jest złe', () => {
     expect(kody({ ...fig, image_credit: 'Fot. Good Smile Company' })).not.toContain('brak-podpisu');
   });
 
+  // Podpis powstaje przy wyświetlaniu: puste `image_credit` zastępuje producent.
+  // Pierwsza wersja reguły tego nie wiedziała i zgłaszała 20 błędów przy
+  // 20 zdjęciach, które podpis mają. Fałszywy alarm w mierniku zabiera zaufanie
+  // do wszystkich pozostałych liczb.
+  it('producent wystarcza za podpis, bo tak działa strona', () => {
+    expect(kody({
+      official_image_url: 'https://x.supabase.co/storage/v1/object/public/a.webp',
+      manufacturer: 'Good Smile Company',
+    })).not.toContain('brak-podpisu');
+  });
+
   it('brak zdjęcia nie generuje żądania podpisu', () => {
     expect(kody({ official_image_url: null })).not.toContain('brak-podpisu');
   });

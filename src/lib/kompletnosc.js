@@ -230,10 +230,17 @@ export function uwagiDoFigurki(fig) {
   } else if (zdj.stan === 'roboczy') {
     dodaj('zdjecie-robocze', 'official_image_url: plik w /_work/ — finalizacja się nie dokończyła', 'blad');
   }
-  // Podpis praw: puste pole NIE zostawia zdjęcia bez podpisu — to zobowiązanie
-  // z regulaminu (punkt o „Fot."), więc brak podpisu przy zdjęciu jest błędem.
-  if (zdj.stan !== 'brak' && pusta(fig.image_credit)) {
-    dodaj('brak-podpisu', 'jest zdjęcie, brak image_credit („Fot. …")', 'blad');
+  // Podpis praw powstaje PRZY WYŚWIETLANIU: gdy `image_credit` jest puste,
+  // podpisem staje się nazwa producenta (src/lib/prawaDoZdjecia.js) — właśnie po
+  // to, żeby żadne zdjęcie nie trafiło do Gabloty bez podpisu, nawet gdy nikt
+  // o tym polu nie pomyślał.
+  //
+  // Błędem jest więc brak JEDNEGO I DRUGIEGO. Pierwsza wersja tej reguły patrzyła
+  // tylko na `image_credit` i zgłaszała 20 błędów przy 20 zdjęciach, które
+  // podpis mają. Fałszywy alarm w mierniku jest groźny podwójnie: raz, że kusi
+  // do „naprawiania" czegoś, co działa, a dwa, że zabiera zaufanie do liczb.
+  if (zdj.stan !== 'brak' && pusta(fig.image_credit) && pusta(fig.manufacturer)) {
+    dodaj('brak-podpisu', 'zdjęcie bez podpisu — puste jest i image_credit, i manufacturer', 'blad');
   }
 
   // --- tożsamość ---
