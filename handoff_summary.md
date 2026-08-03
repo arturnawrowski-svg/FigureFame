@@ -184,6 +184,7 @@ z `simple-icons` — **nie wolno ich odrysowywać z pamięci**.
 | polecenie | co robi |
 |---|---|
 | `audyt-bazy` | mierzy braki i usterki w bazie; **niczego nie zapisuje**. `-- --json`, `-- --wszystko` |
+| `postacie` | rozdziela postać od produktu; domyślnie **podgląd**, `-- --zapisz` wykonuje |
 | `adresy` | nadaje slug / kod / identity_key; `-- --zapisz` wykonuje |
 | `zdjecia` | ściąga do nas zdjęcia z cudzych serwerów; `-- --zapisz` wykonuje |
 | `kopia` | ZIP do `kopie/` **oraz** na Dysk Google; `-- --bez-dysku` pomija Dysk |
@@ -511,7 +512,7 @@ zależnościami: każdy jest warunkiem następnego i nie da się ich przestawić
 |---|---|---|
 | **A** | **Miernik.** Jedna definicja kompletu w kodzie + `npm run audyt-bazy` + testy alfabetu i magazynu | **zrobione 03.08** |
 | **B** | **Zakręcić wloty śmiecia.** `provenance` do bazy, normalizacja przy zapisie, panel pokazuje rozbieżność KAŻDEGO pola | **zrobione 04.08** |
-| **C** | **Rozdzielić postać od produktu na danych.** Przebieg naprawczy, najpierw bez `--zapisz` | — |
+| **C** | **Rozdzielić postać od produktu na danych.** `npm run postacie` — podgląd gotowy 04.08, zapis czeka na dwie decyzje Artura | podgląd gotowy |
 | **D** | **Dociągnąć komplet.** Nazwy japońskie, zdjęcia, podpisy praw | — |
 | **E** | **Twarde reguły w bazie.** `CHECK`/`NOT NULL` na tym, co posprzątane; duplikaty; kopia bazy | — |
 | **F** | **Co widzi użytkownik.** Kumulowanie wyszukiwania, strona postaci, czat, wydajność panelu | — |

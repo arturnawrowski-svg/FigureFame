@@ -18,7 +18,9 @@
 // kolejności co tabela, żeby dało się ją porównać jednym spojrzeniem.
 // ============================================================================
 
-import { POLA_JEDNOWIERSZOWE, stanZdjecia } from './kompletnosc';
+// Rozszerzenie `.js` obowiązkowo — patrz nadajTozsamosc.js. Bez niego Node
+// (czyli skrypty w `worker/`) nie znajdzie modułu.
+import { POLA_JEDNOWIERSZOWE, stanZdjecia } from './kompletnosc.js';
 
 export const KOLUMNY_FIGURKI = [
   'name', 'japanese_name', 'series', 'japanese_series',

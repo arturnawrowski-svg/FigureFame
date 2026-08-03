@@ -1,4 +1,7 @@
-import { identityKey, makeSlug, makeShortCode } from './figureIdentity';
+// Rozszerzenie `.js` jest OBOWIĄZKOWE, choć przeglądarka radzi sobie bez niego:
+// ten plik czytają też skrypty w `worker/`, a Node bez rozszerzenia nie znajdzie
+// modułu i przerwie z ERR_MODULE_NOT_FOUND.
+import { identityKey, makeSlug, makeShortCode } from './figureIdentity.js';
 
 // ============================================================================
 // TOŻSAMOŚĆ NADAWANA PRZY ZAPISIE, a nie ręcznym skryptem.
