@@ -47,41 +47,70 @@ export default function Navbar() {
         </Suspense>
       )}
 
+      {/* TRZY STREFY, nie jeden rząd.
+          lewa   — marka i to, czym serwis jest
+          środek — jak wygląda (język, motyw)
+          prawa  — konto i społeczność
+          Anonimowy odwiedzający widzi tylko: znak, „O aplikacji", język, motyw,
+          „Zaloguj". Reszta dochodzi dopiero po zalogowaniu — nagłówek zostaje
+          lekki dla większości ruchu. */}
       <nav className="top-nav animate-fade-in">
-        <div className="nav-links">
-          <button className="nav-btn" onClick={toggleTheme}>
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />} {t('nav.theme')}
-          </button>
+        <div className="nav-strefa nav-lewo">
+          {/* Znak marki wraca na Gablotę. `favicon.png` to ten sam plik, który
+              generuje design/zbuduj-znaki.mjs — nie podmieniać go ręcznie. */}
+          <Link to="/" className="nav-znak" aria-label="FigureFame — strona główna">
+            <img src="/favicon.png" alt="" width="28" height="28" />
+          </Link>
 
-          <button className="nav-btn" onClick={cycleLocale} title={`Język: ${current.label} (kliknij, by zmienić)`} style={{ border: '1px solid var(--color-glass-border)', borderRadius: '20px', padding: '4px 12px', background: 'rgba(255, 255, 255, 0.05)' }}>
+          {/* `state.tlo` otwiera stronę jako okno nad bieżącym widokiem,
+              bez opuszczania Gabloty. Wejście wprost na /o-aplikacji dalej działa. */}
+          <Link to="/o-aplikacji" state={{ tlo: location }} className="nav-btn" style={{ textDecoration: 'none' }}>
+            <Info size={18} /> {t('nav.about')}
+          </Link>
+        </div>
+
+        <div className="nav-strefa nav-srodek">
+          <button
+            className="nav-btn nav-btn-ikona"
+            onClick={cycleLocale}
+            title={`Język: ${current.label} (kliknij, by zmienić)`}
+          >
             <Flaga kod={current.code} /> {current.code.toUpperCase()}
           </button>
 
-          {/* `state.tlo` otwiera stronę jako okno nad bieżącym widokiem,
-              bez opuszczania Gabloty. Wejście wprost na /about dalej działa. */}
-          <Link to="/about" state={{ tlo: location }} className="nav-btn" style={{ textDecoration: 'none' }}>
-            <Info size={18} /> {t('nav.about')}
-          </Link>
+          {/* Napis „Motyw" nic nie wnosi — słońce i księżyc mówią wszystko,
+              a nazwa zajmowała miejsce potrzebne po prawej. Nazwa dla czytnika
+              ekranu zostaje w aria-label. */}
+          <button
+            className="nav-btn nav-btn-ikona"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Włącz motyw jasny' : 'Włącz motyw ciemny'}
+            title={theme === 'dark' ? 'Motyw jasny' : 'Motyw ciemny'}
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </div>
 
+        <div className="nav-strefa nav-prawo">
           {isAdmin && (
             <Link to="/admin" className="nav-btn" style={{ color: '#ff4757', fontWeight: 'bold', textDecoration: 'none' }}>
-              <ShieldAlert size={18} /> {t('nav.admin')}
+              <ShieldAlert size={18} /> <span className="nav-napis">{t('nav.admin')}</span>
             </Link>
           )}
 
           {user && (
             <Link to="/add" className="nav-btn" style={{ color: '#2ed573', textDecoration: 'none' }}>
-              <Plus size={18} /> {t('nav.add')}
+              <Plus size={18} /> <span className="nav-napis">{t('nav.add')}</span>
             </Link>
           )}
 
           {user ? (
             <Link to="/profile" className="nav-btn" style={{ color: 'var(--color-text-highlight)', fontWeight: 'bold', textDecoration: 'none' }}>
-              <User size={18} /> {t('nav.profile')}
+              <User size={18} /> <span className="nav-napis">{t('nav.profile')}</span>
             </Link>
           ) : (
             <button className="nav-btn" onClick={() => setShowLoginModal(true)}>
-              <User size={18} /> {t('nav.login')}
+              <User size={18} /> <span className="nav-napis">{t('nav.login')}</span>
             </button>
           )}
         </div>

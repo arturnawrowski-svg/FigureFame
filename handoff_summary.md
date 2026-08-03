@@ -124,7 +124,7 @@ przed zdjęciem zasłony**.
 ### Okno nad stroną — wzorzec, którego nie wolno zamienić na `window.open`
 
 Dokumenty otwierają się jako okno nakładane na Gablotę, ale **mają prawdziwy adres**
-(`/prywatnosc`, `/regulamin`, `/about`, `/faq`). Odnośnik niesie w `state` pole `tlo`
+(`/prywatnosc`, `/regulamin`, `/o-aplikacji`, `/faq`). Odnośnik niesie w `state` pole `tlo`
 (stronę, która ma zostać pod spodem); `App.jsx` renderuje wtedy trasy tła dla `tlo`,
 a dokument w oknie. Wejście wprost albo odświeżenie → zwykła pełna strona.
 

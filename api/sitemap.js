@@ -36,7 +36,7 @@ export default async function handler(req, res) {
 
     const urls = [
       { loc: `${base}/`, priority: "1.0", changefreq: "daily" },
-      { loc: `${base}/about`, priority: "0.4", changefreq: "monthly" },
+      { loc: `${base}/o-aplikacji`, priority: "0.4", changefreq: "monthly" },
       { loc: `${base}/faq`, priority: "0.5", changefreq: "monthly" },
       ...sciezki.map((p) => ({ loc: `${base}/f/${p}`, priority: "0.8", changefreq: "weekly" })),
     ];

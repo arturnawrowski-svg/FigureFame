@@ -47,12 +47,12 @@ export default function Footer() {
             Prywatność i cookies
           </Link>
 
+          {/* Separatory „·" zniknęły razem z wprowadzeniem ramek — pigułki
+              rozdzielają się same, a kropka między nimi była już tylko szumem. */}
           <nav className="footer-linki" aria-label="Dokumenty">
             <Link to="/prywatnosc" state={jakoOkno}>Polityka prywatności</Link>
-            <span aria-hidden="true">·</span>
             <Link to="/regulamin" state={jakoOkno}>Regulamin</Link>
-            <span aria-hidden="true">·</span>
-            <Link to="/about" state={jakoOkno}>O aplikacji</Link>
+            <Link to="/o-aplikacji" state={jakoOkno}>O aplikacji</Link>
           </nav>
         </div>
 

@@ -1,4 +1,4 @@
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import Showcase from './components/Showcase'
 import Dossier from './components/Dossier'
@@ -33,7 +33,7 @@ function Loading() {
 const OKNA = [
   { sciezka: '/prywatnosc', tytul: 'Polityka prywatności', Tresc: PolitykaPrywatnosci },
   { sciezka: '/regulamin', tytul: 'Regulamin serwisu', Tresc: Regulamin },
-  { sciezka: '/about', tytul: 'O aplikacji FigureFame', Tresc: About },
+  { sciezka: '/o-aplikacji', tytul: 'O aplikacji FigureFame', Tresc: About },
   { sciezka: '/faq', tytul: 'FAQ i poradnik kolekcjonera', Tresc: Faq },
 ]
 
@@ -62,7 +62,18 @@ function App() {
         <Suspense fallback={<Loading />}>
           <Routes location={tlo || location}>
             <Route path="/" element={<Showcase />} />
-            <Route path="/about" element={<About />} />
+            {/* Adresy dokumentów są po polsku — tak jak /prywatnosc i /regulamin.
+                Wcześniej ta jedna trasa wyłamywała się jako /about.
+                Zmienione PRZED premierą, kiedy nikt jeszcze nie linkuje: po
+                premierze ta sama zmiana kosztuje przekierowanie utrzymywane
+                w nieskończoność i czekanie, aż Google przeindeksuje.
+                Myślnik, bo Google traktuje go jako granicę słów — „oaplikacji"
+                byłoby dla wyszukiwarki jednym nieznanym ciągiem znaków.
+                /faq zostaje: to skrót wyszukiwany po polsku tak samo. */}
+            <Route path="/o-aplikacji" element={<About />} />
+            {/* Stary adres. Nic go dziś nie używa, ale dwie linijki zdejmują
+                całe ryzyko, gdyby gdzieś jednak poszedł. */}
+            <Route path="/about" element={<Navigate to="/o-aplikacji" replace />} />
             <Route path="/faq" element={<Faq />} />
             {/* Dokumenty prawne. Muszą mieć własne, stałe adresy — sprawdzają je
                 programy afiliacyjne, a od 2026 wskazuje na nie panel zgód. */}
