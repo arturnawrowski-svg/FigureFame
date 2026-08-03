@@ -26,6 +26,10 @@ export async function streamLookup(name, series, onProgress, opts = {}) {
     // jedno źródło (crossCheckImage, droga 3). Sama skala albo sam producent
     // nic nie dają — warunek wymaga obu naraz.
     (opts.scale ? `&scale=${encodeURIComponent(opts.scale)}` : '') +
+    // Wersja („Tiger Hoodie Ver.") — trzeci człon odróżniający wydanie.
+    // Bez niej dwie wersje tej samej figurki od tego samego producenta
+    // w tej samej skali dzieliłyby jeden wpis w pamięci podręcznej.
+    (opts.version ? `&version=${encodeURIComponent(opts.version)}` : '') +
     (opts.deep ? '&deep=1' : '') +
     (opts.refresh ? '&refresh=1' : '');
 

@@ -152,6 +152,10 @@ export default function AdminDashboard() {
     // (patrz figureLookup.js). Bez niej worker wyrzuca poprawne zdjęcie z MFC
     // jako „niepotwierdzone" i figurka zostaje bez grafiki.
     const knownScale = fig.scale || editForm.scale || '';
+    // Wersja („Tiger Hoodie Ver.") — trzeci człon odróżniający wydanie.
+    // Puste, dopóki przebieg rozdzielający nie rozbije nazw na postać i wersję;
+    // wtedy klucz produktu jest po prostu o człon krótszy, a nie błędny.
+    const knownVersion = fig.version || editForm.version || '';
 
     // Pola potwierdzone katalogiem w POPRZEDNICH przebiegach są nietykalne.
     const confirmed = new Set(
@@ -177,7 +181,7 @@ export default function AdminDashboard() {
             log: text.startsWith('✓') ? [...(prev?.log || []), text] : (prev?.log || []),
           }));
         },
-        { ...opts, manufacturer: knownManufacturer, scale: knownScale }
+        { ...opts, manufacturer: knownManufacturer, scale: knownScale, version: knownVersion }
       );
 
       if (data) {

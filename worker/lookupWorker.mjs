@@ -22,7 +22,7 @@ import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 import { gatherFromSources } from "../server-lib/figureSources.js";
 import { rehostImage, crossCheckImage } from "../server-lib/figureImage.js";
 import { closeBrowser } from "../server-lib/scrapeProviders.js";
-import { cacheKey } from "../server-lib/lookupShared.js";
+import { kluczPostaci, kluczProduktu } from "../server-lib/lookupShared.js";
 import { startHeartbeat, stationName } from "./lib/heartbeat.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -129,13 +129,40 @@ async function processJob(supabase, job) {
       payload._bootlegWarning = "MyFigureCollection ostrzega: istnieje podrobiona wersja tej figurki.";
     }
 
-    const key = cacheKey(job.name, job.series, job.mode);
+    // ⚠️ Klucze MUSZĄ być liczone tą samą funkcją co w api/fetch-figure.js —
+    // worker pisze, API czyta. Gdyby się rozjechały, pamięć po cichu przestałaby
+    // trafiać: żadnego błędu, tylko każde wyszukanie znów kosztuje limit.
+    //
+    // Producent i skala wchodzą do klucza produktu, bo dopiero one odróżniają
+    // wydanie. Bez nich trzy pobrania Silfy (kolejka: id 6, 7, 9) pisały pod
+    // jeden klucz i nadpisywały się nawzajem.
+    const key = kluczProduktu(job.name, job.series, job.mode, {
+      manufacturer: job.manufacturer || "",
+      scale: job.scale || "",
+      version: job.version || "",
+    });
     await supabase.from("lookup_cache").upsert({
       key,
       mode: job.mode,
       data: payload,
       created_at: new Date().toISOString(),
     });
+
+    // Osobny wpis POSTACI — nazwa japońska i tytuł serii są wspólne dla
+    // wszystkich figurek tej postaci, więc następna wersja Super Sonico
+    // dostanie je bez ani jednego zapytania na zewnątrz.
+    const postac = {};
+    if (data.japanese_name) postac.japanese_name = data.japanese_name;
+    if (data.japanese_series) postac.japanese_series = data.japanese_series;
+    if (data.series) postac.series = data.series;
+    if (postac.japanese_name || postac.japanese_series) {
+      await supabase.from("lookup_cache").upsert({
+        key: kluczPostaci(job.name, job.series),
+        mode: job.mode,
+        data: postac,
+        created_at: new Date().toISOString(),
+      });
+    }
 
     await supabase
       .from("lookup_queue")

@@ -33,17 +33,43 @@ function normalize(value) {
 }
 
 /**
- * Odcisk tożsamości — służy WYŁĄCZNIE do wykrywania duplikatów.
+ * Odcisk tożsamości PRODUKTU — służy WYŁĄCZNIE do wykrywania duplikatów.
  *
- * Bierzemy to, co odróżnia konkretne wydanie: postać, producenta i skalę.
- * Sama nazwa postaci nie wystarcza (Miyuki Sone ma kilka różnych figurek),
- * a producent i skala razem wskazują już konkretny produkt.
+ * Bierzemy to, co odróżnia konkretne wydanie: postać, wersję, producenta
+ * i skalę. Sama nazwa postaci nie wystarcza (Miyuki Sone ma kilka różnych
+ * figurek), a producent i skala razem wskazują już konkretny produkt.
+ *
+ * ⚠️ WŁASNOŚĆ, NA KTÓREJ STOI CAŁE ROZDZIELENIE POSTACI OD PRODUKTU:
+ * odcisk musi wyjść IDENTYCZNY niezależnie od tego, czy nazwa przyjdzie
+ * w jednym kawałku („Zero Two: For My Darling"), czy rozdzielona na postać
+ * i wersję („Zero Two" + „For My Darling"). Dzięki temu przebieg rozdzielający
+ * dane nie uzna przerobionych rekordów za NOWE figurki i nie zrobi z 26 pozycji
+ * 52. Trzyma to `normalize` + wycięcie odstępów niżej; jest na to test.
  */
-export function identityKey({ name, manufacturer, scale } = {}) {
-  const parts = [normalize(name), normalize(manufacturer), normalize(scale)]
+export function identityKey({ name, manufacturer, scale, version } = {}) {
+  const postacIWersja = `${normalize(name)} ${normalize(version)}`;
+  const parts = [postacIWersja, normalize(manufacturer), normalize(scale)]
     .map((p) => p.replace(/\s+/g, ""))
     .filter(Boolean);
   return parts.length > 0 ? parts.join("|") : "";
+}
+
+/**
+ * Odcisk tożsamości POSTACI — inny byt niż produkt, więc inna funkcja.
+ *
+ * Sama nazwa nie wystarcza: „Sakura" występuje w kilku niepowiązanych seriach
+ * i to są RÓŻNE postacie, które nie mogą dzielić jednej nazwy japońskiej.
+ * Dlatego seria wchodzi do odcisku na równi z nazwą.
+ *
+ * Producenta ani skali tu NIE MA i nie może być — to cechy figurki, a nie
+ * postaci. Super Sonico jest jedna, jej figurek jest kilkanaście.
+ */
+export function characterKey({ name, series } = {}) {
+  const parts = [normalize(name), normalize(series)]
+    .map((p) => p.replace(/\s+/g, ""))
+    .filter(Boolean);
+  // Sama seria bez nazwy postaci nie jest tożsamością nikogo.
+  return normalize(name) ? parts.join("|") : "";
 }
 
 /**
@@ -53,7 +79,7 @@ export function identityKey({ name, manufacturer, scale } = {}) {
  * Adres wypalony w opublikowanym filmie musi działać zawsze, a filmu nie da
  * się już poprawić. Zmiana nazwy daje więc nowy adres tylko dla NOWYCH figurek.
  */
-export function makeSlug({ name, manufacturer, scale } = {}) {
+export function makeSlug({ name, manufacturer, scale, version } = {}) {
   // Wyłącznie ASCII. Japoński w adresie zamienia się w ciąg typu
   // „%E6%B3%89%E3%81%93%E3%81%AA%E3%81%9F" — nie do wpisania z ekranu i nie do
   // przeczytania pod filmem. Gdy po odsianiu nic nie zostanie, wywołujący
@@ -71,7 +97,11 @@ export function makeSlug({ name, manufacturer, scale } = {}) {
   const ulamek = String(scale || "").match(/(\d+)\s*\/\s*(\d+)/);
   const scalePart = ulamek ? `${ulamek[1]}-${ulamek[2]}` : "";
 
-  const slug = [piece(name), piece(manufacturer), scalePart]
+  // Wersja idzie zaraz za postacią — dzięki temu adres wychodzi tak samo,
+  // czy nazwa przyszła złączona („Zero Two: For My Darling"), czy rozdzielona.
+  // Bez tego rozdzielenie danych zmieniłoby adresy figurek, a adres wypalony
+  // w opublikowanym filmie zmienić się NIE MOŻE.
+  const slug = [piece(name), piece(version), piece(manufacturer), scalePart]
     .filter(Boolean)
     .join("-")
     .replace(/-+/g, "-")

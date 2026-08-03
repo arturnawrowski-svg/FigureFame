@@ -2,7 +2,7 @@ import { callAIJson } from "../server-lib/aiClient.js";
 import { getSupabaseAdmin } from "../server-lib/supabaseAdmin.js";
 import { gatherFromSources } from "../server-lib/figureSources.js";
 import { rehostImage, crossCheckImage } from "../server-lib/figureImage.js";
-import { cacheKey, hasLocalBrowser } from "../server-lib/lookupShared.js";
+import { kluczPostaci, kluczProduktu, hasLocalBrowser } from "../server-lib/lookupShared.js";
 import { wymagajModeratora } from "../server-lib/wymagajModeratora.js";
 
 // Pamięć podręczna wyszukiwań — chroni mały limit pośrednika (patrz migracje-cache.sql).
@@ -55,6 +55,27 @@ async function readCache(key) {
   }
 }
 
+// Odczyt wpisu POSTACI. Osobno od readCache, bo `wpisMaTresc` pyta o rzeczy
+// produktowe (zdjęcie, strategia) — postać ich nie ma i nigdy mieć nie będzie.
+//
+// Bez terminu ważności: japońska nazwa postaci nie psuje się po 30 dniach.
+// „Super Sonico" to すーぱーそに子 dziś i za rok.
+async function readCachePostaci(key) {
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from("lookup_cache")
+      .select("data")
+      .eq("key", key)
+      .maybeSingle();
+    if (error || !data?.data) return null;
+    const w = data.data;
+    return w.japanese_name || w.japanese_series || w.series ? w : null;
+  } catch {
+    return null; // brak tabeli/uprawnień nie może blokować wyszukiwania
+  }
+}
+
 // Zlecenie dla lokalnego workera: gdy serwer nie ma jak pobrać danych
 // (Cloudflare przepuszcza tylko prawdziwą przeglądarkę), zostawiamy zadanie
 // w bazie — komputer admina je odbierze. Ten sam układ co kolejka filmów.
@@ -62,7 +83,7 @@ async function readCache(key) {
 // podane przez jedno źródło (crossCheckImage, droga 3). Gdy ich brakowało,
 // MFC podawało poprawne zdjęcie, a worker je wyrzucał jako niepotwierdzone —
 // patrz migracje-kolejka-producent-skala.sql.
-async function enqueueLookup(name, series, mode, manufacturer = '', scale = '') {
+async function enqueueLookup(name, series, mode, manufacturer = '', scale = '', version = '') {
   try {
     const supabase = getSupabaseAdmin();
 
@@ -82,7 +103,7 @@ async function enqueueLookup(name, series, mode, manufacturer = '', scale = '') 
 
     let { error } = await supabase
       .from("lookup_queue")
-      .insert({ name, series, mode, manufacturer, scale, status: "pending" });
+      .insert({ name, series, mode, manufacturer, scale, version, status: "pending" });
 
     // Kod może pojechać na produkcję ZANIM ktoś uruchomi migrację w Supabase —
     // zmienne i schemat bazy nie jadą z pushem. Wtedy PostgREST odrzuca zapis
@@ -145,6 +166,38 @@ async function writeCache(key, mode, payload) {
   }
 }
 
+// Wpis POSTACI: wyłącznie to, co jest prawdą o postaci, a nie o produkcie.
+// Producenta, skali ani ceny tu NIE MA — te różnią się między figurkami tej
+// samej postaci i to właśnie ich wspólne trzymanie robiło bałagan.
+function danePostaci(dane) {
+  const wpis = {};
+  if (dane?.japanese_name) wpis.japanese_name = dane.japanese_name;
+  if (dane?.japanese_series) wpis.japanese_series = dane.japanese_series;
+  if (dane?.series) wpis.series = dane.series;
+  return wpis;
+}
+
+// Uzupełnienie pól postaci z jej wspólnego wpisu.
+//
+// TU LEŻY ODPOWIEDŹ NA „ZNOWU NIE UZUPEŁNIA NAZW JAPOŃSKICH": nazwa japońska
+// pobrana raz przy pierwszej figurce Super Sonico trafia od tego momentu do
+// każdej kolejnej sama, nawet gdy dla TEGO producenta i TEJ skali nie mamy
+// jeszcze nic. Nadpisujemy wyłącznie pustki — dane produktu są ważniejsze.
+function dolozPostac(dane, postac) {
+  if (!postac) return dane;
+  const out = { ...dane };
+  let cokolwiek = false;
+  for (const pole of ["japanese_name", "japanese_series", "series"]) {
+    if (!out[pole] && postac[pole]) {
+      out[pole] = postac[pole];
+      cokolwiek = true;
+      out._provenance = { ...(out._provenance || {}), [pole]: "catalog" };
+    }
+  }
+  if (cokolwiek) out._zPostaci = true;
+  return out;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -155,7 +208,7 @@ export default async function handler(req, res) {
   // odesłać zwykłego 401.
   if (!(await wymagajModeratora(req, res))) return;
 
-  const { name, series = '', manufacturer = '', scale = '', stream, deep, refresh } = req.query;
+  const { name, series = '', manufacturer = '', scale = '', version = '', stream, deep, refresh } = req.query;
   if (!name) {
     return res.status(400).json({ error: 'Missing figure name' });
   }
@@ -183,13 +236,25 @@ export default async function handler(req, res) {
 
   try {
     // Najpierw własna baza — zero zapytań na zewnątrz, odpowiedź natychmiastowa.
-    const key = cacheKey(name, series, mode);
+    //
+    // DWA KLUCZE, DWIE RÓŻNE RZECZY. Produkt rozróżnia producenta, skalę
+    // i wersję — bez tego Kotobukiya 1/6 i Alter 1/8 dzieliły jeden wpis
+    // i nadpisywały się nawzajem. Postać trzyma to, co dla wszystkich figurek
+    // Super Sonico jest wspólne.
+    const key = kluczProduktu(name, series, mode, { manufacturer, scale, version });
+    const keyPostaci = kluczPostaci(name, series);
+
+    // Wpis postaci czytamy ZAWSZE, także przy „⭐ TOP". Nazwa japońska nie
+    // robi się prawdziwsza od ponownego pobrania, a bez niej pole zostaje
+    // puste — dokładnie ten objaw naprawiamy.
+    const postac = await readCachePostaci(keyPostaci);
+
     if (refresh !== '1') {
       const cached = await readCache(key);
       if (cached) {
         console.log(`Cache HIT (${key}) — bez odpytywania źródeł.`);
         send('progress', { step: 'cache', label: 'Mam to już w naszej bazie', percent: 100 });
-        const zPamieci = { ...oczyscZdjecie(cached), _fromCache: true };
+        const zPamieci = { ...dolozPostac(oczyscZdjecie(cached), postac), _fromCache: true };
         if (streaming) {
           send('result', zPamieci);
           return res.end();
@@ -275,7 +340,7 @@ export default async function handler(req, res) {
     // a nie dopiero gdy padną wszystkie źródła.
     const encyclopediaMissing = sources.mfc !== 'ok';
     if (encyclopediaMissing && !hasLocalBrowser()) {
-      const queued = await enqueueLookup(name, series, mode, manufacturer, scale);
+      const queued = await enqueueLookup(name, series, mode, manufacturer, scale, version);
       if (queued) {
         figureData._queued = 'Zlecono pobranie danych — FigureFame Studio na Twoim komputerze pobierze je z katalogów. Kliknij ponownie za chwilę.';
         send('progress', { step: 'queue', label: 'Zlecono pobranie lokalne…', percent: 72 });
@@ -294,7 +359,7 @@ export default async function handler(req, res) {
       // więc następne kliknięcie pokaże świeży wynik.
       const zWorkera = await readCache(key);
       if (zWorkera) {
-        const wynik = { ...oczyscZdjecie(zWorkera), _fromCache: true };
+        const wynik = { ...dolozPostac(oczyscZdjecie(zWorkera), postac), _fromCache: true };
         if (figureData._queued) wynik._queued = figureData._queued;
         console.log(`Chmura bez MFC — oddaję dane workera z pamięci (${key}).`);
         send('progress', { step: 'cache', label: 'Mam dane z Twojego komputera', percent: 100 });
@@ -457,9 +522,23 @@ export default async function handler(req, res) {
     );
     if (cokolwiekOdpowiedzialo || mamyWlasnaTresc) {
       await writeCache(key, mode, figureData);
+
+      // Osobno to, co należy do POSTACI. Dzięki temu następna figurka tej samej
+      // postaci — inny producent, inna skala — dostanie japońską nazwę bez
+      // jednego zapytania na zewnątrz. Zapisujemy tylko gdy jest co zapisać:
+      // pusty wpis postaci zasłaniałby późniejszy dobry.
+      const postacDoZapisu = danePostaci(figureData);
+      if (postacDoZapisu.japanese_name || postacDoZapisu.japanese_series) {
+        await writeCache(keyPostaci, mode, postacDoZapisu);
+      }
     } else {
       console.log(`Cache POMINIĘTY (${key}) — zero źródeł i zero treści, nie utrwalamy pustki.`);
     }
+
+    // Gdyby katalogi nie podały nazwy japońskiej, a mamy ją z poprzedniej
+    // figurki tej postaci — dołóż ją do odpowiedzi. Po zapisie, żeby nie
+    // utrwalać w produkcie tego, co i tak leży na poziomie postaci.
+    figureData = dolozPostac(figureData, postac);
 
     if (streaming) {
       send('progress', { step: 'done', label: 'Gotowe', percent: 100 });
