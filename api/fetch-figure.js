@@ -208,7 +208,7 @@ export default async function handler(req, res) {
   // odesłać zwykłego 401.
   if (!(await wymagajModeratora(req, res))) return;
 
-  const { name, series = '', manufacturer = '', scale = '', version = '', stream, deep, refresh } = req.query;
+  const { name, series = '', manufacturer = '', scale = '', version = '', stream, deep, refresh, czekam } = req.query;
   if (!name) {
     return res.status(400).json({ error: 'Missing figure name' });
   }
@@ -248,6 +248,30 @@ export default async function handler(req, res) {
     // robi się prawdziwsza od ponownego pobrania, a bez niej pole zostaje
     // puste — dokładnie ten objaw naprawiamy.
     const postac = await readCachePostaci(keyPostaci);
+
+    // ⚠️ TRYB CZEKANIA — TU CHODZI O PIENIĄDZE, NIE O SZYBKOŚĆ.
+    //
+    // Panel odpytuje ten endpoint co kilka sekund, dopóki Studio nie odłoży
+    // wyniku do pamięci. Bez tej bramki KAŻDE takie zapytanie przechodziło
+    // dalej i uruchamiało PEŁNE wyszukiwanie: kilkanaście zapytań do katalogów,
+    // kredyty pośrednika scrapingu i wywołanie AI. Przy trzech minutach czekania
+    // to około trzydziestu kompletnych przebiegów na jedną figurkę — darmowe
+    // limity skończyłyby się po kilku figurkach.
+    //
+    // W tym trybie tylko zaglądamy do pamięci i wracamy. Zero ruchu na zewnątrz.
+    // Zlecenie dla Studia zostało już złożone przy zwykłym przebiegu.
+    if (czekam === '1') {
+      const zPamieci = await readCache(key);
+      const wynik = zPamieci
+        ? { ...dolozPostac(oczyscZdjecie(zPamieci), postac), _fromCache: true }
+        : { _czekam: true, ...(postac ? dolozPostac({}, postac) : {}) };
+      if (streaming) {
+        send('progress', { step: 'cache', label: 'Sprawdzam, czy Studio już odesłało dane…', percent: 90 });
+        send('result', wynik);
+        return res.end();
+      }
+      return res.status(200).json(wynik);
+    }
 
     if (refresh !== '1') {
       const cached = await readCache(key);

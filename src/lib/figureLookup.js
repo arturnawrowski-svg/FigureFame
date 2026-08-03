@@ -31,7 +31,11 @@ export async function streamLookup(name, series, onProgress, opts = {}) {
     // w tej samej skali dzieliłyby jeden wpis w pamięci podręcznej.
     (opts.version ? `&version=${encodeURIComponent(opts.version)}` : '') +
     (opts.deep ? '&deep=1' : '') +
-    (opts.refresh ? '&refresh=1' : '');
+    (opts.refresh ? '&refresh=1' : '') +
+    // Tryb czekania: TYLKO zajrzyj do pamięci i wróć. Używany przez panel,
+    // gdy odpytuje co kilka sekund w oczekiwaniu na Studio. Bez tego każde
+    // takie zapytanie uruchamiałoby pełne wyszukiwanie ze wszystkimi kosztami.
+    (opts.tylkoPamiec ? '&czekam=1' : '');
 
   const res = await authFetch(url);
   if (!res.ok || !res.body) throw new Error(`Serwer odpowiedział ${res.status}`);

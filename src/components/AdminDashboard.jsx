@@ -163,7 +163,11 @@ export default function AdminDashboard() {
   // krótko i wielokrotnie; każde zapytanie mieści się w limicie.
   // ==========================================================================
   const CZAS_SZUKANIA_MS = 3 * 60 * 1000;
-  const PRZERWA_MS = 6000;
+  // Co ile zaglądamy, czy Studio już odesłało dane. Zaglądanie jest TANIE —
+  // panel prosi wtedy endpoint wyłącznie o zajrzenie do pamięci (`czekam=1`),
+  // bez ruszania katalogów i AI. Gdyby było inaczej, trzy minuty czekania
+  // oznaczałyby kilkadziesiąt pełnych wyszukiwań na jedną figurkę.
+  const PRZERWA_MS = 10000;
 
   const czas = (ms) => {
     const s = Math.max(0, Math.round(ms / 1000));
@@ -229,11 +233,18 @@ export default function AdminDashboard() {
         bootleg: data._bootlegWarning || null,
         fromCache: !!data._fromCache,
       });
-      return found;
+      // Zwracamy scalony formularz, bo to O NIM rozstrzygamy „czy już komplet".
+      // Stan Reacta ustawia się dopiero przy następnym renderze, więc odczyt
+      // z ref zaraz po setEditForm dałby wartość sprzed tego podejścia.
+      return { merged, found };
     };
 
     try {
       let konflikty = [];
+      // Trzymamy scalony formularz TUTAJ, a nie sięgamy po ref na końcu:
+      // ref aktualizuje się dopiero po renderze, więc tuż po ostatnim podejściu
+      // byłby o jedno podejście do tyłu.
+      let formularz = editFormRef.current;
 
       while (!przerwijRef.current) {
         podejscie++;
@@ -275,6 +286,11 @@ export default function AdminDashboard() {
             {
               deep: true,
               refresh: podejscie === 2,
+              // Od trzeciego podejścia tylko ZAGLĄDAMY do pamięci. Cała robota
+              // dzieje się wtedy w Studiu; ponawianie pełnego wyszukiwania
+              // co dziesięć sekund niczego by nie przyspieszyło, a spaliłoby
+              // darmowe limity katalogów i AI.
+              tylkoPamiec: podejscie >= 3,
               manufacturer: knownManufacturer,
               scale: knownScale,
               version: knownVersion,
@@ -288,12 +304,20 @@ export default function AdminDashboard() {
           if (podejscie === 1) throw e;
         }
 
+        // ⚠️ O KOŃCU SZUKANIA ROZSTRZYGA FORMULARZ, NIE ODPOWIEDŹ SERWERA.
+        // Producent i skala przychodzą zwykle ZE ZGŁOSZENIA i już w formularzu
+        // siedzą. Gdybyśmy patrzyli na samą odpowiedź, przy zaglądaniu do
+        // pamięci (które zwraca tylko to, co znalazły katalogi) brakowałoby ich
+        // zawsze — i szukanie mieliłoby pełne trzy minuty przy komplecie
+        // na ekranie.
         if (data) {
           ostatnie = data;
-          konflikty = zastosuj(data);
+          const wynik = zastosuj(data);
+          formularz = wynik.merged;
+          konflikty = wynik.found;
         }
 
-        const brakuje = czegoBrakuje(ostatnie);
+        const brakuje = czegoBrakuje(formularz);
         if (brakuje.length === 0) break;                  // komplet — koniec
         if (przerwijRef.current) break;
         if (Date.now() >= koniec) break;                  // czas minął
@@ -329,7 +353,8 @@ export default function AdminDashboard() {
 
       // Podsumowanie mówi wprost, co jest, a czego nie ma. „Nie znaleziono
       // zdjęcia" jest informacją; milczenie po trzech minutach nie jest.
-      const brakuje = czegoBrakuje(ostatnie);
+      // Liczy się stan FORMULARZA — to jego moderator za chwilę zapisze.
+      const brakuje = czegoBrakuje(formularz);
       if (!ostatnie) {
         showToast('Nie udało się pobrać danych figurki.');
       } else if (przerwijRef.current) {
