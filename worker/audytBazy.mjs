@@ -70,8 +70,15 @@ function tabela(naglowki, wiersze) {
 async function main() {
   const supabase = getSupabaseAdmin();
 
+  // Czytamy WIDOK `figures_full`, nie samą tabelę — i to jest istotne.
+  //
+  // Po rozdzieleniu postaci od produktu (`npm run postacie`) nazwa japońska
+  // i seria mieszkają w tabeli `characters`, a w `figures` są puste. Audyt
+  // czytający samą tabelę pokazywałby wtedy 17 brakujących nazw japońskich,
+  // choć strona wyświetla je poprawnie. Widok składa jedno i drugie tak, jak
+  // widzi to odwiedzający — a miernik ma mierzyć to, co ludzie widzą.
   const { data: figures, error } = await supabase
-    .from("figures")
+    .from("figures_full")
     .select("*")
     .order("created_at", { ascending: true });
   if (error) throw error;

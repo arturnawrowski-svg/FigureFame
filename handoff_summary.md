@@ -512,7 +512,7 @@ zależnościami: każdy jest warunkiem następnego i nie da się ich przestawić
 |---|---|---|
 | **A** | **Miernik.** Jedna definicja kompletu w kodzie + `npm run audyt-bazy` + testy alfabetu i magazynu | **zrobione 03.08** |
 | **B** | **Zakręcić wloty śmiecia.** `provenance` do bazy, normalizacja przy zapisie, panel pokazuje rozbieżność KAŻDEGO pola | **zrobione 04.08** |
-| **C** | **Rozdzielić postać od produktu na danych.** `npm run postacie` — podgląd gotowy 04.08, zapis czeka na dwie decyzje Artura | podgląd gotowy |
+| **C** | **Rozdzielić postać od produktu na danych.** `npm run postacie` | **zrobione 04.08** |
 | **D** | **Dociągnąć komplet.** Nazwy japońskie, zdjęcia, podpisy praw | — |
 | **E** | **Twarde reguły w bazie.** `CHECK`/`NOT NULL` na tym, co posprzątane; duplikaty; kopia bazy | — |
 | **F** | **Co widzi użytkownik.** Kumulowanie wyszukiwania, strona postaci, czat, wydajność panelu | — |
@@ -633,3 +633,51 @@ Panelu nie widziałem na żywo (wymaga zalogowania jako moderator), więc obieg
 
 > **Po tej zmianie trzeba zrestartować Studio** — ruszone zostały `server-lib/` i `worker/`.
 > Patrz sekcja 14: worker na starym kodzie pisze pod kluczem, którego nikt nie czyta.
+
+## 19. Rozdzielenie postaci od produktu — WYKONANE (szczebel C, 04.08)
+
+`npm run postacie` (domyślnie podgląd, `-- --zapisz` wykonuje). Przebieg poszedł na
+wszystkie 26 figurek: **17 postaci**, z tego 7 z nazwą japońską.
+
+| przed | po |
+|---|---|
+| 26 figurek, każda z własną nazwą japońską do zdobycia | 17 postaci; nazwa japońska ustalana **raz** i wspólna dla wszystkich figurek postaci |
+| 2 figurki bez adresu, wykrywanie duplikatów martwe | 26/26 ma odcisk, adres i kod |
+| „Taihou - Azur Lane" (seria dopisana do nazwy) | „Taihou" |
+| 6 wierszy z łacińskim tytułem w rubryce japońskiej | 0 |
+| 8 pól z pustym napisem zamiast NULL | 0 |
+
+**Hatsune Miku wychodziła jako dwie postacie**, bo figurka V4X miała w polu „seria" wpisane
+„Hatsune Miku". Skrypt poprawia serię, gdy powtarza ona nazwę postaci, biorąc właściwą
+z innych figurek tej samej postaci — teraz Miku ma jedną postać i pięć figurek.
+
+### Trzy rzeczy, o których trzeba wiedzieć
+
+**Nazwa wyświetlana składa się z postaci i wersji**, więc myślnik zamienił się w dwukropek:
+„Levi - Fortitude Ver." → „Levi: Fortitude Ver.". Decyzja Artura z 04.08. **Adresy `/f/…`
+są nietknięte** — skrypt wpisuje adres wyłącznie tam, gdzie go nie ma.
+
+**Nazw japońskich nie zgadujemy.** Wartość zlepiona z łacińskiego tekstu („木之本桜 Stars
+Bless You") ani z odstępem w środku („ハルモニアハミング レム" — to nazwa linii produktowej,
+nie postaci) NIE trafiła do postaci. Zmyślone `先代萌絵が原` przy Hitagi jest na krótkiej
+liście `ZMYSLONE` w skrypcie. Dziesięć postaci czeka więc na nazwę z katalogu — to zadanie
+szczebla D. Każda przepisana nazwa ma pochodzenie **„nieznane"**: leżała w bazie od dawna
+i nie wiemy, czy przyszła z katalogu, czy od modelu.
+
+> ⚠️ **Skrypt wolno uruchomić drugi raz** — i to nie było darmowe. Pierwsza wersja przy
+> powtórnym przebiegu nie znajdowała już separatora w nazwie (bo nazwa jest po rozdzieleniu
+> samą postacią), uznawała wersję za pustą i **wyczyściłaby „Expo 2025 Ver.".** Narzędzie
+> naprawcze niszczące dane przy drugim użyciu to pułapka gorsza od problemu, który leczy.
+> Dziś wiersz z wypełnionym `character_id` jest uznawany za zrobiony i nie jest rozdzielany
+> ponownie. **Każdy przebieg masowy sprawdzaj podglądem DWA razy z rzędu.**
+
+### Audyt czyta teraz widok, nie tabelę
+
+`npm run audyt-bazy` pyta `figures_full`, bo po rozdzieleniu nazwa japońska mieszka
+w `characters`. Audyt czytający samą tabelę `figures` pokazywałby 17 brakujących nazw,
+choć strona wyświetla je poprawnie. **Miernik ma mierzyć to, co widzi odwiedzający.**
+
+**Stan po C** (bez archiwum, 17 figurek): `0 bez zarzutu · 16 braków · 11 błędów`
+(przed C: 10 braków, 27 błędów — braki „wzrosły", bo dopiero teraz widać prawdę o nazwach
+japońskich). Zostały **dwa** rodzaje błędów: brak podpisu „Fot." przy 20 zdjęciach
+i plik `taihou_figure`, którego nie ma nigdzie. Oba to zadania szczebla D.

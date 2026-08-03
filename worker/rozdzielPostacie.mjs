@@ -59,8 +59,16 @@ const SEPARATOR = /\s+[-—]\s+|:\s+/;
 
 const jakKlucz = (v) => String(v || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
 
-function rozdzielNazwe(nazwa, seria) {
+function rozdzielNazwe(nazwa, seria, juzRozdzielona = false) {
   const tekst = String(nazwa || "").trim();
+
+  // ⚠️ DRUGIE URUCHOMIENIE NIE MOŻE NICZEGO ZEPSUĆ. Po pierwszym przebiegu
+  // nazwa jest już samą postacią („Hatsune Miku"), a wersja siedzi w osobnej
+  // kolumnie. Bez tego warunku skrypt nie znalazłby separatora, policzyłby
+  // wersję jako pustą i przy zapisie WYCZYŚCIŁ „Expo 2025 Ver." — czyli
+  // narzędzie naprawcze niszczyłoby dane przy powtórnym użyciu.
+  if (juzRozdzielona) return { postac: tekst, wersja: "", uwaga: "", gotowe: true };
+
   const czesci = tekst.split(SEPARATOR);
   if (czesci.length < 2) return { postac: tekst, wersja: "", uwaga: "" };
 
@@ -93,16 +101,31 @@ function rozdzielNazwe(nazwa, seria) {
 // Każda wzięta wartość dostaje pochodzenie „nieznane": leżała w bazie od dawna
 // i nie wiemy, czy przyszła z katalogu, czy od modelu. Etap D ma ją potwierdzić.
 // ---------------------------------------------------------------------------
+// Wartości, o których WIEMY, że są nieprawdziwe. To ustalenie człowieka, nie
+// reguła — skrypt nie ma jak rozpoznać zmyślenia zapisanego poprawnym pismem.
+// Lista jest krótka i ma taka zostać; rosnąca oznaczałaby, że AI znów pisze
+// do tej kolumny (od szczebla B nie ma prawa).
+const ZMYSLONE = [
+  "先代萌絵が原", // Hitagi Senjougahara — poprawnie 戦場ヶ原ひたぎ (patrz handoff, sekcja 15)
+];
+
 function czystaNazwaJaponska(v) {
   if (pusta(v) || !maZnakJaponski(v)) return { wartosc: "", powod: "brak albo nie po japońsku" };
   const tekst = String(v).trim();
   if (/[A-Za-z]/.test(tekst)) {
     return { wartosc: "", powod: "japoński zlepiony z tekstem łacińskim — nie wiadomo, co jest nazwą postaci" };
   }
-  // Odstęp w samym japońskim bywa rozdzieleniem nazwiska i imienia, ale bywa też
-  // zlepieniem linii produktowej z postacią („ハルモニアハミング レム").
-  // Bierzemy, ale zgłaszamy do sprawdzenia.
-  return { wartosc: tekst, powod: "", sprawdz: /\s/.test(tekst) };
+  if (ZMYSLONE.includes(tekst)) {
+    return { wartosc: "", powod: "wiemy, że ta wartość jest zmyślona przez AI" };
+  }
+  // Odstęp w środku bywa rozdzieleniem nazwiska i imienia (poprawnie: „曽根 美雪"),
+  // ale bywa też nazwą linii produktowej zlepioną z postacią („ハルモニアハミング レム").
+  // Decyzja Artura z 04.08: nie bierzemy — lepiej pusto niż fałszywie. Nic nie
+  // tracimy tam, gdzie ta sama postać ma gdzieś indziej wersję bez odstępu.
+  if (/\s/.test(tekst)) {
+    return { wartosc: "", powod: "odstęp w środku — może być nazwą linii produktowej, nie postaci" };
+  }
+  return { wartosc: tekst, powod: "" };
 }
 
 function czystaSeriaJaponska(v) {
@@ -113,7 +136,13 @@ function czystaSeriaJaponska(v) {
 // Pola, w których zwykła spacja na brzegu psuje dopasowania („Kotobukiya ").
 // Skoro i tak dotykamy tych wierszy, porządkujemy je tą samą regułą, którą od
 // szczebla B stosuje brama zapisu.
-const DO_OCZYSZCZENIA = ["manufacturer", "series", "scale", "type", "original_price"];
+const DO_OCZYSZCZENIA = [
+  "manufacturer", "series", "scale", "type", "original_price",
+  // Te trzy trzymają pusty napis zamiast NULL. Skutek nie jest kosmetyczny:
+  // połowa braków w bazie jest zapisana jednym sposobem, połowa drugim, więc
+  // każde pytanie „czego brakuje" mija część odpowiedzi.
+  "official_image_url", "image_credit", "source_url", "release_date",
+];
 
 async function main() {
   const supabase = getSupabaseAdmin();
@@ -133,8 +162,58 @@ async function main() {
   const plan = [];
   const doDecyzji = [];
 
-  for (const fig of figures) {
-    const { postac, wersja, uwaga } = rozdzielNazwe(fig.name, fig.series);
+  // -------------------------------------------------------------------------
+  // PRZEBIEG WSTĘPNY: seria, która powtarza nazwę postaci, nie jest serią.
+  //
+  // „Hatsune Miku: V4X" ma wpisane `series = "Hatsune Miku"` — a to sama postać.
+  // Skutek był konkretny: ta figurka wychodziła jako OSOBNA postać i nie mogła
+  // skorzystać z nazwy 初音ミク, którą już znamy z czterech pozostałych Miku.
+  // Poprawkę bierzemy z innych figurek TEJ SAMEJ postaci; gdy nie ma ich skąd
+  // wziąć, zostawiamy jak jest i mówimy o tym.
+  // -------------------------------------------------------------------------
+  // Figurka, która ma już `character_id`, przeszła przez ten skrypt wcześniej —
+  // jej nazwa jest samą postacią, a wersja stoi w swojej kolumnie. Wtedy nie
+  // rozdzielamy niczego po raz drugi, tylko przepisujemy to, co jest.
+  const rozdzielone = figures.map((fig) => {
+    const juz = Boolean(fig.character_id);
+    const r = rozdzielNazwe(fig.name, fig.series, juz);
+    return { fig, ...r, wersja: juz ? fig.version || "" : r.wersja };
+  });
+  const seriaWgPostaci = new Map();
+  for (const r of rozdzielone) {
+    if (pusta(r.fig.series) || jakKlucz(r.fig.series) === jakKlucz(r.postac)) continue;
+    const k = jakKlucz(r.postac);
+    if (!seriaWgPostaci.has(k)) seriaWgPostaci.set(k, String(r.fig.series).trim());
+  }
+  const poprawionaSeria = new Map();
+  for (const r of rozdzielone) {
+    if (pusta(r.fig.series) || jakKlucz(r.fig.series) !== jakKlucz(r.postac)) continue;
+    const lepsza = seriaWgPostaci.get(jakKlucz(r.postac));
+    if (lepsza) {
+      poprawionaSeria.set(r.fig.id, lepsza);
+      doDecyzji.push({
+        rodzaj: "seria poprawiona",
+        figurka: r.fig.name,
+        status: r.fig.status,
+        opis: `seria „${r.fig.series}" powtarzała nazwę postaci → wpisuję „${lepsza}" (z pozostałych figurek tej postaci).`,
+      });
+    } else {
+      doDecyzji.push({
+        rodzaj: "seria powtarza nazwę postaci",
+        figurka: r.fig.name,
+        status: r.fig.status,
+        opis: `seria „${r.fig.series}" to sama postać, ale nie mam skąd wziąć właściwej. Zostawiam.`,
+      });
+    }
+  }
+
+  for (const wpis of rozdzielone) {
+    const { postac, wersja, uwaga } = wpis;
+    // Podmieniona seria musi wejść ZANIM policzymy klucz postaci — inaczej
+    // poprawka nic nie da i figurka i tak wyjdzie jako osobna postać.
+    const fig = poprawionaSeria.has(wpis.fig.id)
+      ? { ...wpis.fig, series: poprawionaSeria.get(wpis.fig.id) }
+      : wpis.fig;
 
     const odciskPrzed = fig.identity_key || identityKey(fig);
     const odciskPo = identityKey({ ...fig, name: postac, version: wersja });
@@ -182,7 +261,8 @@ async function main() {
       const v = fig[pole];
       if (typeof v !== "string") continue;
       const czysty = v.replace(/\s+/g, " ").trim();
-      if (czysty !== v) porzadki[pole] = czysty === "" ? null : czysty;
+      const nowa = czysty === "" ? null : czysty;
+      if (nowa !== v) porzadki[pole] = nowa;
     }
 
     plan.push({
@@ -379,6 +459,9 @@ async function main() {
     const zmiany = {
       ...z.porzadki,
       character_id,
+      // Poprawiona seria musi trafić także do wiersza figurki — postać już ją
+      // ma, ale kolumna `figures.series` jest nadal czytana, gdy postaci nie ma.
+      ...(poprawionaSeria.has(z.fig.id) ? { series: poprawionaSeria.get(z.fig.id) } : {}),
       name: z.postac,
       version: z.wersja || null,
       // Prawda o postaci mieszka od teraz w tabeli `characters` — Gablota czyta
