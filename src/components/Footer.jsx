@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Fingerprint } from 'lucide-react';
+import { Fingerprint, MessageCircle } from 'lucide-react';
 import { kontaDoStopki } from '../lib/social';
 
 // ============================================================================
@@ -49,49 +49,63 @@ export default function Footer() {
 
           {/* Separatory „·" zniknęły razem z wprowadzeniem ramek — pigułki
               rozdzielają się same, a kropka między nimi była już tylko szumem. */}
+          {/* Czat NIE jest już jednym z tych odnośników — przeniósł się na prawo,
+              do rzędu znaków. Dwa wejścia obok siebie w jednej stopce (pigułka
+              i ikona) byłyby powtórzeniem tego samego. */}
           <nav className="footer-linki" aria-label="Dokumenty">
             <Link to="/prywatnosc" state={jakoOkno}>Polityka prywatności</Link>
             <Link to="/regulamin" state={jakoOkno}>Regulamin</Link>
             <Link to="/o-aplikacji" state={jakoOkno}>O aplikacji</Link>
-            {/* Wygląda jak sąsiedzi, ale nie prowadzi pod adres — otwiera czat,
-                który stoi w App.jsx. Dlatego `button`, nie `a`: element bez
-                adresu nie może udawać odnośnika. */}
-            <button type="button" onClick={() => window.dispatchEvent(new Event('open-chat'))}>
-              Zapytaj o figurki
-            </button>
           </nav>
         </div>
 
-        {konta.length > 0 && (
-          <ul
-            className="footer-social"
-            aria-label={maPrawdziwe ? 'FigureFame w mediach społecznościowych' : undefined}
-            aria-hidden={maPrawdziwe ? undefined : 'true'}
+        <div className="footer-prawo">
+          {/* Czat stoi OBOK listy mediów, nie w niej. Lista jest ogłaszana jako
+              „FigureFame w mediach społecznościowych", a czat nie jest naszym
+              kontem nigdzie — wrzucony do środka kłamałby czytnikowi ekranu.
+              Wygląda jak sąsiedzi, ale to `button`: element bez adresu nie może
+              udawać odnośnika. Okno czatu stoi w App.jsx. */}
+          <button
+            type="button"
+            className="footer-czat"
+            onClick={() => window.dispatchEvent(new Event('open-chat'))}
+            aria-label="Zapytaj o figurki"
+            title="Zapytaj o figurki"
           >
-            {konta.map(({ klucz, nazwa, url, d, gotowe }) => {
-              const znak = (
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d={d} />
-                </svg>
-              );
-              return (
-                <li key={klucz}>
-                  {gotowe ? (
-                    // `data-social` niesie klucz platformy do CSS — stąd bierze się
-                    // kolor marki na najechanie (patrz index.css, sekcja stopki).
-                    <a href={url} target="_blank" rel="noopener noreferrer" data-social={klucz} aria-label={`FigureFame na ${nazwa}`}>
-                      {znak}
-                    </a>
-                  ) : (
-                    <span className="social-podglad" title={`${nazwa} — konto jeszcze nie założone`} aria-hidden="true">
-                      {znak}
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
+            <MessageCircle size={17} aria-hidden="true" />
+          </button>
+
+          {konta.length > 0 && (
+            <ul
+              className="footer-social"
+              aria-label={maPrawdziwe ? 'FigureFame w mediach społecznościowych' : undefined}
+              aria-hidden={maPrawdziwe ? undefined : 'true'}
+            >
+              {konta.map(({ klucz, nazwa, url, d, gotowe }) => {
+                const znak = (
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d={d} />
+                  </svg>
+                );
+                return (
+                  <li key={klucz}>
+                    {gotowe ? (
+                      // `data-social` niesie klucz platformy do CSS — stąd bierze się
+                      // kolor marki na najechanie (patrz index.css, sekcja stopki).
+                      <a href={url} target="_blank" rel="noopener noreferrer" data-social={klucz} aria-label={`FigureFame na ${nazwa}`}>
+                        {znak}
+                      </a>
+                    ) : (
+                      <span className="social-podglad" title={`${nazwa} — konto jeszcze nie założone`} aria-hidden="true">
+                        {znak}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       </div>
 
       <hr className="footer-linia" />

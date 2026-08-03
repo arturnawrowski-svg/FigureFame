@@ -17,9 +17,11 @@ import { MessageCircle, Send, X, Loader2, Trash2 } from 'lucide-react';
 // to notatnik na tym urządzeniu, a nie dane konta. Nie trzeba być zalogowanym,
 // nie trzeba nic kasować przy usuwaniu konta.
 //
-// Wzorzec prezentacji (pływający przycisk + otwieranie zdarzeniem) przejęty
-// z Impresji. Sam mechanizm odpowiedzi jest inny: tam czat dopasowuje słowa
-// kluczowe do lokalnych danych, tutaj odpowiada AI na podstawie katalogu.
+// Wzorzec otwierania zdarzeniem przejęty z Impresji. Sam mechanizm odpowiedzi
+// jest inny: tam czat dopasowuje słowa kluczowe do lokalnych danych, tutaj
+// odpowiada AI na podstawie katalogu.
+//
+// Pływającego przycisku w rogu tu NIE MA — patrz komentarz przy `return`.
 // ============================================================================
 
 const KLUCZ = 'ff_chat';
@@ -105,19 +107,11 @@ export default function ChatKatalogu() {
 
   return (
     <>
-      {/* Pływający przycisk. Chowa się, gdy okno jest otwarte — inaczej
-          zasłaniałby własne okno w prawym dolnym rogu. */}
-      {!otwarty && (
-        <button
-          className="chat-plywajacy"
-          onClick={() => window.dispatchEvent(new Event('open-chat'))}
-          aria-label="Otwórz czat o figurkach"
-          title="Zapytaj o figurki z naszej bazy"
-        >
-          <MessageCircle size={24} />
-        </button>
-      )}
-
+      {/* Własnego przycisku ten komponent NIE MA — i to jest celowe.
+          Pływające kółko w rogu było czwartym wejściem do tej samej rozmowy
+          obok nagłówka, stopki i karty figurki, a przy tym jedynym elementem
+          serwisu leżącym na treści. Zostały wejścia, które stoją w układzie
+          strony; wszystkie wołają to samo zdarzenie `open-chat`. */}
       {otwarty && (
         <div className="chat-okno" role="dialog" aria-label="Czat o figurkach">
           <header className="chat-belka">

@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { User, Info, Plus, Sun, Moon, ShieldAlert, MessageCircle } from 'lucide-react'
+import { User, Plus, Sun, Moon, ShieldAlert, MessageCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useTranslation, LOCALES } from '../lib/i18n'
@@ -64,8 +64,11 @@ export default function Navbar() {
 
           {/* `state.tlo` otwiera stronę jako okno nad bieżącym widokiem,
               bez opuszczania Gabloty. Wejście wprost na /o-aplikacji dalej działa. */}
+          {/* Bez znaku ⓘ — „O aplikacji" ma wyglądać dokładnie tak samo jak
+              ta sama pozycja w stopce, a tam jest samym napisem w pigułce.
+              Znak przy napisie robił z przycisku tabliczkę informacyjną. */}
           <Link to="/o-aplikacji" state={{ tlo: location }} className="nav-btn" style={{ textDecoration: 'none' }}>
-            <Info size={18} /> {t('nav.about')}
+            {t('nav.about')}
           </Link>
         </div>
 
@@ -97,8 +100,8 @@ export default function Navbar() {
           <button
             className="nav-btn nav-btn-ikona"
             onClick={() => window.dispatchEvent(new Event('open-chat'))}
-            aria-label="Zapytaj o figurki z naszej bazy"
-            title="Zapytaj o figurki z naszej bazy"
+            aria-label="Zapytaj o figurki"
+            title="Zapytaj o figurki"
           >
             <MessageCircle size={18} />
           </button>
