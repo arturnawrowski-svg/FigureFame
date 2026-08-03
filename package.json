@@ -18,6 +18,7 @@
     "lookup-worker": "node worker/lookupWorker.mjs",
     "lookup-worker:watch": "node worker/lookupWorker.mjs --watch",
     "adresy": "node worker/nadajAdresy.mjs",
+    "audyt-bazy": "node worker/audytBazy.mjs",
     "zdjecia": "node worker/naprawZdjecia.mjs",
     "kopia": "node worker/kopiaZapasowa.mjs"
   },

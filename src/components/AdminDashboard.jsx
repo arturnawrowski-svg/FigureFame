@@ -8,7 +8,8 @@ import ImageUploader from './ImageUploader';
 import ImageStudio from './ImageStudio';
 import { PRESETS, ACCENTS, MUSIC_TRACKS, RESOLUTIONS, LANGS, defaultShortOptions, QUEUE_MAX, BUFFER_WARN } from '../lib/shortOptions';
 import { generateGlowColor } from '../lib/glowColor';
-import { streamLookup, mergeLookupIntoForm, czegoBrakuje } from '../lib/figureLookup';
+import { streamLookup, mergeLookupIntoForm } from '../lib/figureLookup';
+import { czegoBrakuje, podsumujUwagi } from '../lib/kompletnosc';
 import { authFetch } from '../lib/authFetch';
 import { zapiszZTozsamoscia } from '../lib/nadajTozsamosc';
 import { tylkoKolumny } from '../lib/kolumnyFigurki';
@@ -45,6 +46,44 @@ const FieldMark = memo(function FieldMark({ src }) {
       }}
     >
       {catalog ? '✅' : '⚠️'}
+    </span>
+  );
+});
+
+// ============================================================================
+// Stan danych figurki przy jej nazwie na liście.
+//
+// Liczy to DOKŁADNIE ta sama funkcja, którą odpowiada `npm run audyt-bazy`
+// (src/lib/kompletnosc.js). Gdyby panel miał własną — a miał, przez trzy różne
+// miejsca w kodzie — moderator widziałby „gotowe" tam, gdzie audyt widzi braki,
+// i nie dałoby się rozstrzygnąć, które z nich kłamie.
+//
+// Poza komponentem panelu z tego samego powodu co `FieldMark` wyżej.
+// ============================================================================
+const PlakietkaStanu = memo(function PlakietkaStanu({ fig }) {
+  const braki = czegoBrakuje(fig);
+  const { bledy } = podsumujUwagi(fig);
+  if (braki.length === 0 && bledy.length === 0) {
+    return (
+      <span title="Komplet danych, żadnych usterek" style={{ fontSize: '0.78rem', color: '#2ed573', border: '1px solid #2ed573', borderRadius: '999px', padding: '1px 8px', whiteSpace: 'nowrap' }}>
+        ✔ bez zarzutu
+      </span>
+    );
+  }
+  return (
+    <span style={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap' }}>
+      {braki.length > 0 && (
+        <span title={`Brakuje: ${braki.join(', ')}`}
+          style={{ fontSize: '0.78rem', color: '#ffa502', border: '1px solid #ffa502', borderRadius: '999px', padding: '1px 8px', cursor: 'help', whiteSpace: 'nowrap' }}>
+          brakuje: {braki.join(', ')}
+        </span>
+      )}
+      {bledy.length > 0 && (
+        <span title={bledy.map((u) => u.opis).join('\n')}
+          style={{ fontSize: '0.78rem', color: '#ff6b81', border: '1px solid #ff6b81', borderRadius: '999px', padding: '1px 8px', cursor: 'help', whiteSpace: 'nowrap' }}>
+          ■ {bledy.length} {bledy.length === 1 ? 'błąd' : 'błędy'}
+        </span>
+      )}
     </span>
   );
 });
@@ -1007,7 +1046,10 @@ export default function AdminDashboard() {
                 padding: '1.5rem',
               }}>
                 <div>
-                  <h3 style={{ margin: '0 0 0.5rem 0' }}>{fig.name}</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', margin: '0 0 0.5rem 0' }}>
+                    <h3 style={{ margin: 0 }}>{fig.name}</h3>
+                    <PlakietkaStanu fig={fig} />
+                  </div>
                   <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>
                     <strong>ID Zgłaszającego:</strong> <span style={{ fontFamily: 'monospace' }}>{fig.submitted_by}</span><br />
                     <strong>Data dodania:</strong> {new Date(fig.created_at).toLocaleString()}

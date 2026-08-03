@@ -79,35 +79,14 @@ export async function streamLookup(name, series, onProgress, opts = {}) {
 // ----------------------------------------------------------------------------
 // Jedno kliknięcie ma dowieźć komplet, a nie „coś". Dlatego szukanie nie kończy
 // się po pierwszej odpowiedzi, tylko dopiero wtedy, gdy komplet jest na stole
-// albo skończy się czas. Ta lista mówi, czego pilnujemy.
+// albo skończy się czas.
 //
-// Zdjęcie liczy się WYŁĄCZNIE wtedy, gdy leży w naszym magazynie. Adres
-// z cudzego serwera właściciel może odciąć w dowolnej chwili, a wtedy Gablota
-// pokazuje dziurę — dlatego api/fetch-figure.js i tak takie pole czyści.
+// ⚠️ Definicja kompletu NIE MIESZKA już tutaj — jest w `kompletnosc.js`, bo
+// o to samo pyta panel i `npm run audyt-bazy`. Trzy kopie tej reguły znaczyły
+// trzy różne odpowiedzi na jedno pytanie; ta jest przepustką dalej, żeby stary
+// import (`from './figureLookup'`) nie musiał się zmieniać.
 // ============================================================================
-const KOMPLET = [
-  ['japanese_name', 'nazwa japońska'],
-  ['manufacturer', 'producent'],
-  ['scale', 'skala'],
-  ['official_image_url', 'zdjęcie'],
-];
-
-/** Czego jeszcze brakuje do kompletu — nazwami do pokazania moderatorowi. */
-export function czegoBrakuje(dane) {
-  if (!dane) return KOMPLET.map(([, etykieta]) => etykieta);
-  return KOMPLET.filter(([pole]) => {
-    const v = dane[pole];
-    if (!v || String(v).trim() === '') return true;
-    // Zdjęcie spoza naszego magazynu to brak zdjęcia.
-    if (pole === 'official_image_url') return !String(v).includes('supabase.co');
-    return false;
-  }).map(([, etykieta]) => etykieta);
-}
-
-/** Czy można przestać szukać. */
-export function jestPewny(dane) {
-  return czegoBrakuje(dane).length === 0;
-}
+export { czegoBrakuje, jestPewny } from './kompletnosc';
 
 // Pola, przy których cicha podmiana boli najbardziej — bo wyglądają na
 // zweryfikowane, a decydują o tożsamości figurki.

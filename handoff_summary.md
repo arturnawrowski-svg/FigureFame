@@ -107,9 +107,16 @@ adres z cudzego serwera. Egzekwowane w [fetch-figure.js](api/fetch-figure.js) �
 Powód nie jest teoretyczny: Kotobukiya skasowało zdjęcie Leviego, zanim je ściągnęliśmy.
 Adres zwraca 301 na stronę główną.
 
-Wszystkie 24 figurki trzymają dziś zdjęcia u nas, w webp, 0,4 MB łącznie (limit darmowego
-Supabase: 1 GB ≈ 68 000 figurek). Wąskim gardłem będzie **transfer 5 GB/mies.**, nie miejsce —
-wtedy Cloudflare przed Supabase, nie GDrive.
+**Zmierzone 03.08 (`npm run audyt-bazy`), bo poprzednie zdanie tutaj było nieprawdą
+(„wszystkie 24 figurki trzymają zdjęcia u nas"):** w naszym magazynie leży **10** zdjęć na
+26 figurek. Osiem wierszy wskazuje na pliki z zasiewu w `/public/images`, **dwa (Taihou) na
+plik `taihou_figure`, którego NIE MA nigdzie** — Gablota pokazuje tam dziurę i nie mówi
+o tym słowa. Sześć jest puste. Limit darmowego Supabase to 1 GB ≈ 68 000 figurek, więc
+wąskim gardłem będzie **transfer 5 GB/mies.**, nie miejsce — wtedy Cloudflare przed
+Supabase, nie GDrive.
+
+> Wniosek ogólniejszy: liczba w dokumencie starzeje się bez ostrzeżenia. Dlatego stan
+> zdjęć podaje dziś polecenie, a nie akapit.
 
 **Podpis praw:** [prawaDoZdjecia.js](src/lib/prawaDoZdjecia.js) — to, co wpisał moderator →
 producent figurki. Puste pole NIE zostawia zdjęcia bez podpisu. Piszemy **„Fot.", nie „©"** —
@@ -176,6 +183,7 @@ z `simple-icons` — **nie wolno ich odrysowywać z pamięci**.
 
 | polecenie | co robi |
 |---|---|
+| `audyt-bazy` | mierzy braki i usterki w bazie; **niczego nie zapisuje**. `-- --json`, `-- --wszystko` |
 | `adresy` | nadaje slug / kod / identity_key; `-- --zapisz` wykonuje |
 | `zdjecia` | ściąga do nas zdjęcia z cudzych serwerów; `-- --zapisz` wykonuje |
 | `kopia` | ZIP do `kopie/` **oraz** na Dysk Google; `-- --bez-dysku` pomija Dysk |
@@ -491,3 +499,58 @@ dwie różne rzeczy. **Niedokończone**: przy nieudanym pobraniu warto ponowić 
   w filmie), zrywamy powiązanie z osobą i zdejmujemy zdjęcie.
 
 > Plan całości naprawy bazy: `C:\Users\artur\.claude\plans\o-ile-d-wygl-da-buzzing-kazoo.md`
+
+---
+
+## 16. Kolejność naprawy bazy — sześć szczebli (03.08)
+
+Ustalona po odpytaniu **żywej** bazy, nie po przeczytaniu dokumentów. Szczeble są ułożone
+zależnościami: każdy jest warunkiem następnego i nie da się ich przestawić.
+
+| szczebel | zakres | stan |
+|---|---|---|
+| **A** | **Miernik.** Jedna definicja kompletu w kodzie + `npm run audyt-bazy` + testy alfabetu i magazynu | **zrobione 03.08** |
+| **B** | **Zakręcić wloty śmiecia.** `provenance` do bazy, normalizacja przy zapisie, panel pokazuje rozbieżność KAŻDEGO pola | w toku |
+| **C** | **Rozdzielić postać od produktu na danych.** Przebieg naprawczy, najpierw bez `--zapisz` | — |
+| **D** | **Dociągnąć komplet.** Nazwy japońskie, zdjęcia, podpisy praw | — |
+| **E** | **Twarde reguły w bazie.** `CHECK`/`NOT NULL` na tym, co posprzątane; duplikaty; kopia bazy | — |
+| **F** | **Co widzi użytkownik.** Kumulowanie wyszukiwania, strona postaci, czat, wydajność panelu | — |
+
+**Dlaczego B przed C**, choć C wygląda pilniej: przebieg naprawczy bez `provenance` jest ślepy.
+Nie wie, czego nie wolno ruszyć, więc albo nadpisze prawdę zgadywaniem, albo utrwali zmyślenia
+AI jako fakty — czyli zrobi dokładnie odwrotność celu.
+
+**Poza tą kolejką** (nie prowadzą do perfekcyjnej bazy, nie wpychać ich między szczeble):
+`SKIP LOCKED` w kolejkach — dopiero przed drugą stacją Studia; ramka „O aplikacji"; pula
+scenariuszy; sprzątanie zależności.
+
+## 17. Miernik kompletu (03.08, wieczór)
+
+**„Komplet danych" jest od teraz regułą w kodzie, nie wrażeniem.** Definicja stoi w jednym
+pliku — [src/lib/kompletnosc.js](src/lib/kompletnosc.js) — i odpowiada z niej naraz przycisk
+„Zleć FigureFame szukanie danych", plakietka przy nazwie figurki w panelu oraz
+`npm run audyt-bazy`. Wcześniej to samo pytanie miało trzy różne odpowiedzi w trzech
+miejscach, a bazy nie dało się o to zapytać wcale.
+
+> ⚠️ **Ten plik nie ma importów i mieć nie może.** Czytają go naraz przeglądarka i Node.
+> Jeden import `authFetch`, `supabase` albo `node:fs` odcina jedną ze stron — i definicje
+> znów się rozjadą, tylko już po cichu. Sprawdzenie istnienia pliku na dysku siedzi
+> dlatego w [worker/audytBazy.mjs](worker/audytBazy.mjs), nie w regule.
+
+Dwie warstwy, celowo rozdzielone: **braki** (czego nie ma — to kończy szukanie, więc każde
+dodane pole wydłuża pracę przy każdej figurce) i **usterki** (co jest, ale jest złe — tego
+szukanie nie naprawi, to materiał dla przebiegu naprawczego).
+
+Co się zmieniło w zachowaniu: **`japanese_name` wypełnione łacinką to od teraz BRAK.**
+Sześć wierszy miało tam `Taihou`, `Miku Expo 2025` — pole wypełnione, wartość nieprawdziwa,
+zero sygnału. Przy takiej figurce szukanie będzie teraz pracować dalej, zamiast kończyć się
+„komplet".
+
+Sprawdzenie „czy zdjęcie jest u nas" rozbiera adres na host i ścieżkę. Dawne
+`includes('supabase.co')` — w siedmiu miejscach w kodzie — przepuszczało
+`https://cudzy.example/?x=supabase.co`, a nie widziało pliku w `/_work/`, czyli zdjęcia
+przed finalizacją.
+
+**Punkt odniesienia z 03.08** (`npm run audyt-bazy`, bez archiwum, 17 figurek):
+`0 bez zarzutu · 10 braków · 27 błędów`. Kod wyjścia 1 znaczy „są błędy w wierszach, nad
+którymi pracujemy" — archiwum nie blokuje, bo część usterek jest tam zamierzona.
