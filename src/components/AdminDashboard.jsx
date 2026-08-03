@@ -11,6 +11,7 @@ import { generateGlowColor } from '../lib/glowColor';
 import { streamLookup, mergeLookupIntoForm, czegoBrakuje } from '../lib/figureLookup';
 import { authFetch } from '../lib/authFetch';
 import { zapiszZTozsamoscia } from '../lib/nadajTozsamosc';
+import { tylkoKolumny } from '../lib/kolumnyFigurki';
 
 // Każda zmiana `video_status` niesie ze sobą czas zmiany. To nie statystyka:
 // stan 'rendering' pełni rolę blokady, a worker/renderQueue.mjs zwalnia blokady
@@ -586,9 +587,12 @@ export default function AdminDashboard() {
         }
       }
 
+      // Ta sama bramka co przy „Zapisz Edycję": do bazy idzie tylko to, co ma
+      // kolumnę. Przy edycji `updates` niesie CAŁY formularz, więc jedno pole
+      // z katalogu bez własnej kolumny zablokowałoby dodanie do Gabloty.
       const { error } = await supabase
         .from('figures')
-        .update(updates)
+        .update(tylkoKolumny(updates))
         .eq('id', id);
 
       if (error) throw error;
@@ -617,10 +621,13 @@ export default function AdminDashboard() {
       // bywa wypalony w opublikowanym filmie. Rozstrzyga to tozsamoscDlaZapisu.
       const obecna = figures.find((f) => f.id === id) || {};
 
+      // ⚠️ Do bazy idzie WYŁĄCZNIE to, co ma swoją kolumnę. Katalogi dorzucają
+      // do formularza pola, których u nas nie ma (np. `product_url` z MFC),
+      // a jedno takie pole wywala CAŁY zapis komunikatem o „schema cache".
       const { error } = await zapiszZTozsamoscia(
         (tozsamosc) => supabase
           .from('figures')
-          .update({ ...dataToSave, ...tozsamosc })
+          .update(tylkoKolumny({ ...dataToSave, ...tozsamosc }))
           .eq('id', id),
         dataToSave,
         obecna

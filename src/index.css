@@ -1283,6 +1283,65 @@ body.light-mode .app-footer {
    barwami swoich platform dopiero pod kursorem (sekcja niżej). */
 .footer-czat {
   color: var(--color-accent);
+  position: relative;
+}
+
+/* --------------------------------------------------------------------------
+   TĘTNIĄCY ZNAK CZATU
+   --------------------------------------------------------------------------
+   Wzorzec z Impresji: dwa rozchodzące się pierścienie z przesunięciem w czasie.
+   Tam robi to framer-motion; tutaj wystarczy CSS, bo to czysta dekoracja —
+   nie ma po co ciągnąć biblioteki animacji dla jednego znaku w stopce.
+
+   Pierścienie siedzą w `::before`/`::after`, więc nie dokładają ani jednego
+   elementu do drzewa strony. `pointer-events: none` pilnuje, żeby rosnący
+   pierścień nie przechwytywał kliknięć obok przycisku.
+
+   Animujemy WYŁĄCZNIE `transform` i `opacity` — obie przeglądarka liczy na
+   karcie graficznej, bez przerysowywania układu. To nie jest drobiazg:
+   animacja chodzi bez przerwy, więc każdy inny sposób kosztowałby prąd
+   i płynność przez cały czas, gdy stopka jest na ekranie.
+   -------------------------------------------------------------------------- */
+.footer-czat::before,
+.footer-czat::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid currentColor;
+  pointer-events: none;
+  animation: czat-fala 3s ease-out infinite;
+}
+
+/* Druga fala w połowie cyklu — stąd wrażenie ciągłego tętnienia zamiast
+   pojedynczego mrugnięcia. */
+.footer-czat::after {
+  animation-delay: 1.5s;
+}
+
+@keyframes czat-fala {
+  0%   { transform: scale(1);   opacity: 0.5; }
+  70%  { opacity: 0; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+
+/* Pod kursorem tętnienie ustaje — zaproszenie spełniło już swoje zadanie,
+   a ruch pod palcem przeszkadza w trafieniu w przycisk. */
+.footer-czat:hover::before,
+.footer-czat:hover::after {
+  animation: none;
+  opacity: 0;
+}
+
+/* ⚠️ Ruch bez przerwy bywa realnym problemem zdrowotnym — zawroty głowy,
+   migrena, zaburzenia przedsionkowe. Kto poprosił system o ograniczenie
+   animacji, dostaje sam znak, bez fal (WCAG 2.3.3). */
+@media (prefers-reduced-motion: reduce) {
+  .footer-czat::before,
+  .footer-czat::after {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 /* --------------------------------------------------------------------------
