@@ -82,7 +82,10 @@ function resolveImage(officialUrl) {
 
 async function fetchQueued(supabase) {
   const { data, error } = await supabase
-    .from("figures")
+    // Widok, nie tabela: nazwa japońska mieszka od 04.08 w `characters`,
+    // a short ją wypala w obrazie. Film raz opublikowany zostaje w sieci
+    // na zawsze — brakującej nazwy nie da się już do niego dopisać.
+    .from("figures_full")
     .select("*")
     .eq("video_status", "queued")
     .order("id", { ascending: true })
@@ -181,7 +184,7 @@ function storageNameFromUrl(url) {
 async function publishApproved(supabase) {
   if (!driveConfigured()) return 0;
   const { data, error } = await supabase
-    .from("figures")
+    .from("figures_full")
     .select("*")
     .eq("video_status", "approved_for_publish")
     .limit(QUEUE_MAX);

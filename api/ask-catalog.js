@@ -27,8 +27,13 @@ const ILE_FIGUREK = 8;   // ile rekordów wchodzi do promptu
 // „nie mam nic w bazie" — wygląda to na głupotę modelu, a jest literówką.
 // Kolumna nazywa się `market_value`, nie `market_value_average` (ta druga to
 // nazwa pola w lookup_cache, co łatwo pomylić).
+//
+// Czytamy WIDOK `figures_full`, nie tabelę: po rozdzieleniu postaci od produktu
+// nazwa japońska i seria mieszkają w `characters`. Asystent czytający samą
+// tabelę twierdziłby, że nie znamy żadnej japońskiej nazwy.
 const KOLUMNY =
-  "slug, name, japanese_name, series, manufacturer, scale, type, " +
+  "slug, name, japanese_name, series, manufacturer, scale, type, version, " +
+  "character_id, character_name, character_japanese_name, " +
   "original_price, market_value, additional_info, where_to_search, strategy, bootleg_risk";
 
 // Słowa, które nic nie wnoszą do wyszukiwania. Krótka lista — nie chodzi
@@ -70,7 +75,7 @@ async function znajdzFigurki(supabase, pytanie, figureId) {
 
   if (figureId) {
     const [f] = await zapytaj("figurka z karty", supabase
-      .from("figures").select(KOLUMNY)
+      .from("figures_full").select(KOLUMNY)
       .eq("id", figureId).eq("status", "APPROVED").limit(1));
     if (f) wybrane.push(f);
   }
@@ -81,7 +86,7 @@ async function znajdzFigurki(supabase, pytanie, figureId) {
       .flatMap((s) => [`name.ilike.%${s}%`, `series.ilike.%${s}%`, `manufacturer.ilike.%${s}%`])
       .join(",");
     const trafione = await zapytaj("szukanie po słowach", supabase
-      .from("figures").select(KOLUMNY)
+      .from("figures_full").select(KOLUMNY)
       .eq("status", "APPROVED").or(warunek).limit(ILE_FIGUREK));
     for (const f of trafione) {
       if (!wybrane.some((x) => x.slug === f.slug)) wybrane.push(f);
@@ -92,7 +97,7 @@ async function znajdzFigurki(supabase, pytanie, figureId) {
   // powiedzieć, co w ogóle mamy, zamiast milczeć albo zmyślać.
   if (wybrane.length === 0) {
     const przekroj = await zapytaj("przekrój katalogu", supabase
-      .from("figures").select(KOLUMNY)
+      .from("figures_full").select(KOLUMNY)
       .eq("status", "APPROVED")
       .order("created_at", { ascending: false })
       .limit(ILE_FIGUREK));
@@ -107,29 +112,75 @@ async function znajdzFigurki(supabase, pytanie, figureId) {
 // gorszy niż brak linku: pisał „oto link do figurki" i nie podawał żadnego.
 const ADRES = (process.env.SITE_URL || "https://figurefame.com").replace(/\/+$/, "");
 
+// ============================================================================
+// POSTAĆ RAZ, POD NIĄ LISTA PRODUKTÓW.
+// ----------------------------------------------------------------------------
+// Wcześniej do promptu szła płaska lista figurek, więc przy pięciu wersjach
+// Hatsune Miku nazwa postaci, japońska nazwa i seria powtarzały się pięć razy.
+// Prompt puchł od powtórzeń, a limit ośmiu rekordów wyczerpywał się na jednej
+// postaci — reszta katalogu w ogóle do modelu nie docierała.
+//
 // Do promptu wchodzi GOTOWY adres, a nie sam slug. Składanie adresu to zadanie
 // dla kodu, nie dla modelu — model potrafi się w tym pomylić, a błędny link
 // jest gorszy od żadnego, bo prowadzi na stronę „nie znaleziono".
-function zAdresem(figurka) {
-  const { slug, ...reszta } = figurka;
-  return { ...reszta, link: slug ? `${ADRES}/f/${slug}` : null };
+// ============================================================================
+function pogrupuj(figurki) {
+  const wg = new Map();
+  for (const f of figurki) {
+    // Figurka bez podpiętej postaci nie może zniknąć — dostaje własną grupę.
+    const klucz = f.character_id || `bez-postaci:${f.name}`;
+    if (!wg.has(klucz)) {
+      wg.set(klucz, {
+        postac: f.character_name || f.name,
+        nazwa_japonska: f.character_japanese_name || null,
+        seria: f.series || null,
+        wydania: [],
+      });
+    }
+    wg.get(klucz).wydania.push({
+      wersja: f.version || null,
+      producent: f.manufacturer || null,
+      skala: f.scale || null,
+      typ: f.type || null,
+      cena_pierwotna: f.original_price || null,
+      wartosc_rynkowa: f.market_value || null,
+      ryzyko_podrobki: f.bootleg_risk || null,
+      opis: f.additional_info || null,
+      gdzie_szukac: f.where_to_search || null,
+      strategia: f.strategy || null,
+      link: f.slug ? `${ADRES}/f/${f.slug}` : null,
+    });
+  }
+  return [...wg.values()];
 }
 
-function budujPrompt(figurki, trafienie, pytanie, historia) {
+function budujPrompt(figurki, trafienie, pytanie, historia, ileWKatalogu) {
   const hist = Array.isArray(historia) && historia.length
     ? "\nWcześniejsza rozmowa:\n" + historia.slice(-6)
         .map((m) => `${m.role === "user" ? "Użytkownik" : "Asystent"}: ${m.content}`).join("\n")
     : "";
 
+  const grupy = pogrupuj(figurki);
   const katalog = figurki.length
-    ? JSON.stringify(figurki.map(zAdresem), null, 2)
+    ? JSON.stringify(grupy, null, 2)
     : "(katalog jest na razie pusty)";
+
+  // Bez tego zdania model bierze wycinek za całość i odpowiada „mamy osiem
+  // figurek", choć w Gablocie stoi ich znacznie więcej. Liczba pochodzi
+  // z bazy, więc nie ma tu czego zmyślać.
+  const ile = Number.isFinite(ileWKatalogu)
+    ? `W całej Gablocie mamy ${ileWKatalogu} figurek. Poniżej ${figurki.length} z nich, dobranych pod to pytanie — NIE mów, że mamy tylko tyle.`
+    : "";
 
   return `Jesteś asystentem kolekcjonera na portalu FigureFame — polskiej bazie japońskich
 figurek kolekcjonerskich. Odpowiadasz PO POLSKU, rzeczowo i zwięźle.
 
-Poniżej wycinek NASZEGO katalogu, dobrany pod to pytanie. To jedyne figurki,
-o których wiesz na pewno:
+${ile}
+
+Poniżej wycinek NASZEGO katalogu, dobrany pod to pytanie. Dane są ułożone
+POSTACIAMI: każda postać ma swoją nazwę japońską i serię, a pod nią listę
+„wydania" — czyli konkretnych figurek tej postaci od różnych producentów.
+To jedyne figurki, o których wiesz na pewno:
 ${katalog}
 
 ${trafienie
@@ -137,7 +188,7 @@ ${trafienie
   : "UWAGA: żadna figurka w naszym katalogu nie pasuje do pytania. Powyżej jest tylko przekrój tego, co mamy."}
 
 Zasady — trzymaj się ich bezwzględnie:
-- KAŻDA figurka powyżej ma pole "link". Gdy o niej mówisz, PODAJ ten adres
+- KAŻDE wydanie powyżej ma pole "link". Gdy o nim mówisz, PODAJ ten adres
   w całości, dokładnie tak, jak stoi w danych. Nie skracaj go, nie zmieniaj
   i NIE WYMYŚLAJ własnych adresów. Gdy ktoś prosi o odnośnik — wklej "link".
 - Nigdy nie pisz „oto link", nie podając adresu. Jeśli figurka ma "link": null,
@@ -183,7 +234,13 @@ export default async function handler(req, res) {
     const supabase = getSupabaseAdmin();
     const { figurki, trafienie } = await znajdzFigurki(supabase, q, figureId);
 
-    const { text, provider } = await callAI(budujPrompt(figurki, trafienie, q, history));
+    // Ile figurek stoi w Gablocie NAPRAWDĘ. Sam licznik, bez pobierania danych.
+    const { count: wKatalogu } = await supabase
+      .from("figures")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "APPROVED");
+
+    const { text, provider } = await callAI(budujPrompt(figurki, trafienie, q, history, wKatalogu));
     return res.status(200).json({
       answer: text.trim(),
       provider,

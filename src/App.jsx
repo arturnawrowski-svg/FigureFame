@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import { lazy, Suspense } from 'react'
 import Showcase from './components/Showcase'
 import Dossier from './components/Dossier'
+import StronaPostaci from './components/StronaPostaci'
 import Navbar from './components/Navbar'
 import ParticleHero from './components/AnimatedHero'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -87,6 +88,10 @@ function App() {
             {/* Stara postać adresu. Filmy i linki wypuszczone wcześniej muszą
                 działać dalej, więc nie kasujemy jej — przekierowujemy. */}
             <Route path="/dossier/:key" element={<Dossier />} />
+            {/* Strona POSTACI — wszystkie jej figurki naraz. Karta pojedynczego
+                produktu nie wygra frazy „Super Sonico figurka", bo mówi o jednym
+                wydaniu; ta strona mówi o wszystkich. Adres po polsku, jak reszta. */}
+            <Route path="/postac/:slug" element={<StronaPostaci />} />
             {/* Dodawanie figurek wymaga potwierdzonego adresu. Logowanie przez
                 Google/Discorda/X spełnia ten warunek od razu — dostawca już go
                 sprawdził. Bramka dotyczy realnie tylko rejestracji hasłem. */}

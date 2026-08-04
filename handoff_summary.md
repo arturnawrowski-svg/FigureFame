@@ -858,4 +858,70 @@ Kopia z 04.08 leży w `kopie/` **i na Dysku Google**: 26 figurek, 17 postaci, 5 
 | **D5** | Super Sonico w Gablocie trzyma zdjęcie z zasiewu (`sonico_figure`) zamiast pliku w magazynie. Katalog zdjęcia nie dał |
 | **D6** | Asuka: Alter czy Good Smile — jedno kliknięcie w MFC (link wyżej). **Odłożone decyzją Artura** |
 | **D8** | Zdjęcia Sakury i Asuki. Katalog ich nie dał, bo trafiał w inne produkty — trzeba podać numer pozycji MFC albo dodać zdjęcie ręcznie |
-| **F** | To, co widzi odwiedzający: kumulowanie wyników wyszukiwania, strona postaci, poprawka czatu, kafelki w Gablocie |
+| **F** | **zrobione 04.08** — patrz sekcja 25 |
+
+## 25. Etap F — to, co widzi odwiedzający (04.08)
+
+### ⚠️ Najpierw: cicha usterka, która już siedziała na produkcji
+
+Po rozdzieleniu postaci od produktu (szczebel C) nazwa japońska wyprowadziła się do
+tabeli `characters`, a **Gablota, karta figurki, czat, opis dla wyszukiwarek i kolejka
+shortów dalej czytały samą tabelę `figures`**. Nic się nie wywalało — po prostu nazwy
+japońskie zniknęły z ekranu, a wyszukiwanie po 初音ミク przestało cokolwiek znajdować.
+
+Najgroźniejszy z tej piątki był **renderer shortów**: film raz opublikowany zostaje
+w sieci na zawsze, więc brakującej nazwy nie dałoby się już do niego dopisać.
+
+Wszystkie pięć czyta teraz widok `figures_full`. **Reguła na przyszłość: cokolwiek
+POKAZUJE dane człowiekowi, czyta widok. Tabelę `figures` czyta tylko to, co do niej PISZE**
+(panel moderatora, skrypty naprawcze).
+
+### Wyniki wyszukiwania kumulują się pod postacią
+
+Wpisanie „miku" dawało pięć niemal identycznych kafelków. Teraz jeden wiersz:
+**„Hatsune Miku · 初音ミク · 5 figurek"**, rozwijany kliknięciem, z przyciskiem na stronę
+postaci. Grupa jednoelementowa jest rozwinięta od razu — nie ma czego zwijać.
+
+Liczenie i odmiana siedzą w [src/lib/grupujPostaci.js](src/lib/grupujPostaci.js) i mają
+testy, bo **w żywej bazie każda zatwierdzona postać ma dziś po jednej figurce** — klikanie
+po stronie nie sprawdziłoby ani grupowania, ani odmiany przy pięciu. Odmiana jest polska,
+nie angielska: naiwne „mniej niż pięć to figurki" daje „22 figurek".
+
+### Strona postaci — `/postac/super-sonico`
+
+Nowa tabela dostała kolumnę `slug` (migracja `adresy_postaci`), a wyzwalacz dopisuje go
+sam przy każdej nowej postaci — nie ma czego zapomnieć. Strona pokazuje nazwę, nazwę
+japońską, serię, licznik i kafelki figurek; ustawia własny tytuł i opis dla wyszukiwarek.
+Trafia też do `sitemap.xml` z priorytetem **wyższym niż pojedyncza figurka** — i tylko
+wtedy, gdy postać ma co pokazać. Postać z samymi zgłoszeniami PENDING dałaby pustą stronę,
+a taka szkodzi w wynikach wyszukiwania.
+
+### Kafelek nie powtarza nazwy postaci
+
+Karta figurki jest teraz jedna, wspólna ([KartaFigurki.jsx](src/components/KartaFigurki.jsx)).
+Tam, gdzie nazwa postaci stoi już w nagłówku (strona postaci, rozwinięta grupa), kafelek
+pokazuje to, co figurki ODRÓŻNIA: wersję, producenta i skalę. W Gablocie zostaje pełna nazwa.
+
+### Czat: postać raz, pod nią wydania
+
+Do promptu szła płaska lista, więc przy pięciu wersjach Miku nazwa postaci, japońska nazwa
+i seria powtarzały się pięć razy — a limit ośmiu rekordów wyczerpywał się na jednej postaci.
+Teraz dane są ułożone postaciami, a prompt dostaje **prawdziwą liczbę figurek w Gablocie**,
+więc asystent nie odpowiada już „mamy osiem".
+
+### Nowe narzędzie: `node scripts/sprawdz-odczyt-goscia.mjs`
+
+Pyta bazę **kluczem publicznym**, czyli tak jak przeglądarka gościa. Powód: wszystkie nasze
+skrypty chodzą kluczem `service_role`, który OMIJA reguły dostępu — zapytanie działające
+w audycie może zwracać zero wierszy odwiedzającemu, a wtedy Gablota jest pusta i nikt się
+o tym nie dowie. Sprawdza też granicę moderacji (czy gość nie widzi PENDING).
+
+> Brakowało uprawnień: widok `figures_full` i tabela `characters` nie były czytelne dla
+> gościa. Bez tego sprawdzenia cała ta sekcja wdrożyłaby się jako **pusta strona**.
+
+### Sprawdzone
+
+143 testy, `npm run build`, sonda Playwright na uruchomionej stronie (strona postaci
+i wyszukiwanie — zero błędów w konsoli), odczyt gościa, komplet kolumn czatu.
+**Niesprawdzone na żywych danych: grupowanie przy więcej niż jednej figurce postaci** —
+w Gablocie nie ma dziś takiej postaci. Pokrywają to testy.

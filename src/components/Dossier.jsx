@@ -31,7 +31,10 @@ export default function Dossier() {
         //   • czytelny adres      /f/izumi-konata-clayz-1-8   (opisy pod filmami, Google)
         //   • krótki kod          /f/7K2M                     (wypalony w obrazie shorta)
         //   • identyfikator       /dossier/39acbb1a-...       (linki sprzed zmiany)
-        let query = supabase.from('figures').select('*');
+        // Widok, nie tabela: po rozdzieleniu postaci od produktu nazwa japońska
+        // i seria mieszkają w `characters`. Karta czytająca samą tabelę
+        // pokazywałaby figurkę bez nazwy japońskiej, nie mówiąc o tym ani słowem.
+        let query = supabase.from('figures_full').select('*');
         if (UUID.test(key)) query = query.eq('id', key);
         else if (looksLikeShortCode(key)) query = query.eq('short_code', key.toUpperCase());
         else query = query.eq('slug', key);

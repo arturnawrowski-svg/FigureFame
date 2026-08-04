@@ -1,15 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
-import { getImageUrl } from '../lib/getImageUrl';
-import { generateGlowColor } from '../lib/glowColor';
-import { prawaDoZdjecia } from '../lib/prawaDoZdjecia';
-
-// Stały adres figurki — ten sam, który trafia pod filmy na TikToka i YouTube'a.
-// Czytelny, gdy już nadany; inaczej krótki kod, a w ostateczności identyfikator
-// techniczny, żeby świeżo dodana pozycja też dała się otworzyć.
-const figurePath = (fig) => `/f/${fig.slug || fig.short_code || fig.id}`;
+import KartaFigurki from './KartaFigurki';
+import { grupujPoPostaci, ileFigurek } from '../lib/grupujPostaci';
 
 // Samo przewijanie ma sens tylko tam, gdzie jest myszka i kursor może je
 // zatrzymać najechaniem. Na telefonie i tablecie to zbędna praca dla procesora:
@@ -46,8 +40,10 @@ export default function Showcase() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [figures, setFigures] = useState([]);
+  const [postacie, setPostacie] = useState({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [rozwiniete, setRozwiniete] = useState({});
   const sliderRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
   const marqueeAllowed = useMarqueeAllowed();
@@ -62,49 +58,42 @@ export default function Showcase() {
     track.scrollBy({ left: direction * step, behavior: 'smooth' });
   };
 
-  // Usunięto ciężką pętlę requestAnimationFrame, animacja odbywa się przez CSS
-
   useEffect(() => {
     async function fetchFigures() {
       try {
+        // ⚠️ Czytamy WIDOK `figures_full`, nie tabelę `figures`.
+        //
+        // Po rozdzieleniu postaci od produktu nazwa japońska i seria mieszkają
+        // w tabeli `characters`, a w `figures` są puste. Gablota czytająca samą
+        // tabelę pokazywałaby figurki bez nazw japońskich, a wyszukiwanie po
+        // 初音ミク przestałoby cokolwiek znajdować — bez jednego błędu na ekranie.
+        // Widok składa jedno i drugie i podaje nazwę już złożoną z postaci
+        // i wersji („Levi: Fortitude Ver.").
+        //
         // Pobieramy WYŁĄCZNIE to, co karta rysuje albo czego szuka wyszukiwarka.
-        // Wcześniej szło tu `select('*')`, czyli razem z całą encyklopedią
-        // (opis, gdzie szukać, strategia zakupowa, wartość rynkowa) — dla każdej
-        // figurki naraz, po czym wszystko to lądowało w koszu, bo karta tego nie
-        // pokazuje, a dossier i tak dociąga swoje dane osobno. Przy kilku
-        // figurkach to niewidoczne; przy pięciuset to megabajty tekstu na każde
-        // wejście na stronę główną — i to z darmowego limitu transferu.
-        const KOLUMNY = 'id, slug, short_code, name, japanese_name, series, japanese_series, manufacturer, original_price, official_image_url, light_class';
-        const pobierz = (kolumny) => supabase
-          .from('figures')
-          .select(kolumny)
-          .eq('status', 'APPROVED')
-          .order('created_at', { ascending: true });
+        // Przy pięciuset figurkach `select('*')` to megabajty encyklopedii na
+        // każde wejście na stronę — z darmowego limitu transferu.
+        const KOLUMNY =
+          'id, slug, short_code, name, japanese_name, series, japanese_series, ' +
+          'manufacturer, scale, version, original_price, official_image_url, ' +
+          'light_class, image_credit, character_id, character_name';
 
-        // `image_credit` dochodzi migracją (migracje-prawa-do-zdjec.sql), a
-        // wdrożenie potrafi ją wyprzedzić. Przy braku kolumny cały SELECT
-        // zwróciłby błąd i Gablota byłaby PUSTA — więc schodzimy na wersję bez
-        // niej. Podpis i tak się pojawi, bo domyślnie bierze producenta.
-        let { data, error } = await pobierz(`${KOLUMNY}, image_credit`);
-        if (error && /does not exist|column/i.test(error.message || '')) {
-          ({ data, error } = await pobierz(KOLUMNY));
-        }
+        const [wynikFigurek, wynikPostaci] = await Promise.all([
+          supabase.from('figures_full').select(KOLUMNY)
+            .eq('status', 'APPROVED')
+            .order('created_at', { ascending: true }),
+          // Adresy postaci — potrzebne, żeby z wyniku wyszukiwania dało się
+          // przejść na stronę postaci. Tabela jest mała (jeden wiersz na postać),
+          // więc to tani dodatek do jednego zapytania.
+          supabase.from('characters').select('id, slug, name, japanese_name, series'),
+        ]);
 
-        if (error) throw error;
+        if (wynikFigurek.error) throw wynikFigurek.error;
 
-        if (data && data.length > 0) {
-          const mappedData = data.map(fig => {
-            return {
-              ...fig,
-              japaneseName: fig.japanese_name,
-              japaneseSeries: fig.japanese_series,
-              originalPrice: fig.original_price,
-              image: getImageUrl(fig.official_image_url),
-              lightClass: fig.light_class
-            };
-          });
-          setFigures(mappedData);
-        }
+        const mapaPostaci = {};
+        for (const p of wynikPostaci.data || []) mapaPostaci[p.id] = p;
+        setPostacie(mapaPostaci);
+        setFigures(wynikFigurek.data || []);
       } catch (err) {
         // Świadomie NIE podstawiamy tu danych zastępczych — patrz komentarz
         // nad komponentem. Puste miejsce jest uczciwe, wymyślone dane nie.
@@ -123,8 +112,21 @@ export default function Showcase() {
   // Obejmuje też nazwy japońskie, bo kolekcjonerzy szukają po 初音ミク.
   const q = searchTerm.trim().toLowerCase();
   const filteredFigures = !q ? figures : figures.filter(fig =>
-    [fig.name, fig.series, fig.japaneseName, fig.japaneseSeries, fig.manufacturer]
+    [fig.name, fig.character_name, fig.series, fig.japanese_name, fig.japanese_series, fig.manufacturer, fig.version]
       .some(field => String(field || '').toLowerCase().includes(q))
+  );
+
+  // ==========================================================================
+  // WYNIKI KUMULUJĄ SIĘ POD POSTACIĄ.
+  // --------------------------------------------------------------------------
+  // Bez tego wpisanie „Miku" wyrzucało pięć niemal identycznych kafelków, na
+  // których różnicę widać dopiero po producencie i skali. Teraz odpowiedź brzmi
+  // „Hatsune Miku — 5 figurek" i dopiero po rozwinięciu widać, czym się różnią.
+  // Grupa jednoelementowa jest rozwinięta od razu — nie ma czego zwijać.
+  // ==========================================================================
+  const grupy = useMemo(
+    () => grupujPoPostaci(filteredFigures, postacie),
+    [filteredFigures, postacie]
   );
 
   // Karuzela w pętli wymaga dwóch kopii listy — ale tylko wtedy, gdy naprawdę
@@ -136,13 +138,15 @@ export default function Showcase() {
     [marqueeMode, filteredFigures]
   );
 
+  const przelacz = (klucz) => setRozwiniete((p) => ({ ...p, [klucz]: !p[klucz] }));
+
   return (
     <div className="showcase-container animate-fade-in">
       <div className="search-bar-wrapper">
         <Search className="search-icon" size={20} />
-        <input 
-          type="text" 
-          placeholder="Wyszukaj po nazwie, serii lub tagach..." 
+        <input
+          type="text"
+          placeholder="Wyszukaj po nazwie, serii lub tagach..."
           className="search-input"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -157,10 +161,66 @@ export default function Showcase() {
         <div className="no-results">
           <p>Nie udało się teraz połączyć z naszą bazą. Odśwież stronę za chwilę.</p>
         </div>
+      ) : q ? (
+        // ---------------------------------------------------------------
+        // TRYB WYSZUKIWANIA — wyniki zebrane pod postaciami.
+        // ---------------------------------------------------------------
+        <div className="wyniki-postaci">
+          {grupy.length === 0 ? (
+            <div className="no-results">
+              <p>Nie znaleziono figurek pasujących do „{searchTerm}".</p>
+            </div>
+          ) : (
+            grupy.map((g) => {
+              const ile = g.figurki.length;
+              const otwarta = ile === 1 || rozwiniete[g.klucz];
+              return (
+                <div key={g.klucz} className="grupa-postaci">
+                  <div className="grupa-naglowek">
+                    <button
+                      type="button"
+                      className="grupa-tytul"
+                      onClick={() => ile > 1 && przelacz(g.klucz)}
+                      aria-expanded={otwarta}
+                      style={{ cursor: ile > 1 ? 'pointer' : 'default' }}
+                    >
+                      <strong>{g.nazwa}</strong>
+                      {g.postac?.japanese_name && (
+                        <span className="grupa-jp">{g.postac.japanese_name}</span>
+                      )}
+                      <span className="grupa-licznik">{ileFigurek(ile)}</span>
+                      {ile > 1 && (otwarta ? <ChevronUp size={18} /> : <ChevronDown size={18} />)}
+                    </button>
+
+                    {g.postac?.slug && (
+                      <button
+                        type="button"
+                        className="btn-secondary grupa-link"
+                        onClick={() => navigate(`/postac/${g.postac.slug}`)}
+                      >
+                        Strona postaci
+                      </button>
+                    )}
+                  </div>
+
+                  {otwarta && (
+                    <div className="showcase-track-static">
+                      {g.figurki.map((fig) => (
+                        // Nazwa postaci stoi już w nagłówku grupy — kafelek
+                        // pokazuje to, co figurki od siebie ODRÓŻNIA.
+                        <KartaFigurki key={fig.id} fig={fig} pokazPostac={false} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
       ) : (
-        <div 
-          className="showcase-wrapper" 
-          onMouseEnter={() => setIsHovered(true)} 
+        <div
+          className="showcase-wrapper"
+          onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
           {/* Strzałki są zawsze — na dotyku to jedyny pewny sposób przewijania
@@ -174,51 +234,12 @@ export default function Showcase() {
           <div className={marqueeMode ? 'showcase-viewport' : 'showcase-grid'} ref={sliderRef}>
             <div className={marqueeMode ? `showcase-track ${isHovered ? 'paused' : ''}` : 'showcase-track-static'}>
               {visibleFigures.map((fig, index) => (
-                // Cała karta jest odnośnikiem. Wcześniej jedyne wejście w figurkę
-                // prowadziło przez panel wysuwany na :hover — czyli na telefonie
-                // nie dało się otworzyć żadnej figurki.
-                <div
-                  key={`${fig.id}-${index}`}
-                  className="figure-card"
-                  role="link"
-                  tabIndex={0}
-                  onClick={() => navigate(figurePath(fig))}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(figurePath(fig)); } }}
-                  aria-label={`Szczegóły i oferty: ${fig.name}`}
-                >
-                  <div className="figure-name-badge">{fig.name}</div>
-                  <div className={`ambient-light ${fig.lightClass || ''}`} style={!fig.lightClass ? { background: generateGlowColor(fig.name) } : {}}></div>
-                  <div className="figure-image-container">
-                    <img
-                      src={fig.image?.startsWith('http') || /\.(png|jpe?g|webp|avif)$/i.test(fig.image || '') ? fig.image : `${fig.image}.png`}
-                      alt={fig.name}
-                      loading="lazy"
-                      decoding="async"
-                      width="320"
-                      height="500"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
-                    />
-                    {/* Podpis praw wprost na zdjęciu — musi jechać razem z nim,
-                        także gdy ktoś zrobi zrzut ekranu karty. */}
-                    {prawaDoZdjecia(fig) && (
-                      <span className="podpis-praw">{prawaDoZdjecia(fig)}</span>
-                    )}
-                  </div>
-                  <div className="hover-panel">
-                    <div className="market-value">
-                      <span>Najlepsza oferta:</span>
-                      <strong>~ {fig.originalPrice ? (fig.originalPrice.replace('¥', '').trim() + (fig.originalPrice.includes('JPY') ? '' : ' JPY')) : 'Brak danych'}</strong>
-                    </div>
-                    <span className="btn-primary" style={{ width: '100%', marginTop: '1rem', justifyContent: 'center' }}>
-                      Szczegóły i Oferty <ArrowRight size={16} />
-                    </span>
-                  </div>
-                </div>
+                <KartaFigurki key={`${fig.id}-${index}`} fig={fig} />
               ))}
             </div>
             {filteredFigures.length === 0 && (
               <div className="no-results">
-                <p>Nie znaleziono figurek pasujących do "{searchTerm}".</p>
+                <p>Gablota jest na razie pusta.</p>
               </div>
             )}
           </div>

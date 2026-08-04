@@ -15,6 +15,7 @@ export default async function handler(req, res) {
   const base = (process.env.SITE_URL || "https://figurefame.com").replace(/\/+$/, "");
   try {
     let sciezki = [];
+    let postacie = [];
     try {
       const supabase = getSupabase();
       // Kolumny adresowe dochodzą dopiero z migracją; do tego czasu zgłaszamy
@@ -30,6 +31,24 @@ export default async function handler(req, res) {
       // identyfikatory techniczne (/dossier/<uuid>) — nieczytelne dla człowieka
       // i bezwartościowe dla wyszukiwarki.
       sciezki = (data || []).map((f) => f.slug || f.short_code || f.id);
+
+      // Strony postaci. To one mają szansę na frazę „Super Sonico figurka" —
+      // strona nieobecna w mapie jest dla wyszukiwarki stroną, której nie ma.
+      //
+      // Zgłaszamy tylko postacie, które mają CO POKAZAĆ: przynajmniej jedną
+      // figurkę w Gablocie. Postać z samymi zgłoszeniami czekającymi na
+      // moderację dałaby pustą stronę, a taka szkodzi w wynikach wyszukiwania.
+      const { data: widoczne } = await supabase
+        .from("figures_full")
+        .select("character_id")
+        .eq("status", "APPROVED");
+      const zFigurkami = new Set((widoczne || []).map((f) => f.character_id).filter(Boolean));
+      if (zFigurkami.size > 0) {
+        const { data: post } = await supabase.from("characters").select("id, slug");
+        postacie = (post || [])
+          .filter((p) => p.slug && zFigurkami.has(p.id))
+          .map((p) => p.slug);
+      }
     } catch (_e) {
       // Gdy baza nieosiągalna — sam URL główny (sitemap nadal poprawny).
     }
@@ -39,6 +58,9 @@ export default async function handler(req, res) {
       { loc: `${base}/o-aplikacji`, priority: "0.4", changefreq: "monthly" },
       { loc: `${base}/faq`, priority: "0.5", changefreq: "monthly" },
       ...sciezki.map((p) => ({ loc: `${base}/f/${p}`, priority: "0.8", changefreq: "weekly" })),
+      // Wyżej niż pojedyncza figurka: strona postaci zbiera wszystkie jej
+      // wydania, więc dla wyszukiwarki jest bogatsza i bardziej stabilna.
+      ...postacie.map((s) => ({ loc: `${base}/postac/${s}`, priority: "0.9", changefreq: "weekly" })),
     ];
 
     const xml =

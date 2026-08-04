@@ -75,7 +75,9 @@ export default async function handler(req, res) {
       // — stare linki działają dalej, zamiast oddawać robotowi błąd.
       const BAZOWE = "id, name, japanese_name, series, manufacturer, scale, official_image_url, market_value";
       const szukaj = async (kolumny, kolumnaKlucza) => {
-        let q = supabase.from("figures").select(kolumny).eq("status", "APPROVED");
+        // Widok, nie tabela — nazwa japońska mieszka od 04.08 w `characters`,
+        // a to ona trafia w opis dla wyszukiwarek i w podgląd linku.
+        let q = supabase.from("figures_full").select(kolumny).eq("status", "APPROVED");
         q = kolumnaKlucza === "id" ? q.eq("id", key)
           : kolumnaKlucza === "short_code" ? q.eq("short_code", key.toUpperCase())
           : q.eq("slug", key);
