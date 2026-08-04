@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Tag, Building2, Ruler, HelpCircle, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Tag, Building2, Ruler, HelpCircle, MessageCircle, Users } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { getImageUrl } from '../lib/getImageUrl';
 import { prawaDoZdjecia } from '../lib/prawaDoZdjecia';
@@ -22,10 +22,15 @@ export default function Dossier() {
   const navigate = useNavigate();
   const location = useLocation();
   const [figure, setFigure] = useState(null);
+  // Postać, do której należy ta figurka — po to, żeby dało się z niej przejść
+  // na „wszystkie figurki tej postaci". Bez tego odnośnika strona postaci
+  // istnieje, ale nikt z serwisu na nią nie trafia.
+  const [postac, setPostac] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchFigure() {
+      setPostac(null); // ślad po poprzedniej figurce nie może zostać
       try {
         // Jeden adres, trzy sposoby trafienia w figurkę:
         //   • czytelny adres      /f/izumi-konata-clayz-1-8   (opisy pod filmami, Google)
@@ -63,6 +68,18 @@ export default function Dossier() {
           whereToSearch: Array.isArray(data.where_to_search) ? data.where_to_search : (data.where_to_search ? String(data.where_to_search).split('\n') : []),
           strategy: Array.isArray(data.strategy) ? data.strategy : (data.strategy ? String(data.strategy).split('\n') : [])
         });
+
+        // Adres postaci dociągamy osobno — widok podaje jej nazwę, ale nie
+        // adres. To jedno małe zapytanie na wiersz, wykonywane tylko wtedy,
+        // gdy figurka jest już podpięta do postaci.
+        if (data.character_id) {
+          const { data: p } = await supabase
+            .from('characters')
+            .select('slug, name')
+            .eq('id', data.character_id)
+            .maybeSingle();
+          if (p?.slug) setPostac(p);
+        }
       } catch (err) {
         console.warn('Nie udało się pobrać figurki z bazy.', err);
         setFigure(null);
@@ -122,6 +139,22 @@ export default function Dossier() {
             <h2>{figure.name} <span className="japanese-text" style={{ opacity: 0.7, fontSize: '0.8em' }}>({figure.japaneseName})</span></h2>
             <div className="dossier-tags">
               <span className="tag"><Tag size={12}/> {figure.series} {figure.japaneseSeries && <span className="japanese-text" style={{opacity: 0.8}}>({figure.japaneseSeries})</span>}</span>
+              {/* Przejście do wszystkich figurek tej postaci. Bez tego odnośnika
+                  strona postaci istnieje, ale nikt z serwisu na nią nie trafia —
+                  a to ona ma szansę na frazę „Super Sonico figurka" w Google. */}
+              {postac?.slug && (
+                <span
+                  className="tag"
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => navigate(`/postac/${postac.slug}`)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/postac/${postac.slug}`); } }}
+                  style={{ cursor: 'pointer' }}
+                  title={`Wszystkie figurki: ${postac.name}`}
+                >
+                  <Users size={12} /> Wszystkie figurki: {postac.name}
+                </span>
+              )}
             </div>
           </div>
 

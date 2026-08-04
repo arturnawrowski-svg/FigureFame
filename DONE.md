@@ -1,7 +1,13 @@
 # FigureFame — co już zrobione
 
-> Stan na **29.07.2026**. Zasady projektu → [ZALOZENIA.md](ZALOZENIA.md).
+> Stan na **04.08.2026**. Zasady projektu → [ZALOZENIA.md](ZALOZENIA.md).
 > Co jeszcze przed nami → [TODO.md](TODO.md) i [FUTURE.md](FUTURE.md).
+>
+> **Naprawa bazy (szczeble A–F, 03–04.08)** jest opisana osobno, w
+> [handoff_summary.md](handoff_summary.md) sekcje 16–25 — tam stoi nie tylko co zrobiono,
+> ale też czego NIE wolno teraz zepsuć. W skrócie: postać oddzielona od produktu
+> (17 postaci na 26 figurek), zero błędów w bazie, komplet nazw japońskich, miernik
+> `npm run audyt-bazy`, baza pilnuje sama siebie, strony postaci pod SEO.
 >
 > Przy każdej pozycji jest **dlaczego tak, a nie inaczej** — bo za pół roku samo „zrobione"
 > nikomu nic nie powie, a decyzje zwykle miały powód.
@@ -10,9 +16,20 @@
 
 ## 1. Silnik danych
 
-- **Baza Supabase** — `figures`, `profiles`, `price_snapshots`, `lookup_cache`, `lookup_queue`,
-  `studio_status`. Migracje leżą w repo (wcześniej reguła `*.sql` w `.gitignore` trzymała
-  schemat **poza** kontrolą wersji — to był błąd, bo schemat bazy jest częścią kodu).
+- **Baza Supabase** — `figures`, **`characters`**, `profiles`, `price_snapshots`, `lookup_cache`,
+  `lookup_queue`, `studio_status`, widok `figures_full`. Migracje leżą w repo (wcześniej reguła
+  `*.sql` w `.gitignore` trzymała schemat **poza** kontrolą wersji — to był błąd, bo schemat
+  bazy jest częścią kodu).
+- **Postać oddzielona od produktu** (04.08) — `characters` trzyma nazwę japońską i serię,
+  `figures` producenta, skalę i wersję; widok `figures_full` łączy je z powrotem.
+  *Dlaczego:* wcześniej wszystko wisiało na nazwie figurki, więc każda wersja tej samej
+  postaci nadpisywała pozostałym japońską nazwę, a pobierać trzeba ją było od nowa
+  dla każdej z osobna.
+- **Baza pilnuje sama siebie** (`migracje-pilnowanie-danych.sql`) — wyzwalacze sprzątają
+  białe znaki i puste napisy, ograniczenia odmawiają zapisu zdjęcia z cudzego serwera,
+  nieznanego statusu i „nazwy japońskiej" napisanej łacinką.
+  *Dlaczego:* reguł pilnował dotąd wyłącznie kod przeglądarki, a do bazy prowadzą jeszcze
+  trzy inne drogi (skrypty, panel Supabase, klucz `service_role`).
 - **Kolejka moderacji** `PENDING → APPROVED → ARCHIVED`.
 - **Drabina źródeł** ([server-lib/figureSources.js](server-lib/figureSources.js)) — katalogi
   figurek i strony producentów, AI dopiero na końcu i wyłącznie na braki.

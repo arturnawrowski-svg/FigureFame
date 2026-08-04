@@ -35,7 +35,14 @@ Odwrotna kolejność to promowanie pustej strony.
 
 **Warunek wejścia:** premiera za nami.
 
-Dziś: **24 figurki**. To za mało, żeby ktokolwiek został na stronie.
+Dziś: **26 figurek w bazie, 5 w Gablocie** (reszta czeka na moderację albo leży w archiwum),
+zebranych w **17 postaci**. To wciąż za mało, żeby ktokolwiek został na stronie.
+
+> **Od 04.08 dokładanie figurek jest tańsze.** Druga figurka postaci, którą już znamy,
+> dostaje nazwę japońską i serię ZA DARMO — te fakty należą do postaci, nie do produktu
+> (patrz [ZALOZENIA.md](ZALOZENIA.md) pkt 0). Dobieranie **kompletnych serii jednej postaci**
+> przestało więc być tylko pomysłem redakcyjnym: to najtańszy sposób powiększania bazy
+> i od razu daje mocniejszą stronę postaci pod wyszukiwarki.
 
 - Cel bliski: **100 figurek**, tempo ~10 tygodniowo (proces jest gotowy, to kwestia wieczorów)
 - Cel dalszy: **300–500**, wtedy baza zaczyna bronić się w wyszukiwarce

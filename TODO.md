@@ -1,7 +1,22 @@
 # FigureFame — co do zrobienia
 
-> **Aktualizacja: 29.07.2026.** Kolejność od najbardziej krytycznego w dół.
+> **Aktualizacja: 04.08.2026.** Kolejność od najbardziej krytycznego w dół.
 > Zasady → [ZALOZENIA.md](ZALOZENIA.md) · Zrobione → [DONE.md](DONE.md) · Dalej → [FUTURE.md](FUTURE.md)
+>
+> **Naprawa bazy zamknięta (szczeble A–F, 03–04.08).** Zero błędów w bazie, 14 z 17
+> widocznych figurek kompletnych, komplet nazw japońskich. Szczegóły i pułapki:
+> [handoff_summary.md](handoff_summary.md) sekcje 16–25.
+>
+> **Co z tego zostało dla człowieka, nie dla kodu:**
+>
+> - [ ] trzy zdjęcia do dograna ręcznie: **Kinomoto Sakura**, **Shikinami Asuka**,
+>       **Super Sonico** (ta ostatnia pokazuje plik z zasiewu zamiast pliku z magazynu).
+>       Katalog ich nie dał, bo trafiał w inne produkty tej samej postaci
+> - [ ] **Asuka Jersey Ver.: Alter czy Good Smile?** — katalog oddał 惣流 (Asuka z serialu),
+>       a nasza figurka to 式波 (z filmów „Rebuild"). Trafił w inną figurkę, więc nie
+>       rozstrzygnął. Jedno sprawdzenie w MyFigureCollection
+> - [ ] **„Usuń tło" w Studiu zdjęcia** nadal nie działa u Artura, przyczyna nieustalona.
+>       Nie blokuje niczego innego — to obróbka zdjęcia, które już mamy
 >
 > Lista powstała z przeglądu **wszystkich** dokumentów projektu i trzech audytów z zewnątrz.
 > Każda pozycja została sprawdzona w kodzie albo na żywej bazie — to, co się nie potwierdziło,
@@ -130,11 +145,10 @@ paczki startowej — „5,5 MB w bundlu" z audytu jest nieprawdą.*
 ### 7. Drobne decyzje
 
 - [ ] **Facebook** — logowanie działa, brak przycisku. Dodać czy wyłączyć?
-- [ ] **4 duplikaty figurek** w Archiwum — skasować albo scalić
-- [ ] **Rozbieżność „Asuka Jersey Ver."** — baza mówi Alter, a wszystkie dziewięć modeli AI
-      zgodnie mówi Good Smile. Któreś jest w błędzie; sprawdzić w katalogu
-- [ ] **9 figurek w Archiwum bez zgłaszającego** — pochodzą z zasiewu (`scripts/insert_base_figures.cjs`
-      wpisuje `submitted_by: null`), nie po kasowaniu kont. Przypisać moderatorowi albo zostawić
+- [x] **4 duplikaty figurek** w Archiwum — decyzja z 04.08: **zostają**. Indeks unikalności
+      obejmuje tylko `APPROVED` i `PENDING`, więc archiwum ich nie przepuszcza dalej
+- [ ] **Rozbieżność „Asuka Jersey Ver."** — patrz blok na górze tego pliku
+- [x] **9 figurek w Archiwum bez zgłaszającego** — przypisane administratorowi (04.08)
 
 ---
 
@@ -160,8 +174,11 @@ paczki startowej — „5,5 MB w bundlu" z audytu jest nieprawdą.*
 - [ ] **Testy dla `figureSources.js` i `aiClient.js`** — to rdzeń logiki, dziś bez pokrycia
 - [ ] **Zapasowe klucze scraperów** (ScrapingBee, Scrapfly) — wklejenie i gotowe
 - [ ] **„Live Check" ofert** przed przekierowaniem (ochrona przed martwymi linkami)
-- [ ] **Kopia bazy z produkcji**, nie tylko plików projektu (`npm run kopia` robi ZIP repo;
-      dane figurek żyją w Supabase)
+- [x] ~~**Kopia bazy z produkcji**~~ — **to twierdzenie było nieprawdziwe.** `npm run kopia`
+      od początku kopiuje bazę (`figures`, `profiles`) i wszystkie zdjęcia z magazynu,
+      nie tylko pliki projektu. 04.08 doszła tabela `characters` (bez niej kopia oddawałaby
+      figurki bez nazw japońskich) oraz czytelna nazwa pliku
+      `FigureFame_backup_ROK-MM-DD_GGMM.zip`. Kopia leci też na Dysk Google
 - [ ] **Monitoring transferu Supabase** — 5 GB/mies. to prawdziwy sufit darmowego tieru
 
 ---

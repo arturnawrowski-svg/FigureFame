@@ -1,8 +1,33 @@
 # FigureFame — założenia projektu
 
-> Stan na **29.07.2026**. To jest punkt wejścia: czym ten projekt jest, na czym stoi
+> Stan na **04.08.2026**. To jest punkt wejścia: czym ten projekt jest, na czym stoi
 > i jakich zasad nie wolno złamać. Co już zrobione → [DONE.md](DONE.md).
 > Co do zrobienia → [TODO.md](TODO.md). Co dalej → [FUTURE.md](FUTURE.md).
+> Jak to stoi technicznie → [handoff_summary.md](handoff_summary.md).
+
+---
+
+## 0. Cztery zasady o DANYCH (04.08.2026)
+
+Dopisane po naprawie bazy. Każda kosztowała cały dzień szukania i każda wraca, gdy się ją złamie.
+
+**Postać to nie produkt.** „Super Sonico" to postać; jej figurek jest kilkanaście — różni
+producenci, skale, wersje. Fakty o postaci (nazwa japońska, seria) ustala się RAZ w tabeli
+`characters`; fakty o produkcie (producent, skala, zdjęcie) siedzą przy figurce. Zlanie tych
+dwóch rzeczy w jedno było źródłem prawie wszystkich objawów w bazie.
+
+**O prawdziwości wartości decyduje jej POCHODZENIE, nie wygląd.** `泉 こなた` ma odstęp
+w środku i wygląda podejrzanie, a jest poprawne — bo przyszło z katalogu.
+`ハルモニアハミング レム` wygląda tak samo, a jest błędne. Kolumna `provenance` mówi, komu
+wierzyć; reguła oparta na kształcie jest dobra tylko dla danych, o których nie wiemy nic.
+
+**Puste pole jest lepsze niż wartość nieprawdziwa.** Pole wypełnione łacińskim „Taihou"
+w rubryce „nazwa japońska" wygląda na komplet i nie daje żadnego sygnału. Puste mówi
+uczciwie „nie wiemy" i trafia na listę do uzupełnienia.
+
+**Co POKAZUJE dane człowiekowi, czyta widok `figures_full`. Tabelę `figures` czyta tylko
+to, co do niej PISZE.** Złamanie tej zasady raz już zdjęło ze strony wszystkie nazwy
+japońskie — bez jednego błędu na ekranie.
 
 ---
 
