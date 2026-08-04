@@ -137,7 +137,10 @@ Kod czeka gotowy — to najkrótsza droga do pierwszego przychodu.
 
 Sprawdzone: **żadna z tych trzech nie jest importowana w kodzie.**
 
-- [ ] `npm remove framer-motion tailwind-merge clsx`
+- [x] `npm remove framer-motion tailwind-merge clsx` — zrobione 04.08, zniknęło 5 paczek.
+      Przed usunięciem sprawdzone: jedyne wzmianki o `framer-motion` w kodzie to dwa
+      komentarze w `index.css` opisujące, że animacje robimy CSS-em **zamiast** biblioteki.
+      Paczka startowa nie zmieniła rozmiaru ani o bajt — i tak tam nie wchodziły
 
 *Uwaga: to porządek w `package.json`, nie wydajność. Nieużywana zależność nie trafia do
 paczki startowej — „5,5 MB w bundlu" z audytu jest nieprawdą.*
