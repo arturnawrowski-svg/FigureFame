@@ -1,10 +1,53 @@
 # FigureFame — stan techniczny i pułapki
 
-> **01.08.2026.** Ten plik jest instrukcją obsługi tego, co już stoi: gdzie co jest wpięte,
+> **04.08.2026.** Ten plik jest instrukcją obsługi tego, co już stoi: gdzie co jest wpięte,
 > którym poleceniem się to uruchamia i o co można się boleśnie potknąć.
 >
 > Czym jest projekt i jakich zasad nie łamiemy → [ZALOZENIA.md](ZALOZENIA.md)
 > Co zrobione → [DONE.md](DONE.md) · Co do zrobienia → [TODO.md](TODO.md) · Co dalej → [FUTURE.md](FUTURE.md)
+
+---
+
+# START TUTAJ (nowa sesja czatu)
+
+**Stan na 04.08.2026, po zamknięciu naprawy bazy.**
+
+| | |
+|---|---|
+| figurek w bazie | 26 (5 w Gablocie, 12 do moderacji, 9 w archiwum) |
+| postaci | 17 |
+| błędów w bazie | **0** (`npm run audyt-bazy` kończy się kodem 0) |
+| figurek kompletnych | 14 z 17 poza archiwum |
+| kopia zapasowa | jest, z postaciami, lokalnie i na Dysku Google |
+| strona | **za hasłem** (`archi` / `Klara2026`), niewidoczna dla wyszukiwarek |
+
+**Pięć rzeczy, których nie wolno złamać** (rozwinięcie → [ZALOZENIA.md](ZALOZENIA.md) pkt 0):
+
+1. Postać to nie produkt. Nazwa japońska i seria należą do postaci, reszta do figurki.
+2. O prawdziwości wartości decyduje jej **pochodzenie**, nie wygląd.
+3. Puste pole jest lepsze niż wartość nieprawdziwa.
+4. Co **pokazuje** dane człowiekowi — czyta widok `figures_full`. Tabelę `figures` czyta
+   tylko to, co do niej **pisze**.
+5. Adres figurki (`/f/…`) raz nadany **nie zmienia się nigdy** — bywa wypalony
+   w opublikowanym filmie.
+
+**Zanim zaczniesz cokolwiek robić z danymi:**
+
+```
+npm run audyt-bazy                    → co jest zepsute i czego brakuje
+node scripts/sprawdz-odczyt-goscia.mjs → czy gość widzi to, co ma widzieć
+```
+
+**Co czeka i na kogo:** lista dla człowieka jest na górze [TODO.md](TODO.md) (trzy zdjęcia,
+Asuka, „Usuń tło"). Następny duży krok to **premiera** — punkt 3 w TODO, i to też decyzje
+Artura, nie kodu.
+
+> ⚠️ **Dwie rzeczy, o które ten projekt już się wywrócił.** Zmiany dotykające nagłówków,
+> logowania albo przekierowań sprawdzaj przez `https://figurefame.com`, nie tylko przez
+> `npm run dev` — na produkcji stoi jeszcze Basic Auth (sekcja 3). A po każdej zmianie
+> w `server-lib/` albo `worker/` **zrestartuj Studio** (sekcja 14).
+
+---
 
 ---
 
@@ -185,6 +228,8 @@ z `simple-icons` — **nie wolno ich odrysowywać z pamięci**.
 |---|---|
 | `audyt-bazy` | mierzy braki i usterki w bazie; **niczego nie zapisuje**. `-- --json`, `-- --wszystko` |
 | `postacie` | rozdziela postać od produktu; domyślnie **podgląd**, `-- --zapisz` wykonuje |
+| `node scripts/sprawdz-odczyt-goscia.mjs` | pyta bazę **kluczem publicznym** — czy gość widzi Gablotę i czy NIE widzi zgłoszeń PENDING |
+| `node scripts/sonda-postaci.mjs http://localhost:5199` | sonda Playwright: strona postaci i zwinięte wyniki wyszukiwania na uruchomionej aplikacji |
 | `adresy` | nadaje slug / kod / identity_key; `-- --zapisz` wykonuje |
 | `zdjecia` | ściąga do nas zdjęcia z cudzych serwerów; `-- --zapisz` wykonuje |
 | `kopia` | ZIP do `kopie/` **oraz** na Dysk Google; `-- --bez-dysku` pomija Dysk |
@@ -478,12 +523,16 @@ dwie różne rzeczy. **Niedokończone**: przy nieudanym pobraniu warto ponowić 
 
 ## 15. Co zostało otwarte (stan na 03.08, wieczór)
 
+> ⚠️ **Ta sekcja jest z 03.08 wieczorem. Cztery z sześciu pozycji zostały zamknięte 04.08** —
+> zostawione, bo pokazują, skąd wzięły się szczeble B–F. Aktualny stan: blok „START TUTAJ"
+> na górze pliku i [TODO.md](TODO.md).
+
 | temat | stan |
 |---|---|
-| Zapis `provenance` do bazy | **niezrobione**. Dziś „potwierdzone przez katalog" żyje tylko w pamięci przeglądarki i ginie po odświeżeniu |
-| Przebieg naprawczy 26 figurek | **niezrobiony**. Ma iść najpierw w trybie PODGLĄDU, bez zapisu |
-| Studio zdjęcia („Usuń tło") | **nie działa u Artura, przyczyna nieustalona.** Testować na figurce PENDING ze zdjęciem w naszym magazynie (np. Guts), nie na APPROVED |
-| `Hitagi Senjougahara` ma `先代萌絵が原` | **zmyślone przez AI**, poprawnie `戦場ヶ原ひたぎ`. Do poprawy przez przebieg naprawczy |
+| Zapis `provenance` do bazy | ✅ **zrobione 04.08** (sekcja 18) |
+| Przebieg naprawczy 26 figurek | ✅ **zrobione 04.08** — `npm run postacie` (sekcja 19) |
+| Studio zdjęcia („Usuń tło") | ⬜ **nadal nie działa u Artura, przyczyna nieustalona.** Testować na figurce PENDING ze zdjęciem w naszym magazynie (np. Guts), nie na APPROVED. **Nie blokuje niczego innego** — to obróbka zdjęcia, które już mamy |
+| `Hitagi Senjougahara` ma `先代萌絵が原` | ✅ **poprawione 04.08** na `戦場ヶ原ひたぎ` (sekcja 21) |
 | Publikacja na społecznościówki | **świadomie NIE automatem.** Artur przenosi ręcznie albo powstanie osobny skrypt. Dysk to archiwum, nie wyrzutnia |
 | Wydajność panelu (`INP 448 ms`) | odłożone. **Najpierw profiler, potem poprawka** — podejrzany `ChatKatalogu` |
 
